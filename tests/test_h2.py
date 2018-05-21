@@ -1,0 +1,110 @@
+import asyncio
+from typing import AsyncGenerator
+
+import h2
+import pytest
+
+from hypercorn.config import Config
+from hypercorn.h2 import H2Server
+from .helpers import HTTPFramework, MockTransport
+
+BASIC_H2_HEADERS = [
+    (':authority', 'hypercorn'), (':path', '/'), (':scheme', 'http'), (':method', 'GET'),
+]
+BASIC_H2_PUSH_HEADERS = [
+    (':authority', 'hypercorn'), (':path', '/push'), (':scheme', 'http'), (':method', 'GET'),
+]
+BASIC_DATA = 'index'
+FLOW_WINDOW_SIZE = 1
+
+
+class MockH2Connection:
+
+    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
+        self.transport = MockTransport()
+        self.server = H2Server(HTTPFramework, event_loop, Config(), self.transport)  # type: ignore
+        self.connection = h2.connection.H2Connection()
+
+    def send_request(self, headers: list, settings: dict) -> int:
+        self.connection.initiate_connection()
+        self.connection.update_settings(settings)
+        self.server.data_received(self.connection.data_to_send())
+        stream_id = self.connection.get_next_available_stream_id()
+        self.connection.send_headers(stream_id, headers, end_stream=True)
+        self.server.data_received(self.connection.data_to_send())
+        return stream_id
+
+    async def get_events(self) -> AsyncGenerator[h2.events.Event, None]:
+        while True:
+            await self.transport.updated.wait()
+            events = self.connection.receive_data(self.transport.data)
+            self.transport.clear()
+            for event in events:
+                if isinstance(event, h2.events.ConnectionTerminated):
+                    self.transport.close()
+                elif isinstance(event, h2.events.DataReceived):
+                    self.connection.acknowledge_received_data(
+                        event.flow_controlled_length, event.stream_id,
+                    )
+                    self.server.data_received(self.connection.data_to_send())
+                yield event
+            if self.transport.closed.is_set():
+                break
+
+
+@pytest.mark.asyncio
+async def test_h2server(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockH2Connection(event_loop)
+    connection.send_request(BASIC_H2_HEADERS, {})
+    response_data = b''
+    async for event in connection.get_events():
+        if isinstance(event, h2.events.ResponseReceived):
+            assert (b':status', b'200') in event.headers
+            assert (b'server', b'hypercorn-h2') in event.headers
+            assert b'date' in (header[0] for header in event.headers)
+        elif isinstance(event, h2.events.DataReceived):
+            response_data += event.data
+        elif isinstance(event, h2.events.StreamEnded):
+            break
+
+
+@pytest.mark.asyncio
+async def test_h2_protocol_error(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockH2Connection(event_loop)
+    connection.server.data_received(b'broken nonsense\r\n\r\n')
+    assert connection.transport.closed.is_set()  # H2 just closes on error
+
+
+@pytest.mark.asyncio
+async def test_h2_flow_control(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockH2Connection(event_loop)
+    connection.send_request(
+        BASIC_H2_HEADERS, {h2.settings.SettingCodes.INITIAL_WINDOW_SIZE: FLOW_WINDOW_SIZE},
+    )
+    response_data = b''
+    async for event in connection.get_events():
+        if isinstance(event, h2.events.DataReceived):
+            assert len(event.data) <= FLOW_WINDOW_SIZE
+            response_data += event.data
+        elif isinstance(event, h2.events.StreamEnded):
+            break
+
+
+@pytest.mark.asyncio
+async def test_h2_push(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockH2Connection(event_loop)
+    connection.send_request(BASIC_H2_PUSH_HEADERS, {})
+    push_received = False
+    streams_received = 0
+    async for event in connection.get_events():
+        if isinstance(event, h2.events.PushedStreamReceived):
+            assert (b':path', b'/') in event.headers
+            assert (b':method', b'GET') in event.headers
+            assert (b':scheme', b'http') in event.headers
+            assert (b':authority', b'hypercorn') in event.headers
+            push_received = True
+        elif isinstance(event, h2.events.StreamEnded):
+            streams_received += 1
+            if streams_received == 2:
+                break
+    assert push_received

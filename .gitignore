@@ -1,0 +1,14 @@
+*~
+venv/
+__pycache__/
+Hypercorn.egg-info/
+.cache/
+.tox/
+TODO
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+docs/_build/
+docs/source/
+
+.coverage
