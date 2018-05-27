@@ -8,6 +8,8 @@ from .config import Config
 from .run import run_single
 from .typing import ASGIFramework
 
+DEFAULT_BIND = '127.0.0.1:5000'
+
 
 class NoAppException(Exception):
     pass
@@ -47,9 +49,58 @@ def main() -> None:
         'application',
         help='The application to dispatch to as path.to.module:instance.path',
     )
+    parser.add_argument(
+        '--access-log',
+        help='The target location for the access log, use `-` for stdout',
+        default=None,
+    )
+    parser.add_argument(
+        '--access-logformat',
+        help='The log format for the access log, see help docs',
+        default="%(h)s %(r)s %(s)s %(b)s %(D)s",
+    )
+    parser.add_argument(
+        '-b',
+        '--bind',
+        dest='binds',
+        help='The host/address to bind to, can be used multiple times',
+        default=[],
+        action='append',
+    )
+    parser.add_argument(
+        '--debug',
+        help='Enable debug mode, i.e. extra logging and checks',
+        action='store_true',
+    )
+    parser.add_argument(
+        '--error-log',
+        help='The target location for the error log, use `-` for stderr',
+        default=None,
+    )
+    parser.add_argument(
+        '--keep-alive',
+        help='Seconds to keep inactive connections alive for',
+        default=10,
+        type=int,
+    )
+    parser.add_argument(
+        '--reload',
+        help='Enable automatic reloads on code changes',
+        action='store_true',
+    )
     args = parser.parse_args()
     application = _load_application(args.application)
     config = Config()
+    config.access_log_format = args.access_logformat
+    config.access_log_target = args.access_log
+    config.debug = args.debug
+    config.error_log_target = args.error_log
+    config.keep_alive_timeout = args.keep_alive
+    config.use_reloader = args.reload
+
+    if len(args.binds) == 0:
+        args.binds.append(DEFAULT_BIND)
+    config.host, config.port = args.binds[0].rsplit(':')
     scheme = 'http' if config.ssl is None else 'https'
     print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
     run_single(application, config)
