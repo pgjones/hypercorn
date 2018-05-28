@@ -166,6 +166,8 @@ class H2Server(HTTPServer):
             )
         except Exception as error:
             self.config.error_logger.exception('Error in ASGI Framework')
+            self.connection.end_stream(stream_id)
+            self.send()
             self.streams[stream_id].close()
         if stream.response is not None:
             self.config.access_logger.info(

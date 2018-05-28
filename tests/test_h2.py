@@ -8,7 +8,7 @@ import pytest
 from hypercorn.config import Config
 from hypercorn.h2 import H2Server
 from hypercorn.typing import ASGIFramework
-from .helpers import HTTPFramework, MockTransport
+from .helpers import ErrorFramework, HTTPFramework, MockTransport
 
 BASIC_H2_HEADERS = [
     (':authority', 'hypercorn'), (':path', '/'), (':scheme', 'http'), (':method', 'GET'),
@@ -84,13 +84,14 @@ async def test_h2_protocol_error(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_close_on_framework_error(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockH2Connection(event_loop)
+    connection = MockH2Connection(event_loop, framework=ErrorFramework)
     connection.send_request(BASIC_H2_HEADERS, {})
-    await connection.transport.updated.wait()  # This is the key part, must close on error
     stream_closed = False
     async for event in connection.get_events():
         if isinstance(event, h2.events.StreamEnded):
             stream_closed = True
+            break
+    connection.server.close()
     assert stream_closed
 
 
