@@ -71,27 +71,6 @@ class HTTPServer:
     def response_headers(self) -> List[Tuple[bytes, bytes]]:
         return response_headers(self.protocol)
 
-    def cleanup_task(self, future: asyncio.Future) -> None:
-        """Call after a task (future) to clean up.
-
-        This should be added as a add_done_callback for any protocol
-        task to ensure that the proper cleanup is handled on
-        cancellation i.e. early connection closing.
-        """
-        # Fetch the exception (if exists) from the future, without
-        # this asyncio will print annoying warnings.
-        try:
-            exception = future.exception()
-        except Exception as error:
-            exception = error
-        # If the connection was closed, the exception will be a
-        # CancelledError and does not need to be logged (expected
-        # behaviour).
-        if (
-                exception is not None and not isinstance(exception, asyncio.CancelledError)
-        ):
-            self.config.error_logger.error('Exception handling the request', exc_info=exception)
-
     @property
     def remote_addr(self) -> str:
         return self.transport.get_extra_info('peername')[0]

@@ -13,7 +13,7 @@ class App:
         while True:
             event = await receive()
             if event['type'] == 'websocket.disconnect':
-                for task in tasks:
+                for task in self.tasks:
                     task.cancel()
                 break
             elif event['type'] == 'websocket.connect':

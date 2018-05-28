@@ -106,11 +106,28 @@ class WebsocketFramework:
                     task.cancel()
                 break
             elif event['type'] == 'websocket.connect':
-                await send({'type': 'websocket.accept'})
+                if self.scope['path'] == '/http':
+                    self.tasks.append(asyncio.ensure_future(self.send_response(send)))
+                else:
+                    await send({'type': 'websocket.accept'})
             elif event['type'] == 'websocket.receive':
                 message = deepcopy(event)
                 message['type'] = 'websocket.send'
                 self.tasks.append(asyncio.ensure_future(send(message)))
+
+    async def send_response(self, send: Callable) -> None:
+        response = 'Unauthorised'.encode()
+        content_length = len(response)
+        await send({
+            'type': 'websocket.http.response.start',
+            'status': 401,
+            'headers': [(b'content-length', str(content_length).encode())],
+        })
+        await send({
+            'type': 'websocket.http.response.body',
+            'body': response,
+            'more_body': False,
+        })
 
 
 class MockTransport:

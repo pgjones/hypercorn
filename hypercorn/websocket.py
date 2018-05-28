@@ -1,6 +1,8 @@
 import asyncio
 from enum import auto, Enum
 from functools import partial
+from itertools import chain
+from time import time
 from typing import Optional, Type, Union
 from urllib.parse import unquote, urlparse
 
@@ -9,7 +11,7 @@ import wsproto.connection
 import wsproto.events
 import wsproto.extensions
 
-from .base import HTTPServer
+from .base import HTTPServer, suppress_body
 from .config import Config
 from .logging import AccessLogAtoms
 from .typing import ASGIFramework
@@ -20,8 +22,8 @@ class WebsocketState(Enum):
     # which allows HTTP responses rather than acceptance.
     HANDSHAKE = auto()
     CONNECTED = auto()
-    RESPONSE_BODY = auto()
-    ENDED = auto()
+    RESPONSE = auto()
+    CLOSED = auto()
 
 
 class WebsocketServer(HTTPServer):
@@ -39,9 +41,12 @@ class WebsocketServer(HTTPServer):
             wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()],
         )
         self.task: Optional[asyncio.Future] = None
-        self.queue: asyncio.Queue = asyncio.Queue()
+
+        self.app_queue: asyncio.Queue = asyncio.Queue()
+        self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
         self.state = WebsocketState.HANDSHAKE
+
         self._buffer: Optional[Union[bytes, str]] = None
 
     def initialise(self, request: h11.Request) -> None:
@@ -73,18 +78,18 @@ class WebsocketServer(HTTPServer):
                         self._buffer = b''
                 self._buffer += event.data
                 if len(self._buffer) > self.config.websocket_max_message_size:
+                    self.connection.close(1009)  # CLOSE_TOO_LARGE
                     self.write(self.connection.bytes_to_send())
-                    # NEED TO SEND ERROR CODE
                     self.close()
                 if event.message_finished:
                     if isinstance(event, wsproto.events.BytesReceived):
-                        self.queue.put_nowait({
+                        self.app_queue.put_nowait({
                             'type': 'websocket.receive',
                             'bytes': self._buffer,
                             'text': None,
                         })
                     else:
-                        self.queue.put_nowait({
+                        self.app_queue.put_nowait({
                             'type': 'websocket.receive',
                             'bytes': None,
                             'text': self._buffer,
@@ -97,9 +102,7 @@ class WebsocketServer(HTTPServer):
             self.write(self.connection.bytes_to_send())
 
     def close(self) -> None:
-        self.queue.put_nowait({
-            'type': 'websocket.disconnect',
-        })
+        self.app_queue.put_nowait({'type': 'websocket.disconnect'})
         super().close()
 
     @property
@@ -125,24 +128,31 @@ class WebsocketServer(HTTPServer):
             },
         }
         self.task = self.loop.create_task(self._handle_websocket(event))
-        self.task.add_done_callback(self.cleanup_task)
 
     async def _handle_websocket(self, event: wsproto.events.ConnectionRequested) -> None:
-        asgi_instance = self.app(self.scope)
-        self.queue.put_nowait({
-            'type': 'websocket.connect',
-        })
+        self.start_time = time()
+        self.app_queue.put_nowait({'type': 'websocket.connect'})
         try:
-            await asgi_instance(self._asgi_receive, partial(self._asgi_send, event))
+            asgi_instance = self.app(self.scope)
+            await asgi_instance(self.asgi_receive, partial(self.asgi_send, event))
         except Exception as error:
             self.config.error_logger.exception("Error in ASGI Framework")
-            # SEND ERROR OR 500 HERE
+            if self.state == WebsocketState.CONNECTED:
+                self.connection.close(1006)  # Close abnormal
+                self.write(self.connection.bytes_to_send())
+            self.close()
+        else:
+            if self.response is not None:
+                self.config.access_logger.info(
+                    self.config.access_log_format,
+                    AccessLogAtoms(self.scope, self.response, time() - self.start_time),
+                )
 
-    async def _asgi_receive(self) -> dict:
+    async def asgi_receive(self) -> dict:
         """Called by the ASGI instance to receive a message."""
-        return await self.queue.get()
+        return await self.app_queue.get()
 
-    async def _asgi_send(
+    async def asgi_send(
             self,
             request_event: wsproto.events.ConnectionRequested,
             message: dict,
@@ -154,22 +164,52 @@ class WebsocketServer(HTTPServer):
             self.state = WebsocketState.CONNECTED
             self.config.access_logger.error(
                 self.config.access_log_format,
-                AccessLogAtoms(self.scope, {'status': 101, 'headers': []}, 0),
+                AccessLogAtoms(
+                    self.scope, {'status': 101, 'headers': []}, time() - self.start_time,
+                ),
             )
         elif (
                 message['type'] == 'websocket.http.response.start'
                 and self.state == WebsocketState.HANDSHAKE
         ):
-            pass
+            self.response = message
+        elif (
+                message['type'] == 'websocket.http.response.body'
+                and self.state in {WebsocketState.HANDSHAKE, WebsocketState.RESPONSE}
+        ):
+            if self.state == WebsocketState.HANDSHAKE:
+                headers = chain(
+                    ((key.strip(), value.strip()) for key, value in self.response['headers']),
+                    self.response_headers(),
+                )
+                self.write(
+                    self.connection._upgrade_connection.send(
+                        h11.Response(status_code=self.response['status'], headers=headers),
+                    ),
+                )
+                self.state = WebsocketState.RESPONSE
+            if not suppress_body('GET', self.response['status']):
+                self.write(
+                    self.connection._upgrade_connection.send(
+                        h11.Data(data=message.get('body', b'')),
+                    ),
+                )
+                await self.drain()
+            if not message.get('more_body', False):
+                if self.state != WebsocketState.CLOSED:
+                    self.write(self.connection._upgrade_connection.send(h11.EndOfMessage()))
+                    self.close()
+                self.state = WebsocketState.CLOSED
         elif message['type'] == 'websocket.send' and self.state == WebsocketState.CONNECTED:
             data = message['bytes'] if message['bytes'] is not None else message['text']
             self.connection.send_data(data)
             self.write(self.connection.bytes_to_send())
+            await self.drain()
         elif message['type'] == 'websocket.close':
             self.connection.close(message['code'])
             self.write(self.connection.bytes_to_send())
             self.close()
-            self.state = WebsocketState.ENDED
+            self.state = WebsocketState.CLOSED
         else:
             raise Exception(
                 f"Unexpected message type, {message['type']} given the state {self.state}",
