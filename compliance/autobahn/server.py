@@ -21,7 +21,7 @@ class App:
             elif event['type'] == 'websocket.receive':
                 self.tasks.append(
                     asyncio.ensure_future(
-                        await send({
+                        send({
                             'type': 'websocket.send',
                             'bytes': event['bytes'],
                             'text': event['text'],
