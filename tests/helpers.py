@@ -4,6 +4,15 @@ from json import dumps
 from typing import Callable, List, Optional
 
 
+class ErrorFramework:
+
+    def __init__(self, scope: dict) -> None:
+        pass
+
+    async def __call__(self, receive: Callable, send: Callable) -> None:
+        raise Exception()
+
+
 class HTTPFramework:
 
     def __init__(self, scope: dict) -> None:

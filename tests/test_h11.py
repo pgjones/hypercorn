@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Union
+from typing import Type, Union
 from unittest.mock import Mock
 
 import h11
@@ -8,7 +8,8 @@ import pytest
 
 from hypercorn.config import Config
 from hypercorn.h11 import H11Server
-from .helpers import HTTPFramework, MockTransport
+from hypercorn.typing import ASGIFramework
+from .helpers import ErrorFramework, HTTPFramework, MockTransport
 
 BASIC_HEADERS = [('Host', 'hypercorn'), ('Connection', 'close')]
 BASIC_DATA = 'index'
@@ -16,10 +17,15 @@ BASIC_DATA = 'index'
 
 class MockConnection:
 
-    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(
+            self,
+            event_loop: asyncio.AbstractEventLoop,
+            *,
+            framework: Type[ASGIFramework]=HTTPFramework,
+    ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
-        self.server = H11Server(HTTPFramework, event_loop, Config(), self.transport)  # type: ignore # noqa: E501
+        self.server = H11Server(framework, event_loop, Config(), self.transport)  # type: ignore # noqa: E501
 
     async def send(self, event: Union[h11.Request, h11.Data, h11.EndOfMessage]) -> None:
         await self.send_raw(self.client.send(event))
@@ -141,6 +147,14 @@ async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> No
     assert all(isinstance(datum, h11.Data) for datum in data)
     assert b''.join(datum.data for datum in data) == b'chunked data'
     assert isinstance(end, h11.EndOfMessage)
+
+
+@pytest.mark.asyncio
+async def test_close_on_framework_error(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockConnection(event_loop, framework=ErrorFramework)
+    await connection.send(h11.Request(method='GET', target='/', headers=BASIC_HEADERS))
+    await connection.send(h11.EndOfMessage())
+    await connection.transport.closed.wait()  # This is the key part, must close on error
 
 
 def test_max_incomplete_size() -> None:

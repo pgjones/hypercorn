@@ -171,11 +171,12 @@ class H11Server(HTTPServer):
 
     async def handle_asgi_app(self) -> None:
         start_time = time()
-        asgi_instance = self.app(self.scope)
         try:
+            asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, self.asgi_send)
         except Exception as error:
             self.config.error_logger.exception('Error in ASGI Framework')
+            self.close()
         if self.response is not None:
             self.config.access_logger.info(
                 self.config.access_log_format,

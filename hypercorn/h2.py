@@ -159,13 +159,14 @@ class H2Server(HTTPServer):
     async def handle_asgi_app(self, stream_id: int) -> None:
         start_time = time()
         stream = self.streams[stream_id]
-        asgi_instance = self.app(stream.scope)
         try:
+            asgi_instance = self.app(stream.scope)
             await asgi_instance(
                 partial(self.asgi_receive, stream_id), partial(self.asgi_send, stream_id),
             )
         except Exception as error:
             self.config.error_logger.exception('Error in ASGI Framework')
+            self.streams[stream_id].close()
         if stream.response is not None:
             self.config.access_logger.info(
                 self.config.access_log_format,

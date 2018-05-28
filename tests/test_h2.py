@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Type
 from unittest.mock import Mock
 
 import h2
@@ -7,6 +7,7 @@ import pytest
 
 from hypercorn.config import Config
 from hypercorn.h2 import H2Server
+from hypercorn.typing import ASGIFramework
 from .helpers import HTTPFramework, MockTransport
 
 BASIC_H2_HEADERS = [
@@ -20,9 +21,15 @@ FLOW_WINDOW_SIZE = 1
 
 class MockH2Connection:
 
-    def __init__(self, event_loop: asyncio.AbstractEventLoop, *, config: Config=Config()) -> None:
+    def __init__(
+            self,
+            event_loop: asyncio.AbstractEventLoop,
+            *,
+            config: Config=Config(),
+            framework: Type[ASGIFramework]=HTTPFramework,
+    ) -> None:
         self.transport = MockTransport()
-        self.server = H2Server(HTTPFramework, event_loop, config, self.transport)  # type: ignore
+        self.server = H2Server(framework, event_loop, config, self.transport)  # type: ignore
         self.connection = h2.connection.H2Connection()
 
     def send_request(self, headers: list, settings: dict) -> int:
@@ -73,6 +80,18 @@ async def test_h2_protocol_error(event_loop: asyncio.AbstractEventLoop) -> None:
     connection = MockH2Connection(event_loop)
     connection.server.data_received(b'broken nonsense\r\n\r\n')
     assert connection.transport.closed.is_set()  # H2 just closes on error
+
+
+@pytest.mark.asyncio
+async def test_close_on_framework_error(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockH2Connection(event_loop)
+    connection.send_request(BASIC_H2_HEADERS, {})
+    await connection.transport.updated.wait()  # This is the key part, must close on error
+    stream_closed = False
+    async for event in connection.get_events():
+        if isinstance(event, h2.events.StreamEnded):
+            stream_closed = True
+    assert stream_closed
 
 
 @pytest.mark.asyncio
