@@ -5,7 +5,10 @@ Hypercorn
 
 Hypercorn is an `ASGI
 <https://github.com/django/asgiref/blob/master/specs/asgi.rst>`_ web
-server based on the sans-io hyper libraries and inspired by
+server based on the sans-io hyper, `h11
+<https://github.com/python-hyper/h11>`_, `h2
+<https://github.com/python-hyper/hyper-h2>`_, and `wsproto
+<https://github.com/python-hyper/wsproto>`_ libraries and inspired by
 Gunicorn. Hypercorn supports HTTP/1, HTTP/2, and websockets and the
 ASGI 2 specification.
 
