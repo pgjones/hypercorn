@@ -106,6 +106,15 @@ def run_single(
     """
     if loop is None:
         loop = asyncio.get_event_loop()
+
+    if config.uvloop:
+        try:
+            import uvloop
+        except ImportError as error:
+            raise Exception('uvloop is not installed') from error
+        else:
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
     loop.set_debug(config.debug)
 
     if config.ssl is not None:

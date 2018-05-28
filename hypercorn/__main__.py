@@ -109,6 +109,12 @@ def main() -> None:
         help='Enable automatic reloads on code changes',
         action='store_true',
     )
+    parser.add_argument(
+        '--uvloop',
+        dest='uvloop',
+        help='Enable uvloop usage',
+        action='store_true',
+    )
     args = parser.parse_args()
     application = _load_application(args.application)
     config = Config()
@@ -118,6 +124,7 @@ def main() -> None:
     config.error_log_target = args.error_log
     config.keep_alive_timeout = args.keep_alive
     config.use_reloader = args.reload
+    config.uvloop = args.uvloop
 
     if args.certfile is not None and args.keyfile is not None:
         config.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)

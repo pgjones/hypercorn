@@ -22,6 +22,7 @@ class Config:
     keep_alive_timeout = 10 * SECONDS
     port = 5000
     use_reloader = False
+    uvloop = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
 
     @property
