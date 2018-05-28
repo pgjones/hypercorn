@@ -1,4 +1,5 @@
 import argparse
+import ssl
 import sys
 from importlib import import_module
 from pathlib import Path
@@ -68,6 +69,21 @@ def main() -> None:
         action='append',
     )
     parser.add_argument(
+        '--ca-certs',
+        help='Path to the SSL CA certificate file',
+        default=None,
+    )
+    parser.add_argument(
+        '--certfile',
+        help='Path to the SSL certificate file',
+        default=None,
+    )
+    parser.add_argument(
+        '--ciphers',
+        help='Ciphers to use for the SSL setup',
+        default='ECDHE+AESGCM',
+    )
+    parser.add_argument(
         '--debug',
         help='Enable debug mode, i.e. extra logging and checks',
         action='store_true',
@@ -84,6 +100,11 @@ def main() -> None:
         type=int,
     )
     parser.add_argument(
+        '--keyfile',
+        help='Path to the SSL key file',
+        default=None,
+    )
+    parser.add_argument(
         '--reload',
         help='Enable automatic reloads on code changes',
         action='store_true',
@@ -97,6 +118,13 @@ def main() -> None:
     config.error_log_target = args.error_log
     config.keep_alive_timeout = args.keep_alive
     config.use_reloader = args.reload
+
+    if args.certfile is not None and args.keyfile is not None:
+        config.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        config.ssl.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
+        config.ssl.set_ciphers(args.ciphers)
+        if args.ca_certs:
+            config.ssl.load_verify_locations(args.ca_certs)
 
     if len(args.binds) == 0:
         args.binds.append(DEFAULT_BIND)
