@@ -1,5 +1,6 @@
 import asyncio
 from typing import AsyncGenerator
+from unittest.mock import Mock
 
 import h2
 import pytest
@@ -14,15 +15,14 @@ BASIC_H2_HEADERS = [
 BASIC_H2_PUSH_HEADERS = [
     (':authority', 'hypercorn'), (':path', '/push'), (':scheme', 'http'), (':method', 'GET'),
 ]
-BASIC_DATA = 'index'
 FLOW_WINDOW_SIZE = 1
 
 
 class MockH2Connection:
 
-    def __init__(self, event_loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(self, event_loop: asyncio.AbstractEventLoop, *, config: Config=Config()) -> None:
         self.transport = MockTransport()
-        self.server = H2Server(HTTPFramework, event_loop, Config(), self.transport)  # type: ignore
+        self.server = H2Server(HTTPFramework, event_loop, config, self.transport)  # type: ignore
         self.connection = h2.connection.H2Connection()
 
     def send_request(self, headers: list, settings: dict) -> int:
@@ -108,3 +108,26 @@ async def test_h2_push(event_loop: asyncio.AbstractEventLoop) -> None:
             if streams_received == 2:
                 break
     assert push_received
+
+
+@pytest.mark.asyncio
+async def test_initial_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
+    config = Config()
+    config.keep_alive_timeout = 0.01
+    server = H2Server(HTTPFramework, event_loop, config, Mock())
+    await asyncio.sleep(2 * config.keep_alive_timeout)
+    server.transport.close.assert_called()  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
+    config = Config()
+    config.keep_alive_timeout = 0.01
+    connection = MockH2Connection(event_loop, config=config)
+    connection.send_request(BASIC_H2_HEADERS, {})
+    connection.server.pause_writing()
+    await asyncio.sleep(2 * config.keep_alive_timeout)
+    assert not connection.transport.closed.is_set()
+    connection.server.resume_writing()
+    await asyncio.sleep(2 * config.keep_alive_timeout)
+    assert connection.transport.closed.is_set()

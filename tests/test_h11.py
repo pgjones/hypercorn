@@ -150,3 +150,27 @@ def test_max_incomplete_size() -> None:
     server = H11Server(Mock(), Mock(), config, transport)  # type: ignore
     server.data_received(b'GET / HTTP/1.1\r\nHost: hypercorn\r\n')  # Longer than 5 bytes
     assert transport.data.startswith(b'HTTP/1.1 400')
+
+
+@pytest.mark.asyncio
+async def test_initial_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
+    config = Config()
+    config.keep_alive_timeout = 0.01
+    server = H11Server(HTTPFramework, event_loop, config, Mock())
+    await asyncio.sleep(2 * config.keep_alive_timeout)
+    server.transport.close.assert_called()  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
+    config = Config()
+    config.keep_alive_timeout = 0.01
+    transport = MockTransport()
+    server = H11Server(HTTPFramework, event_loop, config, transport)  # type: ignore
+    server.pause_writing()
+    server.data_received(b'GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n')
+    await asyncio.sleep(2 * config.keep_alive_timeout)
+    assert not transport.closed.is_set()
+    server.resume_writing()
+    await asyncio.sleep(2 * config.keep_alive_timeout)
+    assert transport.closed.is_set()

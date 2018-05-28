@@ -1,10 +1,20 @@
 import asyncio
 from email.utils import formatdate
+from enum import auto, Enum
 from ssl import SSLObject, SSLSocket
 from time import time
 from typing import List, Optional, Tuple, Union
 
 from .config import Config
+
+
+class ASGIState(Enum):
+    # The ASGI Spec is clear that a response should not start till the
+    # framework has sent at least one body message hence why this
+    # state tracking is required.
+    REQUEST = auto()
+    RESPONSE = auto()
+    CLOSED = auto()
 
 
 class HTTPServer:

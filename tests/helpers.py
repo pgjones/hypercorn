@@ -1,7 +1,7 @@
 import asyncio
 from copy import deepcopy
 from json import dumps
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 
 class HTTPFramework:
@@ -12,24 +12,26 @@ class HTTPFramework:
         self.scope['headers'] = [
             (name.decode(), value.decode()) for name, value in self.scope['headers']
         ]
+        self.task: Optional[asyncio.Future] = None
 
     async def __call__(self, receive: Callable, send: Callable) -> None:
         body = bytearray()
         while True:
-            await asyncio.sleep(0)
             event = await receive()
             if event['type'] == 'http.disconnect':
+                self.task.cancel()
                 break
             elif event['type'] == 'http.request':
                 body.extend(event.get('body', b''))
                 if not event.get('more_body', False):
                     if self.scope['path'] == '/chunked':
-                        await self.send_chunked(send)
+                        self.task = asyncio.ensure_future(self.send_chunked(send))
                     elif self.scope['path'] == '/push':
-                        await self.send_echo(send, body, include_push=True)
+                        self.task = asyncio.ensure_future(
+                            self.send_echo(send, body, include_push=True),
+                        )
                     else:
-                        await self.send_echo(send, body)
-                    break
+                        self.task = asyncio.ensure_future(self.send_echo(send, body))
 
     async def send_echo(
             self,
@@ -84,19 +86,22 @@ class WebsocketFramework:
 
     def __init__(self, scope: dict) -> None:
         self.scope = deepcopy(scope)
+        self.tasks: List[asyncio.Future] = []
 
     async def __call__(self, receive: Callable, send: Callable) -> None:
         while True:
             await asyncio.sleep(0)
             event = await receive()
-            if event['type'] == 'websocket.connect':
+            if event['type'] == 'websocket.disconnect':
+                for task in self.tasks:
+                    task.cancel()
+                break
+            elif event['type'] == 'websocket.connect':
                 await send({'type': 'websocket.accept'})
             elif event['type'] == 'websocket.receive':
                 message = deepcopy(event)
                 message['type'] = 'websocket.send'
-                await send(message)
-            elif event['type'] == 'websocket.disconnect':
-                break
+                self.tasks.append(asyncio.ensure_future(send(message)))
 
 
 class MockTransport:

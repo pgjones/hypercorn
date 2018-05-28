@@ -1,6 +1,9 @@
 import asyncio
+from functools import partial
 from itertools import chain
-from typing import Iterable, List, Optional, Tuple, Type
+from time import time
+from typing import Dict, Iterable, List, Optional, Tuple, Type
+from urllib.parse import unquote, urlparse
 
 import h11
 import h2.config
@@ -8,36 +11,51 @@ import h2.connection
 import h2.events
 import h2.exceptions
 
+from .base import ASGIState, HTTPServer, suppress_body
 from .config import Config
-from .http import HTTPRequestResponseServer, Stream, StreamState
+from .logging import AccessLogAtoms
 from .typing import ASGIFramework
 
 
-class H2Stream(Stream):
+class Stream:
 
-    def __init__(self, loop: asyncio.AbstractEventLoop, request: dict) -> None:
-        super().__init__(loop, request)
-        self.event: Optional[asyncio.Event] = None
-        self.send_task: Optional[asyncio.Future] = None
+    def __init__(self, scope: dict, loop: asyncio.AbstractEventLoop) -> None:
+        self.app_queue: asyncio.Queue = asyncio.Queue(loop=loop)
+        self.response: Optional[dict] = None
+        self.scope = scope
+        self.start_time = time()
+        self.state = ASGIState.REQUEST
+        self.blocked: Optional[asyncio.Event] = None
+
+    def append(self, data: bytes) -> None:
+        self.app_queue.put_nowait({
+            'type': 'http.request',
+            'body': data,
+            'more_body': True,
+        })
+
+    def complete(self) -> None:
+        self.app_queue.put_nowait({
+            'type': 'http.request',
+            'body': b'',
+            'more_body': False,
+        })
 
     def unblock(self) -> None:
-        if self.event is not None:
-            self.event.set()
-            self.event = None
+        if self.blocked is not None:
+            self.blocked.set()
+            self.blocked = None
 
     async def block(self) -> None:
-        self.event = asyncio.Event()
-        await self.event.wait()
+        self.blocked = asyncio.Event()
+        await self.blocked.wait()
 
     def close(self) -> None:
-        super().close()
-        if self.send_task is not None:
-            self.send_task.cancel()
+        self.app_queue.put_nowait({'type': 'http.disconnect'})
+        self.state = ASGIState.CLOSED
 
 
-class H2Server(HTTPRequestResponseServer):
-
-    stream_class = H2Stream
+class H2Server(HTTPServer):
 
     def __init__(
             self,
@@ -48,7 +66,10 @@ class H2Server(HTTPRequestResponseServer):
             *,
             upgrade_request: Optional[h11.Request]=None,
     ) -> None:
-        super().__init__(app, loop, config, transport, 'h2')
+        super().__init__(loop, config, transport, 'h2')
+        self.app = app
+        self.streams: Dict[int, Stream] = {}
+
         self.connection = h2.connection.H2Connection(
             config=h2.config.H2Configuration(client_side=False, header_encoding='utf-8'),
         )
@@ -56,37 +77,43 @@ class H2Server(HTTPRequestResponseServer):
             self.connection.initiate_connection()
         else:
             settings = ''
+            headers = []
             for name, value in upgrade_request.headers:
                 if name.decode().lower() == 'http2-settings':
                     settings = value.decode()
+                headers.append((name.decode(), value.decode()))
             self.connection.initiate_upgrade_connection(settings)
-            self.handle_request(
-                1, upgrade_request.method, upgrade_request.target, '2', upgrade_request.headers,
-            )
-        self.write(self.connection.data_to_send())  # type: ignore
+            event = h2.events.RequestReceived()
+            event.stream_id = 1
+            event.headers = headers
+            self.handle_request(event)
+        self.send()
+
+        self.last_activity = time()
+        self.handle_keep_alive_timeout()
 
     def data_received(self, data: bytes) -> None:
         super().data_received(data)
+        self.last_activity = time()
         try:
             events = self.connection.receive_data(data)
         except h2.exceptions.ProtocolError:
-            self.write(self.connection.data_to_send())  # type: ignore
+            self.send()
             self.close()
         else:
-            self._handle_events(events)
-            self.write(self.connection.data_to_send())  # type: ignore
+            self.handle_events(events)
+            self.send()
 
-    def _handle_events(self, events: List[h2.events.Event]) -> None:
+    def close(self) -> None:
+        for stream in self.streams.values():
+            stream.close()
+        self.keep_alive_timeout_handle.cancel()
+        super().close()
+
+    def handle_events(self, events: List[h2.events.Event]) -> None:
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
-                headers = []
-                for name, value in event.headers:
-                    if name == ':method':
-                        method = value.encode()
-                    elif name == ':path':
-                        path = value.encode()
-                    headers.append((name.encode(), value.encode()))
-                self.handle_request(event.stream_id, method, path, '2', headers)
+                self.handle_request(event)
             elif isinstance(event, h2.events.DataReceived):
                 self.streams[event.stream_id].append(event.data)
             elif isinstance(event, h2.events.StreamReset):
@@ -94,43 +121,63 @@ class H2Server(HTTPRequestResponseServer):
             elif isinstance(event, h2.events.StreamEnded):
                 self.streams[event.stream_id].complete()
             elif isinstance(event, h2.events.WindowUpdated):
-                self._window_updated(event.stream_id)
+                self.window_updated(event.stream_id)
             elif isinstance(event, h2.events.ConnectionTerminated):
                 self.close()
                 return
 
-            self.write(self.connection.data_to_send())  # type: ignore
+            self.send()
 
-    async def _asgi_send(self, stream_id: int, message: dict) -> None:
-        if message['type'] == 'http.response.push':
-            self._server_push(stream_id, message['path'], message['headers'])
-        else:
-            return await super()._asgi_send(stream_id, message)
+    def handle_request(self, event: h2.events.RequestReceived) -> None:
+        self.keep_alive_timeout_handle.cancel()
+        headers = []
+        for name, value in event.headers:
+            if name == ':method':
+                method = value.upper()
+            elif name == ':path':
+                path = value.encode()
+            headers.append((name.encode(), value.encode()))
+        scheme = 'https' if self.ssl_info is not None else 'http'
+        parsed_path = urlparse(path)
+        scope = {
+            'type': 'http',
+            'http_version': '2',
+            'method': method,
+            'scheme': scheme,
+            'path': unquote(parsed_path.path.decode()),
+            'query_string': parsed_path.query,
+            'root_path': '',
+            'headers': headers,
+            'client': self.transport.get_extra_info('sockname'),
+            'server': self.transport.get_extra_info('peername'),
+        }
+        stream_id = event.stream_id
+        self.streams[stream_id] = Stream(scope, self.loop)
+        self.task = self.loop.create_task(self.handle_asgi_app(stream_id))
+        self.task.add_done_callback(partial(self.after_request, stream_id))
 
-    async def begin_response(self, stream_id: int) -> None:
-        response = self.streams[stream_id].response
-        headers = [
-            (key.decode().strip(), value.decode().strip()) for key, value in chain(
-                [(b':status', str(response['status']).encode())],
-                response['headers'],
-                self.response_headers(),
-            )
-        ]
-        self.connection.send_headers(stream_id, headers)
-        self.write(self.connection.data_to_send())  # type: ignore
-
-    async def send_body(self, stream_id: int, data: bytes) -> None:
-        self.streams[stream_id].send_task = self.loop.create_task(self._send_data(stream_id, data))  # type: ignore # noqa: E501
+    async def handle_asgi_app(self, stream_id: int) -> None:
+        start_time = time()
+        stream = self.streams[stream_id]
+        asgi_instance = self.app(stream.scope)
         try:
-            await self.streams[stream_id].send_task  # type: ignore
-        except asyncio.CancelledError:
-            pass
+            await asgi_instance(
+                partial(self.asgi_receive, stream_id), partial(self.asgi_send, stream_id),
+            )
+        except Exception as error:
+            self.config.error_logger.exception('Error in ASGI Framework')
+        if stream.response is not None:
+            self.config.access_logger.info(
+                self.config.access_log_format,
+                AccessLogAtoms(stream.scope, stream.response, time() - start_time),
+            )
 
-    async def end_response(self, stream_id: int) -> None:
-        self.connection.end_stream(stream_id)
-        self.write(self.connection.data_to_send())  # type: ignore
+    def after_request(self, stream_id: int, future: asyncio.Future) -> None:
+        del self.streams[stream_id]
+        if len(self.streams) == 0:
+            self.handle_keep_alive_timeout()
 
-    def _server_push(
+    def server_push(
             self,
             stream_id: int,
             path: str,
@@ -138,56 +185,103 @@ class H2Server(HTTPRequestResponseServer):
     ) -> None:
         push_stream_id = self.connection.get_next_available_stream_id()
         stream = self.streams[stream_id]
-        for name, value in stream.request['headers']:
+        for name, value in stream.scope['headers']:
             if name == b':authority':
                 authority = value
         request_headers = [
-            (name, value) for name, value in chain(
+            (name.decode(), value.decode()) for name, value in chain(
                 [
                     (b':method', b'GET'), (b':path', path.encode()),
-                    (b':scheme', stream.request['scheme'].encode()),
+                    (b':scheme', stream.scope['scheme'].encode()),
                     (b':authority', authority),
                 ],
                 headers,
                 self.response_headers(),
             )
         ]
-        h2_headers = [(key.decode(), value.decode()) for key, value in request_headers]
         try:
             self.connection.push_stream(
                 stream_id=stream_id, promised_stream_id=push_stream_id,
-                request_headers=h2_headers,
+                request_headers=request_headers,
             )
         except h2.exceptions.ProtocolError:
             pass  # Client does not accept push promises
         else:
-            self.handle_request(push_stream_id, b'GET', path.encode(), '2', request_headers)
+            event = h2.events.RequestReceived()
+            event.stream_id = push_stream_id
+            event.headers = request_headers
+            self.handle_request(event)
             self.streams[push_stream_id].complete()
 
-    async def _send_data(self, stream_id: int, data: bytes) -> None:
+    async def send_data(self, stream_id: int, data: bytes) -> None:
         stream = self.streams[stream_id]
-        while stream.state != StreamState.ENDED:
-            while (
-                    not self.connection.local_flow_control_window(stream_id)
-                    and stream.state != StreamState.ENDED
-            ):
+        while True:
+            while not self.connection.local_flow_control_window(stream_id):
                 await stream.block()  # type: ignore
-            if stream.state == StreamState.ENDED:
-                return
 
             chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
             chunk_size = min(chunk_size, self.connection.max_outbound_frame_size)
             self.connection.send_data(stream_id, data[:chunk_size])
-            self.write(self.connection.data_to_send())  # type: ignore
+            self.send()
+            await self.drain()
             data = data[chunk_size:]
             if not data:
                 break
-            await self.drain()
 
-    def _window_updated(self, stream_id: Optional[int]) -> None:
+    def send(self) -> None:
+        self.last_activity = time()
+        self.write(self.connection.data_to_send())  # type: ignore
+
+    def handle_keep_alive_timeout(self) -> None:
+        if time() - self.last_activity > self.config.keep_alive_timeout:
+            self.close()
+        else:
+            self.keep_alive_timeout_handle = self.loop.call_later(
+                self.config.keep_alive_timeout, self.handle_keep_alive_timeout,
+            )
+
+    def window_updated(self, stream_id: Optional[int]) -> None:
         if stream_id:
             self.streams[stream_id].unblock()  # type: ignore
         elif stream_id is None:
             # Unblock all streams
             for stream in self.streams.values():
                 stream.unblock()  # type: ignore
+
+    async def asgi_receive(self, stream_id: int) -> dict:
+        """Called by the ASGI instance to receive a message."""
+        return await self.streams[stream_id].app_queue.get()
+
+    async def asgi_send(self, stream_id: int, message: dict) -> None:
+        """Called by the ASGI instance to send a message."""
+        stream = self.streams[stream_id]
+        if message['type'] == 'http.response.start' and stream.state == ASGIState.REQUEST:
+            stream.response = message
+        elif message['type'] == 'http.response.push':
+            self.server_push(stream_id, message['path'], message['headers'])
+        elif (
+                message['type'] == 'http.response.body'
+                and stream.state in {ASGIState.REQUEST, ASGIState.RESPONSE}
+        ):
+            if stream.state == ASGIState.REQUEST:
+                headers = [
+                    (key.decode().strip(), value.decode().strip()) for key, value in chain(
+                        [(b':status', str(stream.response['status']).encode())],
+                        stream.response['headers'],
+                        self.response_headers(),
+                    )
+                ]
+                self.connection.send_headers(stream_id, headers)
+                self.send()
+                stream.state = ASGIState.RESPONSE
+            if not suppress_body(stream.scope['method'], stream.response['status']):
+                await self.send_data(stream_id, message.get('body', b''))
+            if not message.get('more_body', False):
+                if stream.state != ASGIState.CLOSED:
+                    self.connection.end_stream(stream_id)
+                    self.send()
+                    stream.close()
+        else:
+            raise Exception(
+                f"Unexpected message type, {message['type']} given the state {stream.state}",
+            )

@@ -1,3 +1,5 @@
+import asyncio
+
 from hypercorn.config import Config
 from hypercorn.run import run_single
 
@@ -5,21 +7,27 @@ from hypercorn.run import run_single
 class App:
 
     def __init__(self, scope):
-        pass
+         self.tasks = []
 
     async def __call__(self, receive, send):
         while True:
             event = await receive()
             if event['type'] == 'websocket.disconnect':
+                for task in tasks:
+                    task.cancel()
                 break
             elif event['type'] == 'websocket.connect':
                 await send({'type': 'websocket.accept'})
             elif event['type'] == 'websocket.receive':
-                await send({
-                    'type': 'websocket.send',
-                    'bytes': event['bytes'],
-                    'text': event['text'],
-                })
+                self.tasks.append(
+                    asyncio.ensure_future(
+                        await send({
+                            'type': 'websocket.send',
+                            'bytes': event['bytes'],
+                            'text': event['text'],
+                        }),
+                    ),
+                )
 
 
 if __name__ == '__main__':
