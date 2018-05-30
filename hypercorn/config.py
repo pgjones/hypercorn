@@ -19,7 +19,7 @@ class Config:
     error_logger = logging.getLogger('hypercorn.error')
     h11_max_incomplete_size = 16 * 1024 * BYTES
     host = '127.0.0.1'
-    keep_alive_timeout = 10 * SECONDS
+    keep_alive_timeout = 5 * SECONDS
     port = 5000
     use_reloader = False
     uvloop = False
