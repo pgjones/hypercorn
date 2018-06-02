@@ -39,3 +39,5 @@ The following options exist with the given usage,
   --keyfile KEYFILE     Path to the SSL key file
   --reload              Enable automatic reloads on code changes
   --uvloop              Enable uvloop usage
+  -k WORKERS, --workers WORKERS
+                        The number of workers to spawn and use

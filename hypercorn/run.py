@@ -2,7 +2,9 @@ import asyncio
 import os
 import platform
 import sys
+from multiprocessing import Process
 from pathlib import Path
+from socket import SO_REUSEADDR, socket, SOL_SOCKET
 from types import ModuleType
 from typing import Dict, Optional, Type
 
@@ -96,6 +98,8 @@ def run_single(
         config: Config,
         *,
         loop: Optional[asyncio.AbstractEventLoop]=None,
+        sock: Optional[socket]=None,
+        reuse_port: bool=False,
 ) -> None:
     """Create a server to run the app on given the options.
 
@@ -104,9 +108,6 @@ def run_single(
         config: The configuration that defines the server.
         loop: Asyncio loop to create the server in, if None, take default one.
     """
-    if loop is None:
-        loop = asyncio.get_event_loop()
-
     if config.uvloop:
         try:
             import uvloop
@@ -115,15 +116,24 @@ def run_single(
         else:
             asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
+    if loop is None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
     loop.set_debug(config.debug)
 
     if config.ssl is not None:
         config.ssl.set_alpn_protocols(['h2', 'http/1.1'])
 
-    create_server = loop.create_server(
-        lambda: Server(app, loop, config),
-        config.host, config.port, ssl=config.ssl,
-    )
+    if sock is not None:
+        create_server = loop.create_server(
+            lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=reuse_port,
+        )
+    else:
+        create_server = loop.create_server(
+            lambda: Server(app, loop, config), host=config.host, port=config.port, ssl=config.ssl,
+            reuse_port=reuse_port,
+        )
     server = loop.run_until_complete(create_server)
 
     if platform.system() == 'Windows':
@@ -145,3 +155,44 @@ def run_single(
         loop.run_until_complete(server.wait_closed())
         loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
+
+
+def run_multiple(
+        app: Type[ASGIFramework],
+        config: Config,
+        *,
+        workers: int=2,
+) -> None:
+    """Create a server to run the app on given the options.
+
+    Arguments:
+        app: The ASGI Framework to run.
+        config: The configuration that defines the server.
+        workers: Number of workers to create.
+    """
+    sock = socket()
+    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    sock.bind((config.host, config.port))
+    sock.set_inheritable(True)  # type: ignore
+
+    processes = []
+
+    for _ in range(workers):
+        process = Process(
+            target=run_single,
+            kwargs={'app': app, 'config': config, 'sock': sock, 'reuse_port': True},
+        )
+        process.daemon = True
+        process.start()
+        processes.append(process)
+
+    try:
+        for process in processes:
+            process.join()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for process in processes:
+            process.terminate()
+
+        sock.close()

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Type
 
 from .config import Config
-from .run import run_single
+from .run import run_multiple, run_single
 from .typing import ASGIFramework
 
 DEFAULT_BIND = '127.0.0.1:5000'
@@ -115,6 +115,14 @@ def main() -> None:
         help='Enable uvloop usage',
         action='store_true',
     )
+    parser.add_argument(
+        '-k',
+        '--workers',
+        dest='workers',
+        help='The number of workers to spawn and use',
+        default=1,
+        type=int,
+    )
     args = parser.parse_args()
     application = _load_application(args.application)
     config = Config()
@@ -138,7 +146,11 @@ def main() -> None:
     config.host, config.port = args.binds[0].rsplit(':')
     scheme = 'http' if config.ssl is None else 'https'
     print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
-    run_single(application, config)
+
+    if args.workers == 1:
+        run_single(application, config)
+    else:
+        run_multiple(application, config, workers=args.workers)
 
 
 if __name__ == '__main__':
