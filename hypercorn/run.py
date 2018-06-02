@@ -125,6 +125,9 @@ def run_single(
     if config.ssl is not None:
         config.ssl.set_alpn_protocols(['h2', 'http/1.1'])
 
+    if hasattr(app, 'startup'):
+        loop.run_until_complete(app.startup())  # type: ignore
+
     if sock is not None:
         create_server = loop.create_server(
             lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=reuse_port,
@@ -154,6 +157,8 @@ def run_single(
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.run_until_complete(loop.shutdown_asyncgens())
+        if hasattr(app, 'cleanup'):
+            loop.run_until_complete(app.cleanup())  # type: ignore
         loop.close()
 
 
