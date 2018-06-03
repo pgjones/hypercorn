@@ -135,13 +135,14 @@ class WebsocketServer(HTTPServer):
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, partial(self.asgi_send, event))
         except Exception as error:
-            self.config.error_logger.exception("Error in ASGI Framework")
+            if self.config.error_logger is not None:
+                self.config.error_logger.exception("Error in ASGI Framework")
             if self.state == WebsocketState.CONNECTED:
                 self.connection.close(1006)  # Close abnormal
                 self.write(self.connection.bytes_to_send())
             self.close()
         else:
-            if self.response is not None:
+            if self.response is not None and self.config.access_logger is not None:
                 self.config.access_logger.info(
                     self.config.access_log_format,
                     AccessLogAtoms(self.scope, self.response, time() - self.start_time),
@@ -161,12 +162,13 @@ class WebsocketServer(HTTPServer):
             self.connection.accept(request_event)
             self.write(self.connection.bytes_to_send())
             self.state = WebsocketState.CONNECTED
-            self.config.access_logger.error(
-                self.config.access_log_format,
-                AccessLogAtoms(
-                    self.scope, {'status': 101, 'headers': []}, time() - self.start_time,
-                ),
-            )
+            if self.config.access_logger is not None:
+                self.config.access_logger.info(
+                    self.config.access_log_format,
+                    AccessLogAtoms(
+                        self.scope, {'status': 101, 'headers': []}, time() - self.start_time,
+                    ),
+                )
         elif (
                 message['type'] == 'websocket.http.response.start'
                 and self.state == WebsocketState.HANDSHAKE

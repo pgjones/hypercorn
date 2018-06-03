@@ -168,11 +168,12 @@ class H2Server(HTTPServer):
                 partial(self.asgi_receive, stream_id), partial(self.asgi_send, stream_id),
             )
         except Exception as error:
-            self.config.error_logger.exception('Error in ASGI Framework')
+            if self.config.error_logger is not None:
+                self.config.error_logger.exception('Error in ASGI Framework')
             self.connection.end_stream(stream_id)
             self.send()
             self.streams[stream_id].close()
-        if stream.response is not None:
+        if stream.response is not None and self.config.access_logger is not None:
             self.config.access_logger.info(
                 self.config.access_log_format,
                 AccessLogAtoms(stream.scope, stream.response, time() - start_time),

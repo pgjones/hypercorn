@@ -15,9 +15,9 @@ class Config:
     _ssl: Optional[SSLContext] = None
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
-    access_logger = logging.getLogger('hypercorn.access')
+    access_logger: Optional[logging.Logger] = None
     debug = False
-    error_logger = logging.getLogger('hypercorn.error')
+    error_logger: Optional[logging.Logger] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     host = '127.0.0.1'
     keep_alive_timeout = 5 * SECONDS
@@ -50,6 +50,7 @@ class Config:
     @access_log_target.setter
     def access_log_target(self, value: Optional[str]) -> None:
         if self.access_log_target == '-':
+            self.access_logger = logging.getLogger('hypercorn.access')
             self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
 
     @property
@@ -59,4 +60,5 @@ class Config:
     @error_log_target.setter
     def error_log_target(self, value: Optional[str]) -> None:
         if self.error_log_target == '-':
+            self.error_logger = logging.getLogger('hypercorn.error')
             self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
