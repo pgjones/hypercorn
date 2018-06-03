@@ -123,8 +123,7 @@ class WebsocketServer(HTTPServer):
             'server': self.transport.get_extra_info('peername'),
             'subprotocols': [],
             'extensions': {
-                'websocket.http.response.start': {},
-                'websocket.http.response.body': {},
+                'websocket.http.response': {},
             },
         }
         self.task = self.loop.create_task(self._handle_websocket(event))

@@ -150,6 +150,9 @@ class H2Server(HTTPServer):
             'headers': headers,
             'client': self.transport.get_extra_info('sockname'),
             'server': self.transport.get_extra_info('peername'),
+            'extensions': {
+                'http.response.push': {},
+            },
         }
         stream_id = event.stream_id
         self.streams[stream_id] = Stream(scope, self.loop)
