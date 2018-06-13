@@ -20,10 +20,12 @@ class AccessLogAtoms(dict):
         client = request.get('client')
         if client is None:
             remote_addr = None
-        elif len(client) == 2:
+        elif len(client) == 2 or len(client) == 4:
             remote_addr = f"{client[0]}:{client[1]}"
         elif len(client) == 1:
             remote_addr = client[0]
+        else:  # make sure not to throw UnboundLocalError
+            remote_addr = f"<???{client}???>"
         method = request.get('method', 'GET')
         self.update({
             'h': remote_addr,
