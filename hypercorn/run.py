@@ -117,8 +117,7 @@ def run_single(
             asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     if loop is None:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = asyncio.get_event_loop()
 
     loop.set_debug(config.debug)
 
