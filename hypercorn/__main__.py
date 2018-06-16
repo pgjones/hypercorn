@@ -136,7 +136,7 @@ def main() -> None:
 
     if args.certfile is not None and args.keyfile is not None:
         config.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        config.ssl.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
+        config.ssl.load_cert_chain(certfile=args.certfile, keyfile=args.keyfile)
         config.ssl.set_ciphers(args.ciphers)
         if args.ca_certs:
             config.ssl.load_verify_locations(args.ca_certs)
