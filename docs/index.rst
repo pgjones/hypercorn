@@ -45,7 +45,9 @@ Discussion Points
    :maxdepth: 1
 
    backpressure.rst
+   design_choices.rst
    dos_mitigations.rst
+   http2.rst
 
 Reference
 ---------
