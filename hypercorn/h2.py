@@ -281,7 +281,10 @@ class H2Server(HTTPServer):
                 self.connection.send_headers(stream_id, headers)
                 self.send()
                 stream.state = ASGIState.RESPONSE
-            if not suppress_body(stream.scope['method'], stream.response['status']):
+            if (
+                    not suppress_body(stream.scope['method'], stream.response['status'])
+                    and message.get('body', b'') != b''
+            ):
                 await self.send_data(stream_id, message.get('body', b''))
             if not message.get('more_body', False):
                 if stream.state != ASGIState.CLOSED:

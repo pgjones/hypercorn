@@ -235,8 +235,11 @@ class H11Server(HTTPServer):
                 )
                 self.send(h11.Response(status_code=self.response['status'], headers=headers))
                 self.state = ASGIState.RESPONSE
-            if not suppress_body(self.scope['method'], self.response['status']):
-                self.send(h11.Data(data=message.get('body', b'')))
+            if (
+                    not suppress_body(self.scope['method'], self.response['status'])
+                    and message.get('body', b'') != b''
+            ):
+                self.send(h11.Data(data=message['body']))
                 await self.drain()
             if not message.get('more_body', False):
                 if self.state != ASGIState.CLOSED:

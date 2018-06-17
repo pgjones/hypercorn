@@ -189,7 +189,10 @@ class WebsocketServer(HTTPServer):
                     ),
                 )
                 self.state = WebsocketState.RESPONSE
-            if not suppress_body('GET', self.response['status']):
+            if (
+                    not suppress_body('GET', self.response['status'])
+                    and message.get('body', b'') != b''
+            ):
                 self.write(
                     self.connection._upgrade_connection.send(
                         h11.Data(data=message.get('body', b'')),
