@@ -4,7 +4,7 @@ import platform
 import sys
 from multiprocessing import Process
 from pathlib import Path
-from socket import SO_REUSEADDR, socket, SOL_SOCKET
+from socket import SO_REUSEADDR, socket, SOL_SOCKET, AF_INET, AF_INET6
 from types import ModuleType
 from typing import Dict, Optional, Type
 
@@ -175,7 +175,7 @@ def run_multiple(
         config: The configuration that defines the server.
         workers: Number of workers to create.
     """
-    sock = socket()
+    sock = socket(AF_INET6 if ':' in config.host else AF_INET)
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     sock.bind((config.host, config.port))
     sock.set_inheritable(True)  # type: ignore

@@ -143,7 +143,7 @@ def main() -> None:
 
     if len(args.binds) == 0:
         args.binds.append(DEFAULT_BIND)
-    config.host, config.port = args.binds[0].rsplit(':')
+    config.host, config.port = args.binds[0].rsplit(':', 1)
     scheme = 'http' if config.ssl is None else 'https'
     print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
 
