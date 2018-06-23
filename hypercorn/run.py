@@ -4,7 +4,7 @@ import platform
 import sys
 from multiprocessing import Process
 from pathlib import Path
-from socket import SO_REUSEADDR, socket, SOL_SOCKET, AF_INET, AF_INET6
+from socket import AF_INET, AF_INET6, SO_REUSEADDR, socket, SOL_SOCKET
 from types import ModuleType
 from typing import Dict, Optional, Type
 
