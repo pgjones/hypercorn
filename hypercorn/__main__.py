@@ -125,6 +125,11 @@ def main() -> None:
         action='store_true',
     )
     parser.add_argument(
+        '--root-path',
+        help='The setting for the ASGI root_path variable',
+        default='',
+    )
+    parser.add_argument(
         '--uvloop',
         dest='uvloop',
         help='Enable uvloop usage',
@@ -146,6 +151,7 @@ def main() -> None:
     config.debug = args.debug
     config.error_log_target = args.error_log
     config.keep_alive_timeout = args.keep_alive
+    config.root_path = args.root_path
     config.use_reloader = args.reload
     config.uvloop = args.uvloop
 

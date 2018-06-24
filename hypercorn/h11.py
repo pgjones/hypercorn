@@ -162,7 +162,7 @@ class H11Server(HTTPServer):
             'scheme': scheme,
             'path': unquote(parsed_path.path.decode()),
             'query_string': parsed_path.query,
-            'root_path': '',
+            'root_path': self.config.root_path,
             'headers': event.headers,
             'client': self.client,
             'server': self.server,

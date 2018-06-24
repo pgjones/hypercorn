@@ -28,6 +28,7 @@ class Config:
     h11_max_incomplete_size = 16 * 1024 * BYTES
     host = '127.0.0.1'
     keep_alive_timeout = 5 * SECONDS
+    root_path = ''
     use_reloader = False
     uvloop = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
