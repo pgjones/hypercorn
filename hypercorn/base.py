@@ -1,6 +1,7 @@
 import asyncio
 from email.utils import formatdate
 from enum import auto, Enum
+from socket import AF_INET, AF_INET6
 from ssl import SSLObject, SSLSocket
 from time import time
 from typing import List, Optional, Tuple, Union
@@ -75,8 +76,14 @@ class HTTPServer:
         return response_headers(self.protocol)
 
     @property
-    def remote_addr(self) -> str:
-        return self.transport.get_extra_info('peername')[0]
+    def client(self) -> List[Tuple[str, int]]:
+        socket = self.transport.get_extra_info('socket')
+        return _parse_socket_addr(socket.family, socket.getpeername())
+
+    @property
+    def server(self) -> List[Tuple[str, int]]:
+        socket = self.transport.get_extra_info('socket')
+        return _parse_socket_addr(socket.family, socket.getsockname())
 
     @property
     def ssl_info(self) -> Optional[Union[SSLObject, SSLSocket]]:
@@ -92,3 +99,12 @@ def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
         (b'date', formatdate(time(), usegmt=True).encode()),
         (b'server', f"hypercorn-{protocol}".encode()),
     ]
+
+
+def _parse_socket_addr(family: int, address: tuple) -> Optional[List[Tuple[str, int]]]:
+    if family == AF_INET:
+        return [address]  # type: ignore
+    elif family == AF_INET6:
+        return [(address[0], address[1])]
+    else:
+        return None

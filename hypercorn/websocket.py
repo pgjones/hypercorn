@@ -120,8 +120,8 @@ class WebsocketServer(HTTPServer):
             'query_string': parsed_path.query,
             'root_path': '',
             'headers': event.h11request.headers,
-            'client': self.transport.get_extra_info('sockname'),
-            'server': self.transport.get_extra_info('peername'),
+            'client': self.client,
+            'server': self.server,
             'subprotocols': [],
             'extensions': {
                 'websocket.http.response': {},

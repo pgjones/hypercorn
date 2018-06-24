@@ -164,8 +164,8 @@ class H11Server(HTTPServer):
             'query_string': parsed_path.query,
             'root_path': '',
             'headers': event.headers,
-            'client': self.transport.get_extra_info('sockname'),
-            'server': self.transport.get_extra_info('peername'),
+            'client': self.client,
+            'server': self.server,
         }
         self.task = self.loop.create_task(self.handle_asgi_app())
         self.task.add_done_callback(self.after_request)

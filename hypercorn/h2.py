@@ -151,8 +151,8 @@ class H2Server(HTTPServer):
             'query_string': parsed_path.query,
             'root_path': '',
             'headers': headers,
-            'client': self.transport.get_extra_info('sockname'),
-            'server': self.transport.get_extra_info('peername'),
+            'client': self.client,
+            'server': self.server,
             'extensions': {
                 'http.response.push': {},
             },

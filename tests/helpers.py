@@ -1,7 +1,8 @@
 import asyncio
 from copy import deepcopy
 from json import dumps
-from typing import Callable, List, Optional
+from socket import AF_INET
+from typing import Callable, List, Optional, Tuple
 
 
 class ErrorFramework:
@@ -130,6 +131,17 @@ class WebsocketFramework:
         })
 
 
+class MockSocket:
+
+    family = AF_INET
+
+    def getsockname(self) -> Tuple[str, int]:
+        return ('162.1.1.1', 80)
+
+    def getpeername(self) -> Tuple[str, int]:
+        return ('127.0.0.1', 80)
+
+
 class MockTransport:
 
     def __init__(self) -> None:
@@ -137,9 +149,9 @@ class MockTransport:
         self.closed = asyncio.Event()
         self.updated = asyncio.Event()
 
-    def get_extra_info(self, name: str) -> Optional[tuple]:
-        if name == 'peername':
-            return ('127.0.0.1',)
+    def get_extra_info(self, name: str) -> MockSocket:
+        if name == 'socket':
+            return MockSocket()
         return None
 
     def write(self, data: bytes) -> None:

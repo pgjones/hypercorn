@@ -20,7 +20,7 @@ class AccessLogAtoms(dict):
         client = request.get('client')
         if client is None:
             remote_addr = None
-        elif len(client) == 2 or len(client) == 4:
+        elif len(client) == 2:
             remote_addr = f"{client[0]}:{client[1]}"
         elif len(client) == 1:
             remote_addr = client[0]
