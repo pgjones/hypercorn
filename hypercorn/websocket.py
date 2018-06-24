@@ -206,7 +206,7 @@ class WebsocketServer(HTTPServer):
                     self.close()
                 self.state = WebsocketState.CLOSED
         elif message['type'] == 'websocket.send' and self.state == WebsocketState.CONNECTED:
-            data = message['bytes'] if message['bytes'] is not None else message['text']
+            data = message['bytes'] if message.get('bytes') is not None else message['text']
             self.connection.send_data(data)
             self.write(self.connection.bytes_to_send())
             await self.drain()
