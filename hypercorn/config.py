@@ -57,6 +57,7 @@ class Config:
 
     @access_log_target.setter
     def access_log_target(self, value: Optional[str]) -> None:
+        self._access_log_target = value
         if self.access_log_target == '-':
             self.access_logger = logging.getLogger('hypercorn.access')
             self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -67,6 +68,7 @@ class Config:
 
     @error_log_target.setter
     def error_log_target(self, value: Optional[str]) -> None:
+        self._error_log_target = value
         if self.error_log_target == '-':
             self.error_logger = logging.getLogger('hypercorn.error')
             self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
