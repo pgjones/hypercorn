@@ -102,7 +102,8 @@ class WebsocketServer(HTTPServer):
             self.write(self.connection.bytes_to_send())
 
     def close(self) -> None:
-        self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+        if not self.closed:
+            self.app_queue.put_nowait({'type': 'websocket.disconnect'})
         super().close()
 
     @property

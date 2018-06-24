@@ -26,6 +26,7 @@ class Stream:
         self.start_time = time()
         self.state = ASGIState.REQUEST
         self.blocked: Optional[asyncio.Event] = None
+        self.closed = False
 
     def append(self, data: bytes) -> None:
         self.app_queue.put_nowait({
@@ -51,7 +52,9 @@ class Stream:
         await self.blocked.wait()
 
     def close(self) -> None:
-        self.app_queue.put_nowait({'type': 'http.disconnect'})
+        if not self.closed:
+            self.app_queue.put_nowait({'type': 'http.disconnect'})
+            self.closed = True
         self.state = ASGIState.CLOSED
 
 

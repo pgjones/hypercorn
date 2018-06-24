@@ -61,7 +61,8 @@ class H11Server(HTTPServer):
         return True
 
     def close(self) -> None:
-        self.app_queue.put_nowait({'type': 'http.disconnect'})
+        if not self.closed:
+            self.app_queue.put_nowait({'type': 'http.disconnect'})
         self.keep_alive_timeout_handle.cancel()
         super().close()
 

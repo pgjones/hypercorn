@@ -31,6 +31,7 @@ class HTTPServer:
         self.transport = transport
         self.protocol = protocol
 
+        self.closed = False
         self._can_write = asyncio.Event(loop=loop)
         self._can_write.set()
 
@@ -68,6 +69,7 @@ class HTTPServer:
     def close(self) -> None:
         self.transport.close()
         self.resume_writing()
+        self.closed = True
 
     def response_headers(self) -> List[Tuple[bytes, bytes]]:
         return response_headers(self.protocol)
