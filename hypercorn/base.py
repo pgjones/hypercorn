@@ -67,6 +67,7 @@ class HTTPServer:
 
     def close(self) -> None:
         self.transport.close()
+        self.resume_writing()
 
     def response_headers(self) -> List[Tuple[bytes, bytes]]:
         return response_headers(self.protocol)
