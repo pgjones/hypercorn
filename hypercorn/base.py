@@ -76,12 +76,12 @@ class HTTPServer:
         return response_headers(self.protocol)
 
     @property
-    def client(self) -> List[Tuple[str, int]]:
+    def client(self) -> Tuple[str, int]:
         socket = self.transport.get_extra_info('socket')
         return _parse_socket_addr(socket.family, socket.getpeername())
 
     @property
-    def server(self) -> List[Tuple[str, int]]:
+    def server(self) -> Tuple[str, int]:
         socket = self.transport.get_extra_info('socket')
         return _parse_socket_addr(socket.family, socket.getsockname())
 
@@ -101,10 +101,10 @@ def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
     ]
 
 
-def _parse_socket_addr(family: int, address: tuple) -> Optional[List[Tuple[str, int]]]:
+def _parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
     if family == AF_INET:
-        return [address]  # type: ignore
+        return address  # type: ignore
     elif family == AF_INET6:
-        return [(address[0], address[1])]
+        return (address[0], address[1])
     else:
         return None
