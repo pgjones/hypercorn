@@ -30,6 +30,9 @@ The following options exist with the given usage,
   --ca-certs CA_CERTS   Path to the SSL CA certificate file
   --certfile CERTFILE   Path to the SSL certificate file
   --ciphers CIPHERS     Ciphers to use for the SSL setup
+  -c CONFIG, --config CONFIG
+                        Location of a TOML config file or when prefixed with
+                        `python:` a Python file.
   --debug               Enable debug mode, i.e. extra logging and checks
   --error-log ERROR_LOG
                         The target location for the error log, use `-` for

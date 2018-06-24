@@ -3,7 +3,7 @@ import ssl
 import sys
 from importlib import import_module
 from pathlib import Path
-from typing import Type
+from typing import Optional, Type
 
 from .config import Config
 from .run import run_multiple, run_single
@@ -44,6 +44,15 @@ def _load_application(path: str) -> Type[ASGIFramework]:
         raise NoAppException()
 
 
+def _load_config(config_path: Optional[str]) -> Config:
+    if config_path is None:
+        return Config()
+    elif config_path.startswith('python:'):
+        return Config.from_pyfile(config_path[len("python:"):])
+    else:
+        return Config.from_toml(config_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -82,6 +91,12 @@ def main() -> None:
         '--ciphers',
         help='Ciphers to use for the SSL setup',
         default='ECDHE+AESGCM',
+    )
+    parser.add_argument(
+        '-c',
+        '--config',
+        help='Location of a TOML config file or when prefixed with `python:` a Python file.',
+        default=None,
     )
     parser.add_argument(
         '--debug',
@@ -125,7 +140,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     application = _load_application(args.application)
-    config = Config()
+    config = _load_config(args.config)
     config.access_log_format = args.access_logformat
     config.access_log_target = args.access_log
     config.debug = args.debug

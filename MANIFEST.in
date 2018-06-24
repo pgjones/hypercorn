@@ -3,6 +3,7 @@ include LICENSE
 include README.rst
 recursive-include hypercorn *.py
 recursive-include tests *.py
+recursive-include tests *.toml
 recursive-exclude compliance *
 recursive-exclude docs *
 exclude .gitlab-ci.yml
