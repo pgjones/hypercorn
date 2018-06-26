@@ -1,3 +1,8 @@
+0.2.1 2018-06-26
+----------------
+
+* Bugfix ensure CLI defaults don't override configuration settings.
+
 0.2.0 2018-06-24
 ----------------
 
