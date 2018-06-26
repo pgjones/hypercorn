@@ -32,6 +32,7 @@ class Config:
     use_reloader = False
     uvloop = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
+    workers = 1
 
     @property
     def port(self) -> int:

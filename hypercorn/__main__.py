@@ -3,13 +3,13 @@ import ssl
 import sys
 from importlib import import_module
 from pathlib import Path
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 from .config import Config
 from .run import run_multiple, run_single
 from .typing import ASGIFramework
 
-DEFAULT_BIND = '127.0.0.1:5000'
+sentinel = object()
 
 
 class NoAppException(Exception):
@@ -53,7 +53,7 @@ def _load_config(config_path: Optional[str]) -> Config:
         return Config.from_toml(config_path)
 
 
-def main() -> None:
+def main(sys_args: List[str]) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'application',
@@ -62,18 +62,18 @@ def main() -> None:
     parser.add_argument(
         '--access-log',
         help='The target location for the access log, use `-` for stdout',
-        default=None,
+        default=sentinel,
     )
     parser.add_argument(
         '--access-logformat',
         help='The log format for the access log, see help docs',
-        default="%(h)s %(r)s %(s)s %(b)s %(D)s",
+        default=sentinel,
     )
     parser.add_argument(
         '-b',
         '--bind',
         dest='binds',
-        help='The host/address to bind to, can be used multiple times',
+        help='The host/address to bind to',
         default=[],
         action='append',
     )
@@ -102,16 +102,17 @@ def main() -> None:
         '--debug',
         help='Enable debug mode, i.e. extra logging and checks',
         action='store_true',
+        default=sentinel,
     )
     parser.add_argument(
         '--error-log',
         help='The target location for the error log, use `-` for stderr',
-        default=None,
+        default=sentinel,
     )
     parser.add_argument(
         '--keep-alive',
         help='Seconds to keep inactive connections alive for',
-        default=10,
+        default=sentinel,
         type=int,
     )
     parser.add_argument(
@@ -123,56 +124,67 @@ def main() -> None:
         '--reload',
         help='Enable automatic reloads on code changes',
         action='store_true',
+        default=sentinel,
     )
     parser.add_argument(
         '--root-path',
         help='The setting for the ASGI root_path variable',
-        default='',
+        default=sentinel,
     )
     parser.add_argument(
         '--uvloop',
         dest='uvloop',
         help='Enable uvloop usage',
         action='store_true',
+        default=sentinel,
     )
     parser.add_argument(
         '-k',
         '--workers',
         dest='workers',
         help='The number of workers to spawn and use',
-        default=1,
+        default=sentinel,
         type=int,
     )
-    args = parser.parse_args()
+    args = parser.parse_args(sys_args)
     application = _load_application(args.application)
     config = _load_config(args.config)
-    config.access_log_format = args.access_logformat
-    config.access_log_target = args.access_log
-    config.debug = args.debug
-    config.error_log_target = args.error_log
-    config.keep_alive_timeout = args.keep_alive
-    config.root_path = args.root_path
-    config.use_reloader = args.reload
-    config.uvloop = args.uvloop
+    if args.access_logformat is not sentinel:
+        config.access_log_format = args.access_logformat
+    if args.access_log is not sentinel:
+        config.access_log_target = args.access_log
+    if args.debug is not sentinel:
+        config.debug = args.debug
+    if args.error_log is not sentinel:
+        config.error_log_target = args.error_log
+    if args.keep_alive is not sentinel:
+        config.keep_alive_timeout = args.keep_alive
+    if args.root_path is not sentinel:
+        config.root_path = args.root_path
+    if args.reload is not sentinel:
+        config.use_reloader = args.reload
+    if args.uvloop is not sentinel:
+        config.uvloop = args.uvloop
+    if args.workers is not sentinel:
+        config.workers = args.workers
 
-    if args.certfile is not None and args.keyfile is not None:
+    if config.ssl is None and args.certfile is not None and args.keyfile is not None:
         config.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         config.ssl.load_cert_chain(certfile=args.certfile, keyfile=args.keyfile)
         config.ssl.set_ciphers(args.ciphers)
         if args.ca_certs:
             config.ssl.load_verify_locations(args.ca_certs)
 
-    if len(args.binds) == 0:
-        args.binds.append(DEFAULT_BIND)
-    config.host, config.port = args.binds[0].rsplit(':', 1)
+    if len(args.binds) > 0:
+        config.host, config.port = args.binds[0].rsplit(':', 1)
     scheme = 'http' if config.ssl is None else 'https'
     print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
 
-    if args.workers == 1:
+    if config.workers == 1:
         run_single(application, config)
     else:
-        run_multiple(application, config, workers=args.workers)
+        run_multiple(application, config, workers=config.workers)
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
