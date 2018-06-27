@@ -1,3 +1,8 @@
+0.2.2 2018-06-27
+----------------
+
+* Bugfix ensure that hypercorn as a command line (entry point) works.
+
 0.2.1 2018-06-26
 ----------------
 
