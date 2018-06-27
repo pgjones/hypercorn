@@ -53,7 +53,7 @@ def _load_config(config_path: Optional[str]) -> Config:
         return Config.from_toml(config_path)
 
 
-def main(sys_args: List[str]) -> None:
+def main(sys_args: Optional[List[str]]=None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'application',
@@ -146,7 +146,7 @@ def main(sys_args: List[str]) -> None:
         default=sentinel,
         type=int,
     )
-    args = parser.parse_args(sys_args)
+    args = parser.parse_args(sys_args or sys.argv[1:])
     application = _load_application(args.application)
     config = _load_config(args.config)
     if args.access_logformat is not sentinel:
@@ -187,4 +187,4 @@ def main(sys_args: List[str]) -> None:
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()
