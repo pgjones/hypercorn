@@ -1,10 +1,10 @@
 import asyncio
-from email.utils import formatdate
 from enum import auto, Enum
 from socket import AF_INET, AF_INET6
 from ssl import SSLObject, SSLSocket
 from time import time
 from typing import List, Optional, Tuple, Union
+from wsgiref.handlers import format_date_time
 
 from .config import Config
 
@@ -96,8 +96,8 @@ def suppress_body(method: str, status_code: int) -> bool:
 
 def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
     return [
-        (b'date', formatdate(time(), usegmt=True).encode()),
-        (b'server', f"hypercorn-{protocol}".encode()),
+        (b'date', format_date_time(time()).encode('ascii')),
+        (b'server', f"hypercorn-{protocol}".encode('ascii')),
     ]
 
 
