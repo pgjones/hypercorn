@@ -139,7 +139,7 @@ def run_single(
     server = loop.run_until_complete(create_server)
 
     if platform.system() == 'Windows':
-        asyncio.ensure_future(_windows_signal_support())
+        loop.create_task(_windows_signal_support())
 
     try:
         if config.use_reloader:
