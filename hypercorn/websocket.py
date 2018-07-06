@@ -4,7 +4,7 @@ from functools import partial
 from itertools import chain
 from time import time
 from typing import Optional, Type, Union
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote
 
 import h11
 import wsproto.connection
@@ -112,12 +112,12 @@ class WebsocketServer(HTTPServer):
 
     def handle_websocket(self, event: wsproto.events.ConnectionRequested) -> None:
         scheme = 'wss' if self.ssl_info is not None else 'ws'
-        parsed_path = urlparse(event.h11request.target)
+        path, _, query_string = event.h11request.target.partition(b'?')
         self.scope = {
             'type': 'websocket',
             'scheme': scheme,
-            'path': unquote(parsed_path.path.decode()),
-            'query_string': parsed_path.query,
+            'path': unquote(path.decode('ascii')),
+            'query_string': query_string,
             'root_path': self.config.root_path,
             'headers': event.h11request.headers,
             'client': self.client,

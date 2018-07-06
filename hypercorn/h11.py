@@ -2,7 +2,7 @@ import asyncio
 from itertools import chain
 from time import time
 from typing import Optional, Type, Union
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote
 
 import h11
 
@@ -154,14 +154,14 @@ class H11Server(HTTPServer):
     def handle_request(self, event: h11.Request) -> None:
         self.keep_alive_timeout_handle.cancel()
         scheme = 'https' if self.ssl_info is not None else 'http'
-        parsed_path = urlparse(event.target)
+        path, _, query_string = event.target.partition(b'?')
         self.scope = {
             'type': 'http',
             'http_version': event.http_version.decode(),
             'method': event.method.decode().upper(),
             'scheme': scheme,
-            'path': unquote(parsed_path.path.decode()),
-            'query_string': parsed_path.query,
+            'path': unquote(path.decode('ascii')),
+            'query_string': query_string,
             'root_path': self.config.root_path,
             'headers': event.headers,
             'client': self.client,

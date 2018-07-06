@@ -3,7 +3,7 @@ from functools import partial
 from itertools import chain
 from time import time
 from typing import Dict, Iterable, List, Optional, Tuple, Type
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote
 
 import h11
 import h2.config
@@ -138,17 +138,17 @@ class H2Server(HTTPServer):
             if name == ':method':
                 method = value.upper()
             elif name == ':path':
-                path = value.encode()
-            headers.append((name.encode(), value.encode()))
+                path = value
+            headers.append((name.encode('ascii'), value.encode()))
         scheme = 'https' if self.ssl_info is not None else 'http'
-        parsed_path = urlparse(path)
+        path, _, query_string = path.partition('?')
         scope = {
             'type': 'http',
             'http_version': '2',
             'method': method,
             'scheme': scheme,
-            'path': unquote(parsed_path.path.decode()),
-            'query_string': parsed_path.query,
+            'path': unquote(path),
+            'query_string': query_string.encode('ascii'),
             'root_path': self.config.root_path,
             'headers': headers,
             'client': self.client,
