@@ -19,6 +19,13 @@ def test_config_from_pyfile() -> None:
     _check_standard_config(config)
 
 
+def test_ssl_config_from_pyfile() -> None:
+    path = os.path.join(os.path.dirname(__file__), 'assets/config_ssl.py')
+    config = Config.from_pyfile(path)
+    _check_standard_config(config)
+    assert config.ssl is not None
+
+
 def test_config_from_toml() -> None:
     path = os.path.join(os.path.dirname(__file__), 'assets/config.toml')
     config = Config.from_toml(path)

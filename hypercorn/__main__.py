@@ -1,5 +1,4 @@
 import argparse
-import ssl
 import sys
 from importlib import import_module
 from pathlib import Path
@@ -90,7 +89,7 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     parser.add_argument(
         '--ciphers',
         help='Ciphers to use for the SSL setup',
-        default='ECDHE+AESGCM',
+        default=None,
     )
     parser.add_argument(
         '-c',
@@ -168,12 +167,11 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     if args.workers is not sentinel:
         config.workers = args.workers
 
-    if config.ssl is None and args.certfile is not None and args.keyfile is not None:
-        config.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        config.ssl.load_cert_chain(certfile=args.certfile, keyfile=args.keyfile)
-        config.ssl.set_ciphers(args.ciphers)
-        if args.ca_certs:
-            config.ssl.load_verify_locations(args.ca_certs)
+    if (
+            args.certfile is not None or args.keyfile is not None or
+            args.ciphers is not None or args.ca_certs is not None
+    ):
+        config.update_ssl(args.certfile, args.keyfile, args.ciphers, args.ca_certs)
 
     if len(args.binds) > 0:
         config.host, config.port = args.binds[0].rsplit(':', 1)

@@ -2,6 +2,7 @@ import importlib
 import importlib.util
 import logging
 import os
+import ssl
 import sys
 import types
 from ssl import SSLContext
@@ -11,6 +12,7 @@ import pytoml
 
 BYTES = 1
 SECONDS = 1.0
+DEFAULT_CIPHERS = 'ECDHE+AESGCM'
 
 FilePath = Union[AnyStr, os.PathLike]
 
@@ -20,7 +22,6 @@ class Config:
     _access_log_target: Optional[str] = None
     _error_log_target: Optional[str] = None
     _port = 5000
-    _ssl: Optional[SSLContext] = None
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_logger: Optional[logging.Logger] = None
@@ -30,6 +31,7 @@ class Config:
     host = '127.0.0.1'
     keep_alive_timeout = 5 * SECONDS
     root_path = ''
+    ssl: Optional[SSLContext] = None
     use_reloader = False
     uvloop = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
@@ -42,16 +44,6 @@ class Config:
     @port.setter
     def port(self, value: Union[str, int]) -> None:
         self._port = int(value)
-
-    @property
-    def ssl(self) -> Optional[SSLContext]:
-        return self._ssl
-
-    @ssl.setter
-    def ssl(self, value: Optional[SSLContext]) -> None:
-        if value is not None:
-            value.set_alpn_protocols(['h2', 'http/1.1'])
-        self._ssl = value
 
     @property
     def access_log_target(self) -> Optional[str]:
@@ -74,6 +66,27 @@ class Config:
         if self.error_log_target == '-':
             self.error_logger = logging.getLogger('hypercorn.error')
             self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
+
+    def update_ssl(
+            self,
+            certfile: Optional[str]=None,
+            keyfile: Optional[str]=None,
+            ciphers: Optional[str]=None,
+            ca_certs: Optional[str]=None,
+    ) -> None:
+        if self.ssl is None:
+            self.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            self.ssl.set_ciphers(DEFAULT_CIPHERS)
+            self.ssl.set_alpn_protocols(['h2', 'http/1.1'])
+
+        if ciphers is not None:
+            self.ssl.set_ciphers(ciphers)
+
+        if certfile is not None and keyfile is not None:
+            self.ssl.load_cert_chain(certfile=certfile, keyfile=keyfile)
+
+        if ca_certs is not None:
+            self.ssl.load_verify_locations(ca_certs)
 
     @classmethod
     def from_mapping(
@@ -105,6 +118,12 @@ class Config:
         for key, value in mappings.items():
             if hasattr(config, key):
                 setattr(config, key, value)
+
+        if {'certfile', 'keyfile', 'ciphers', 'ca_certs'} & mappings.keys():
+            config.update_ssl(
+                mappings.get('certfile'), mappings.get('keyfile'),
+                mappings.get('ciphers'),  mappings.get('ca_certs'),
+            )
         return config
 
     @classmethod
