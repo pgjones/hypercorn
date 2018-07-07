@@ -3,6 +3,7 @@ import importlib.util
 import logging
 import os
 import sys
+import types
 from ssl import SSLContext
 from typing import Any, AnyStr, Dict, Mapping, Optional, Type, Union
 
@@ -172,5 +173,8 @@ class Config:
                 module = importlib.import_module(path)
                 instance = getattr(module, config)
 
-        mapping = {key: getattr(instance, key) for key in dir(instance)}
+        mapping = {
+            key: getattr(instance, key) for key in dir(instance)
+            if not isinstance(getattr(instance, key), types.ModuleType)
+        }
         return cls.from_mapping(mapping)

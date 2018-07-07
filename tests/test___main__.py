@@ -30,7 +30,9 @@ def test_main_cli_override(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(hypercorn.__main__, 'run_single', run_single)
     monkeypatch.setattr(hypercorn.__main__, '_load_application', Mock())
     path = os.path.join(os.path.dirname(__file__), 'assets/config.py')
-    hypercorn.__main__.main(['--config', path, '--access-logformat', 'jeff', 'asgi:App'])
+    hypercorn.__main__.main(
+        ['--config', f"python:{path}", '--access-logformat', 'jeff', 'asgi:App'],
+    )
     run_single.assert_called()
     config = run_single.call_args_list[0][0][1]
     assert config.access_log_format == 'jeff'
