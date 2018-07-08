@@ -1,3 +1,11 @@
+0.2.3 2018-07-08
+----------------
+
+* Bugfix setting ssl from config files
+* Bugfix ensure modules aren't set as config values
+* Bugfix use the wsgiref datetime formatter (accurate Date headers).
+* Bugfix query_string value ASGI conformance
+
 0.2.2 2018-06-27
 ----------------
 
