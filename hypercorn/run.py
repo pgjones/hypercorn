@@ -138,13 +138,11 @@ def run_single(
     if platform.system() == 'Windows':
         loop.create_task(_windows_signal_support())
 
+    reload_ = False
     try:
         if config.use_reloader:
             loop.run_until_complete(_observe_changes())
-            server.close()
-            loop.run_until_complete(server.wait_closed())
-            # Restart this process (only safe for dev/debug)
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            reload_ = True
         else:
             loop.run_forever()
     except KeyboardInterrupt:  # pragma: no cover
@@ -156,6 +154,9 @@ def run_single(
         if hasattr(app, 'cleanup'):
             loop.run_until_complete(app.cleanup())  # type: ignore
         loop.close()
+    if reload_:
+        # Restart this process (only safe for dev/debug)
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 def run_multiple(
