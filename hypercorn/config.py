@@ -55,6 +55,7 @@ class Config:
         if self.access_log_target == '-':
             self.access_logger = logging.getLogger('hypercorn.access')
             self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
+            self.access_logger.setLevel(logging.INFO)
 
     @property
     def error_log_target(self) -> Optional[str]:
@@ -66,6 +67,7 @@ class Config:
         if self.error_log_target == '-':
             self.error_logger = logging.getLogger('hypercorn.error')
             self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
+            self.error_logger.setLevel(logging.INFO)
 
     def update_ssl(
             self,
