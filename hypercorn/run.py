@@ -171,6 +171,9 @@ def run_multiple(
         config: The configuration that defines the server.
         workers: Number of workers to create.
     """
+    if config.use_reloader:
+        raise RuntimeError("Reloader can only be used with a single worker")
+
     sock = socket(AF_INET6 if ':' in config.host else AF_INET)
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     sock.bind((config.host, config.port))
