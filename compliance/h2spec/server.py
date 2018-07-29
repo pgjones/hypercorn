@@ -33,11 +33,8 @@ class App:
 
 
 if __name__ == '__main__':
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    ssl_context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_COMPRESSION
-    ssl_context.set_ciphers('ECDHE+AESGCM')
-    ssl_context.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
     config = Config()
-    config.ssl = ssl_context
+    config.update_ssl(certfile='cert.pem', keyfile='key.pem', ciphers='ECDHE+AESGCM')
+    config.ssl.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_COMPRESSION
     config.debug = True
     run_single(App, config)
