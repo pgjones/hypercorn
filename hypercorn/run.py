@@ -121,9 +121,6 @@ def run_single(
 
     loop.set_debug(config.debug)
 
-    if config.ssl is not None:
-        config.ssl.set_alpn_protocols(['h2', 'http/1.1'])
-
     if hasattr(app, 'startup'):
         loop.run_until_complete(app.startup())  # type: ignore
 
