@@ -108,7 +108,7 @@ def run_single(
         *,
         loop: Optional[asyncio.AbstractEventLoop]=None,
         sock: Optional[socket]=None,
-        reuse_port: bool=False,
+        is_child: bool=False,
 ) -> None:
     """Create a server to run the app on given the options.
 
@@ -126,7 +126,11 @@ def run_single(
             asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     if loop is None:
-        loop = asyncio.get_event_loop()
+        if is_child:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        else:
+            loop = asyncio.get_event_loop()
 
     loop.set_debug(config.debug)
 
@@ -135,12 +139,12 @@ def run_single(
 
     if sock is not None:
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=reuse_port,
+            lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=is_child,
         )
     else:
         create_server = loop.create_server(
             lambda: Server(app, loop, config), host=config.host, port=config.port, ssl=config.ssl,
-            reuse_port=reuse_port,
+            reuse_port=is_child,
         )
     server = loop.run_until_complete(create_server)
 
@@ -207,7 +211,7 @@ def run_multiple(
     for _ in range(workers):
         process = Process(
             target=run_single,
-            kwargs={'app': app, 'config': config, 'sock': sock, 'reuse_port': True},
+            kwargs={'app': app, 'config': config, 'sock': sock, 'is_child': True},
         )
         process.daemon = True
         process.start()
