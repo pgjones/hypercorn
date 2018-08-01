@@ -1,7 +1,8 @@
 import asyncio
-from typing import AsyncGenerator, Type
+from typing import AsyncGenerator, Optional, Type
 from unittest.mock import Mock
 
+import h11
 import h2
 import pytest
 
@@ -27,10 +28,15 @@ class MockH2Connection:
             *,
             config: Config=Config(),
             framework: Type[ASGIFramework]=HTTPFramework,
+            upgrade_request: Optional[h11.Request]=None,
     ) -> None:
         self.transport = MockTransport()
-        self.server = H2Server(framework, event_loop, config, self.transport)  # type: ignore
+        self.server = H2Server(  # type: ignore
+            framework, event_loop, config, self.transport, upgrade_request=upgrade_request,
+        )
         self.connection = h2.connection.H2Connection()
+        if upgrade_request is not None:
+            self.connection.initiate_upgrade_connection()
 
     def send_request(self, headers: list, settings: dict) -> int:
         self.connection.initiate_connection()
@@ -63,6 +69,22 @@ class MockH2Connection:
 async def test_h2server(event_loop: asyncio.AbstractEventLoop) -> None:
     connection = MockH2Connection(event_loop)
     connection.send_request(BASIC_H2_HEADERS, {})
+    response_data = b''
+    async for event in connection.get_events():
+        if isinstance(event, h2.events.ResponseReceived):
+            assert (b':status', b'200') in event.headers
+            assert (b'server', b'hypercorn-h2') in event.headers
+            assert b'date' in (header[0] for header in event.headers)
+        elif isinstance(event, h2.events.DataReceived):
+            response_data += event.data
+        elif isinstance(event, h2.events.StreamEnded):
+            break
+
+
+@pytest.mark.asyncio
+async def test_h2server_upgrade(event_loop: asyncio.AbstractEventLoop) -> None:
+    upgrade_request = h11.Request(method="GET", target="/", headers=[("Host", "hypercorn")])
+    connection = MockH2Connection(event_loop, upgrade_request=upgrade_request)
     response_data = b''
     async for event in connection.get_events():
         if isinstance(event, h2.events.ResponseReceived):

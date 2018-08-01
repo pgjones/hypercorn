@@ -76,24 +76,30 @@ class H2Server(HTTPServer):
         self.connection = h2.connection.H2Connection(
             config=h2.config.H2Configuration(client_side=False, header_encoding='utf-8'),
         )
+
+        self.last_activity = time()
+        self.handle_keep_alive_timeout()
+
         if upgrade_request is None:
             self.connection.initiate_connection()
         else:
             settings = ''
             headers = []
             for name, value in upgrade_request.headers:
-                if name.decode().lower() == 'http2-settings':
+                if name.lower() == b'http2-settings':
                     settings = value.decode()
+                elif name.lower() == b'host':
+                    headers.append((':authority', value.decode()))
                 headers.append((name.decode(), value.decode()))
+            headers.append((':method', upgrade_request.method.decode()))
+            headers.append((':path', upgrade_request.target.decode('ascii')))
             self.connection.initiate_upgrade_connection(settings)
             event = h2.events.RequestReceived()
             event.stream_id = 1
             event.headers = headers
             self.handle_request(event)
+            self.streams[event.stream_id].complete()
         self.send()
-
-        self.last_activity = time()
-        self.handle_keep_alive_timeout()
 
     def data_received(self, data: bytes) -> None:
         super().data_received(data)
@@ -138,10 +144,10 @@ class H2Server(HTTPServer):
             if name == ':method':
                 method = value.upper()
             elif name == ':path':
-                path = value
+                raw_path = value
             headers.append((name.encode('ascii'), value.encode()))
         scheme = 'https' if self.ssl_info is not None else 'http'
-        path, _, query_string = path.partition('?')
+        path, _, query_string = raw_path.partition('?')
         scope = {
             'type': 'http',
             'http_version': '2',
