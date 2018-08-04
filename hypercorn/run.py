@@ -1,6 +1,7 @@
 import asyncio
 import os
 import platform
+import signal
 import sys
 from multiprocessing import Process
 from pathlib import Path
@@ -14,6 +15,14 @@ from .h11 import H11Server, H2CProtocolRequired, WebsocketProtocolRequired
 from .h2 import H2Server
 from .typing import ASGIFramework
 from .websocket import WebsocketServer
+
+
+class Shutdown(SystemExit):
+    code = 1
+
+
+def _raise_shutdown() -> None:
+    raise Shutdown()
 
 
 class Server(asyncio.Protocol):
@@ -138,6 +147,12 @@ def run_single(
     if platform.system() == 'Windows':
         loop.create_task(_windows_signal_support())
 
+    try:
+        loop.add_signal_handler(signal.SIGINT, _raise_shutdown)
+        loop.add_signal_handler(signal.SIGTERM, _raise_shutdown)
+    except NotImplementedError:
+        pass  # Unix only
+
     reload_ = False
     try:
         if config.use_reloader:
@@ -145,12 +160,19 @@ def run_single(
             reload_ = True
         else:
             loop.run_forever()
-    except KeyboardInterrupt:  # pragma: no cover
+    except (SystemExit, KeyboardInterrupt):
         pass
     finally:
         server.close()
         loop.run_until_complete(server.wait_closed())
         loop.run_until_complete(loop.shutdown_asyncgens())
+
+        try:
+            loop.remove_signal_handler(signal.SIGINT)
+            loop.remove_signal_handler(signal.SIGTERM)
+        except NotImplementedError:
+            pass  # Unix only
+
         if hasattr(app, 'cleanup'):
             loop.run_until_complete(app.cleanup())  # type: ignore
         loop.close()
@@ -191,13 +213,14 @@ def run_multiple(
         process.start()
         processes.append(process)
 
-    try:
-        for process in processes:
-            process.join()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        for process in processes:
-            process.terminate()
+    # These are caught by the processes (children) and should be
+    # ignored in the master.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        sock.close()
+    for process in processes:
+        process.join()
+    for process in processes:
+        process.terminate()
+
+    sock.close()
