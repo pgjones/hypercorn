@@ -1,3 +1,13 @@
+0.2.4 2018-08-05
+----------------
+
+* Bugfix don't force the ALPN protocols
+* Bugfix shutdown on reload
+* Bugfix set the default log level if std(out/err) is used
+* Bugfix HTTP/1.1 -> HTTP/2 Upgrade requests
+* Bugfix correctly handle TERM and INT signals
+* Bugix loop usage and creation for multiple workers
+
 0.2.3 2018-07-08
 ----------------
 
