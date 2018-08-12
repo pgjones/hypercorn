@@ -6,7 +6,7 @@ Logging
 Hypercorn has two loggers, an access logger and an error logger. By
 default neither will actively log. The special value of ``-`` can be
 used as the logging target in order to log to stdout and stderr
-respectively.
+respectively. Any other value is considered a filepath to target.
 
 
 Configuring access logs

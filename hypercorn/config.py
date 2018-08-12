@@ -52,9 +52,12 @@ class Config:
     @access_log_target.setter
     def access_log_target(self, value: Optional[str]) -> None:
         self._access_log_target = value
-        if self.access_log_target == '-':
+        if self.access_log_target is not None:
             self.access_logger = logging.getLogger('hypercorn.access')
-            self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
+            if self.access_log_target == '-':
+                self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
+            else:
+                self.access_logger.addHandler(logging.FileHandler(self.access_log_target))
             self.access_logger.setLevel(logging.INFO)
 
     @property
@@ -64,9 +67,12 @@ class Config:
     @error_log_target.setter
     def error_log_target(self, value: Optional[str]) -> None:
         self._error_log_target = value
-        if self.error_log_target == '-':
+        if self.error_log_target is not None:
             self.error_logger = logging.getLogger('hypercorn.error')
-            self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
+            if self.error_log_target == '-':
+                self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
+            else:
+                self.error_logger.addHandler(logging.FileHandler(self.error_log_target))
             self.error_logger.setLevel(logging.INFO)
 
     def update_ssl(
