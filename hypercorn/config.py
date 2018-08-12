@@ -32,6 +32,7 @@ class Config:
     keep_alive_timeout = 5 * SECONDS
     root_path = ''
     ssl: Optional[SSLContext] = None
+    unix_domain: Optional[str] = None
     use_reloader = False
     uvloop = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
@@ -95,6 +96,15 @@ class Config:
 
         if ca_certs is not None:
             self.ssl.load_verify_locations(ca_certs)
+
+    def update_bind(self, bind: str) -> None:
+        if bind.startswith('unix:'):
+            self.unix_domain = bind[5:]
+        else:
+            try:
+                self.host, self.port = bind.rsplit(':', 1)  # type: ignore
+            except ValueError:
+                self.host = bind
 
     @classmethod
     def from_mapping(

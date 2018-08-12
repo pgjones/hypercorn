@@ -1,4 +1,7 @@
 import os
+from typing import Optional
+
+import pytest
 
 from hypercorn.config import Config
 
@@ -30,3 +33,20 @@ def test_config_from_toml() -> None:
     path = os.path.join(os.path.dirname(__file__), 'assets/config.toml')
     config = Config.from_toml(path)
     _check_standard_config(config)
+
+
+@pytest.mark.parametrize(
+    'bind, host, port, unix_domain',
+    [
+        ('localhost:80', 'localhost', 80, None),
+        ('localhost', 'localhost', 5000, None),
+        ('localhost:443', 'localhost', 443, None),
+        ('unix:file', '127.0.0.1', 5000, 'file'),
+    ],
+)
+def test_config_update_bind(bind: str, host: str, port: int, unix_domain: Optional[str]) -> None:
+    config = Config()
+    config.update_bind(bind)
+    assert config.host == host
+    assert config.port == port
+    assert config.unix_domain == unix_domain

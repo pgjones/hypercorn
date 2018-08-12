@@ -5,7 +5,7 @@ import signal
 import sys
 from multiprocessing import Process
 from pathlib import Path
-from socket import AF_INET, AF_INET6, SO_REUSEADDR, socket, SOL_SOCKET
+from socket import AF_INET, AF_INET6, AF_UNIX, SO_REUSEADDR, socket, SOL_SOCKET
 from types import ModuleType
 from typing import Dict, Optional, Type
 
@@ -141,6 +141,10 @@ def run_single(
         create_server = loop.create_server(
             lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=is_child,
         )
+    elif config.unix_domain is not None:
+        create_server = loop.create_unix_server(
+            lambda: Server(app, loop, config), config.unix_domain, ssl=config.ssl,
+        )
     else:
         create_server = loop.create_server(
             lambda: Server(app, loop, config), host=config.host, port=config.port, ssl=config.ssl,
@@ -201,9 +205,13 @@ def run_multiple(
     if config.use_reloader:
         raise RuntimeError("Reloader can only be used with a single worker")
 
-    sock = socket(AF_INET6 if ':' in config.host else AF_INET)
+    if config.unix_domain is not None:
+        sock = socket(AF_UNIX)
+        sock.bind(config.unix_domain)
+    else:
+        sock = socket(AF_INET6 if ':' in config.host else AF_INET)
+        sock.bind((config.host, config.port))
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    sock.bind((config.host, config.port))
     sock.set_inheritable(True)  # type: ignore
 
     processes = []
