@@ -7,7 +7,7 @@ from multiprocessing import Process
 from pathlib import Path
 from socket import AF_INET, AF_INET6, AF_UNIX, SO_REUSEADDR, socket, SOL_SOCKET
 from types import ModuleType
-from typing import Dict, Optional, Type
+from typing import Any, Dict, Optional, Type
 
 from .base import HTTPServer
 from .config import Config
@@ -228,7 +228,12 @@ def run_multiple(
     # These are caught by the processes (children) and should be
     # ignored in the master.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    def shutdown(*args: Any) -> None:
+        for process in processes:
+            process.terminate()
+
+    signal.signal(signal.SIGTERM, shutdown)
 
     for process in processes:
         process.join()
