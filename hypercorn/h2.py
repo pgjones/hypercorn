@@ -74,7 +74,7 @@ class H2Server(HTTPServer):
         self.streams: Dict[int, Stream] = {}
 
         self.connection = h2.connection.H2Connection(
-            config=h2.config.H2Configuration(client_side=False, header_encoding='utf-8'),
+            config=h2.config.H2Configuration(client_side=False, header_encoding=None),
         )
 
         self.last_activity = time()
@@ -89,10 +89,10 @@ class H2Server(HTTPServer):
                 if name.lower() == b'http2-settings':
                     settings = value.decode()
                 elif name.lower() == b'host':
-                    headers.append((':authority', value.decode()))
-                headers.append((name.decode(), value.decode()))
-            headers.append((':method', upgrade_request.method.decode()))
-            headers.append((':path', upgrade_request.target.decode('ascii')))
+                    headers.append((b':authority', value))
+                headers.append((name, value))
+            headers.append((b':method', upgrade_request.method))
+            headers.append((b':path', upgrade_request.target))
             self.connection.initiate_upgrade_connection(settings)
             event = h2.events.RequestReceived()
             event.stream_id = 1
@@ -141,20 +141,20 @@ class H2Server(HTTPServer):
         self.keep_alive_timeout_handle.cancel()
         headers = []
         for name, value in event.headers:
-            if name == ':method':
-                method = value.upper()
-            elif name == ':path':
+            if name == b':method':
+                method = value.decode('ascii').upper()
+            elif name == b':path':
                 raw_path = value
-            headers.append((name.encode('ascii'), value.encode()))
+            headers.append((name, value))
         scheme = 'https' if self.ssl_info is not None else 'http'
-        path, _, query_string = raw_path.partition('?')
+        path, _, query_string = raw_path.partition(b'?')
         scope = {
             'type': 'http',
             'http_version': '2',
             'method': method,
             'scheme': scheme,
-            'path': unquote(path),
-            'query_string': query_string.encode('ascii'),
+            'path': unquote(path.decode('ascii')),
+            'query_string': query_string,
             'root_path': self.config.root_path,
             'headers': headers,
             'client': self.client,
@@ -205,7 +205,7 @@ class H2Server(HTTPServer):
             if name == b':authority':
                 authority = value
         request_headers = [
-            (name.decode(), value.decode()) for name, value in chain(
+            (name, value) for name, value in chain(
                 [
                     (b':method', b'GET'), (b':path', path.encode()),
                     (b':scheme', stream.scope['scheme'].encode()),
@@ -281,7 +281,7 @@ class H2Server(HTTPServer):
         ):
             if stream.state == ASGIState.REQUEST:
                 headers = [
-                    (key.decode().strip(), value.decode().strip()) for key, value in chain(
+                    (key.strip(), value.strip()) for key, value in chain(
                         [(b':status', str(stream.response['status']).encode())],
                         stream.response['headers'],
                         self.response_headers(),
