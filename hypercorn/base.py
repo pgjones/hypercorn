@@ -35,6 +35,7 @@ class HTTPServer:
         self.closed = False
         self._can_write = asyncio.Event(loop=loop)
         self._can_write.set()
+        self.start_keep_alive_timeout()
 
     def data_received(self, data: bytes) -> None:
         # Called whenever data is received.
@@ -71,9 +72,21 @@ class HTTPServer:
         self.transport.close()
         self.resume_writing()
         self.closed = True
+        self.stop_keep_alive_timeout()
 
     def response_headers(self) -> List[Tuple[bytes, bytes]]:
         return response_headers(self.protocol)
+
+    def start_keep_alive_timeout(self) -> None:
+        self._keep_alive_timeout_handle = self.loop.call_later(
+            self.config.keep_alive_timeout, self._handle_timeout,
+        )
+
+    def stop_keep_alive_timeout(self) -> None:
+        self._keep_alive_timeout_handle.cancel()
+
+    def _handle_timeout(self) -> None:
+        self.close()
 
     @property
     def client(self) -> Tuple[str, int]:

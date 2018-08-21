@@ -77,9 +77,6 @@ class H2Server(HTTPServer):
             config=h2.config.H2Configuration(client_side=False, header_encoding=None),
         )
 
-        self.last_activity = time()
-        self.handle_keep_alive_timeout()
-
         if upgrade_request is None:
             self.connection.initiate_connection()
         else:
@@ -116,7 +113,6 @@ class H2Server(HTTPServer):
     def close(self) -> None:
         for stream in self.streams.values():
             stream.close()
-        self.keep_alive_timeout_handle.cancel()
         super().close()
 
     def handle_events(self, events: List[h2.events.Event]) -> None:
@@ -138,7 +134,7 @@ class H2Server(HTTPServer):
             self.send()
 
     def handle_request(self, event: h2.events.RequestReceived) -> None:
-        self.keep_alive_timeout_handle.cancel()
+        self.stop_keep_alive_timeout()
         headers = []
         for name, value in event.headers:
             if name == b':method':
@@ -191,7 +187,7 @@ class H2Server(HTTPServer):
     def after_request(self, stream_id: int, future: asyncio.Future) -> None:
         del self.streams[stream_id]
         if len(self.streams) == 0:
-            self.handle_keep_alive_timeout()
+            self.start_keep_alive_timeout()
 
     def server_push(
             self,
@@ -247,14 +243,6 @@ class H2Server(HTTPServer):
     def send(self) -> None:
         self.last_activity = time()
         self.write(self.connection.data_to_send())  # type: ignore
-
-    def handle_keep_alive_timeout(self) -> None:
-        if time() - self.last_activity > self.config.keep_alive_timeout:
-            self.close()
-        else:
-            self.keep_alive_timeout_handle = self.loop.call_later(
-                self.config.keep_alive_timeout, self.handle_keep_alive_timeout,
-            )
 
     def window_updated(self, stream_id: Optional[int]) -> None:
         if stream_id:

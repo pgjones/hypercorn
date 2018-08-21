@@ -46,24 +46,18 @@ class H11Server(HTTPServer):
         self.scope: Optional[dict] = None
         self.state = ASGIState.REQUEST
 
-        self.last_activity = time()
-        self.handle_keep_alive_timeout()
-
     def data_received(self, data: bytes) -> None:
         super().data_received(data)
-        self.last_activity = time()
         self.connection.receive_data(data)
         self.handle_events()
 
     def eof_received(self) -> bool:
         self.connection.receive_data(b'')
-        self.last_activity = time()
         return True
 
     def close(self) -> None:
         if not self.closed:
             self.app_queue.put_nowait({'type': 'http.disconnect'})
-        self.keep_alive_timeout_handle.cancel()
         super().close()
 
     def handle_events(self) -> None:
@@ -135,7 +129,7 @@ class H11Server(HTTPServer):
                 upgrade_value.lower() == 'websocket' and
                 event.method.decode().upper() == 'GET'
         ):
-            self.keep_alive_timeout_handle.cancel()
+            self.stop_keep_alive_timeout()
             raise WebsocketProtocolRequired(event)
         # h2c Upgrade requests with a body are a pain as the body must
         # be fully recieved in HTTP/1.1 before the upgrade response
@@ -143,7 +137,7 @@ class H11Server(HTTPServer):
         # responds in HTTP/1.1. Use a preflight OPTIONS request to
         # initiate the upgrade if really required (or just use h2).
         elif upgrade_value.lower() == 'h2c' and not has_body:
-            self.keep_alive_timeout_handle.cancel()
+            self.stop_keep_alive_timeout()
             self.send(
                 h11.InformationalResponse(
                     status_code=101, headers=[(b'upgrade', b'h2c')] + self.response_headers(),
@@ -152,7 +146,7 @@ class H11Server(HTTPServer):
             raise H2CProtocolRequired(event)
 
     def handle_request(self, event: h11.Request) -> None:
-        self.keep_alive_timeout_handle.cancel()
+        self.stop_keep_alive_timeout()
         scheme = 'https' if self.ssl_info is not None else 'http'
         path, _, query_string = event.target.partition(b'?')
         self.scope = {
@@ -200,22 +194,13 @@ class H11Server(HTTPServer):
         self.response = None
         self.scope = None
         self.state = ASGIState.REQUEST
-        self.handle_keep_alive_timeout()
+        self.start_keep_alive_timeout()
 
     def send(
             self,
             event: Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response],
     ) -> None:
-        self.last_activity = time()
         self.write(self.connection.send(event))  # type: ignore
-
-    def handle_keep_alive_timeout(self) -> None:
-        if time() - self.last_activity > self.config.keep_alive_timeout:
-            self.close()
-        else:
-            self.keep_alive_timeout_handle = self.loop.call_later(
-                self.config.keep_alive_timeout, self.handle_keep_alive_timeout,
-            )
 
     async def asgi_receive(self) -> dict:
         """Called by the ASGI instance to receive a message."""
