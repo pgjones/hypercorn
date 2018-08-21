@@ -36,6 +36,7 @@ class WebsocketServer(HTTPServer):
             transport: asyncio.BaseTransport,
     ) -> None:
         super().__init__(loop, config, transport, 'wsproto')
+        self.stop_keep_alive_timeout()
         self.app = app
         self.connection = wsproto.connection.WSConnection(
             wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()],
