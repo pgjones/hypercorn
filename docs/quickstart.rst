@@ -27,7 +27,7 @@ A very simple ASGI app that simply returns a response containing
             })
             await send({
                 'type': 'http.response.body',
-                'body': 'hello',
+                'body': b'hello',
             })
 
 and is simply run via
