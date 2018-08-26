@@ -176,10 +176,10 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     scheme = 'http' if config.ssl is None else 'https'
     if len(args.binds) > 0:
         config.update_bind(args.binds[0])
-        if config.unix_domain is not None:
-            print("Running on {} over {} (CTRL + C to quit)".format(scheme, config.unix_domain))  # noqa: T001, E501
-        else:
-            print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
+    if config.unix_domain is not None:
+        print("Running on {} over {} (CTRL + C to quit)".format(scheme, config.unix_domain))  # noqa: T001, E501
+    else:
+        print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
 
     if config.workers == 1:
         run_single(application, config)
