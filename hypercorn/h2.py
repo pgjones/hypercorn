@@ -76,6 +76,7 @@ class H2Server(HTTPServer):
         self.connection = h2.connection.H2Connection(
             config=h2.config.H2Configuration(client_side=False, header_encoding=None),
         )
+        self.connection.DEFAULT_MAX_INBOUND_FRAME_SIZE = config.h2_max_inbound_frame_size
 
         if upgrade_request is None:
             self.connection.initiate_connection()

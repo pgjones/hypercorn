@@ -11,6 +11,7 @@ from typing import Any, AnyStr, Dict, Mapping, Optional, Type, Union
 import pytoml
 
 BYTES = 1
+OCTETS = 1
 SECONDS = 1.0
 DEFAULT_CIPHERS = 'ECDHE+AESGCM'
 
@@ -28,6 +29,7 @@ class Config:
     debug = False
     error_logger: Optional[logging.Logger] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
+    h2_max_inbound_frame_size = 2**14 * OCTETS
     host = '127.0.0.1'
     keep_alive_timeout = 5 * SECONDS
     root_path = ''
