@@ -1,9 +1,10 @@
 import os
+import ssl
 from typing import Optional
 
 import pytest
 
-from hypercorn.config import Config
+from hypercorn.config import Config, create_ssl_context
 
 access_log_format = "bob"
 h11_max_incomplete_size = 4
@@ -50,3 +51,11 @@ def test_config_update_bind(bind: str, host: str, port: int, unix_domain: Option
     assert config.host == host
     assert config.port == port
     assert config.unix_domain == unix_domain
+
+
+def test_create_ssl_context() -> None:
+    context = create_ssl_context()
+    assert context.options & (
+        ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        | ssl.OP_NO_COMPRESSION
+    )

@@ -84,9 +84,7 @@ class Config:
             ca_certs: Optional[str]=None,
     ) -> None:
         if self.ssl is None:
-            self.ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            self.ssl.set_ciphers(DEFAULT_CIPHERS)
-            self.ssl.set_alpn_protocols(['h2', 'http/1.1'])
+            self.ssl = create_ssl_context()
 
         if ciphers is not None:
             self.ssl.set_ciphers(ciphers)
@@ -215,3 +213,18 @@ class Config:
             if not isinstance(getattr(instance, key), types.ModuleType)
         }
         return cls.from_mapping(mapping)
+
+
+def create_ssl_context() -> SSLContext:
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.set_ciphers(DEFAULT_CIPHERS)
+    context.options |= (
+        ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+    )  # RFC 7540 Section 9.2: MUST be TLS >=1.2
+    context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
+    context.set_alpn_protocols(['h2', 'http/1.1'])
+    try:
+        context.set_npn_protocols(["h2", "http/1.1"])
+    except NotImplementedError:
+        pass  # NPN is not necessarily available
+    return context

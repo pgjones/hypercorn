@@ -35,6 +35,5 @@ class App:
 if __name__ == '__main__':
     config = Config()
     config.update_ssl(certfile='cert.pem', keyfile='key.pem', ciphers='ECDHE+AESGCM')
-    config.ssl.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_COMPRESSION
     config.debug = True
     run_single(App, config)
