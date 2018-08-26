@@ -147,6 +147,7 @@ class H2Server(HTTPServer):
         scope = {
             'type': 'http',
             'http_version': '2',
+            'asgi': {'version': '2.0'},
             'method': method,
             'scheme': scheme,
             'path': unquote(path.decode('ascii')),

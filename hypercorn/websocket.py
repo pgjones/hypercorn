@@ -116,6 +116,7 @@ class WebsocketServer(HTTPServer):
         path, _, query_string = event.h11request.target.partition(b'?')
         self.scope = {
             'type': 'websocket',
+            'asgi': {'version': '2.0'},
             'scheme': scheme,
             'path': unquote(path.decode('ascii')),
             'query_string': query_string,

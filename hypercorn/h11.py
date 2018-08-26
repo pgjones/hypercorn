@@ -152,6 +152,7 @@ class H11Server(HTTPServer):
         self.scope = {
             'type': 'http',
             'http_version': event.http_version.decode(),
+            'asgi': {'version': '2.0'},
             'method': event.method.decode().upper(),
             'scheme': scheme,
             'path': unquote(path.decode('ascii')),
