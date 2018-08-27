@@ -183,12 +183,15 @@ class WebsocketServer(HTTPServer):
         ):
             if self.state == WebsocketState.HANDSHAKE:
                 headers = chain(
-                    ((key.strip(), value.strip()) for key, value in self.response['headers']),
+                    (
+                        (bytes(key).strip(), bytes(value).strip())
+                        for key, value in self.response['headers']
+                    ),
                     self.response_headers(),
                 )
                 self.write(
                     self.connection._upgrade_connection.send(
-                        h11.Response(status_code=self.response['status'], headers=headers),
+                        h11.Response(status_code=int(self.response['status']), headers=headers),
                     ),
                 )
                 self.state = WebsocketState.RESPONSE
@@ -198,7 +201,7 @@ class WebsocketServer(HTTPServer):
             ):
                 self.write(
                     self.connection._upgrade_connection.send(
-                        h11.Data(data=message.get('body', b'')),
+                        h11.Data(data=bytes(message.get('body', b''))),
                     ),
                 )
                 await self.drain()
@@ -208,12 +211,18 @@ class WebsocketServer(HTTPServer):
                     self.close()
                 self.state = WebsocketState.CLOSED
         elif message['type'] == 'websocket.send' and self.state == WebsocketState.CONNECTED:
-            data = message['bytes'] if message.get('bytes') is not None else message['text']
+            data: Union[bytes, str]
+            if message.get('bytes'):
+                data = bytes(message['bytes'])
+            elif not isinstance(message['text'], str):
+                raise ValueError('text should be a str')
+            else:
+                data = message['text']
             self.connection.send_data(data)
             self.write(self.connection.bytes_to_send())
             await self.drain()
         elif message['type'] == 'websocket.close':
-            self.connection.close(message['code'])
+            self.connection.close(int(message['code']))
             self.write(self.connection.bytes_to_send())
             self.close()
             self.state = WebsocketState.CLOSED

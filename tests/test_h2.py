@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator, Optional, Type
+from typing import Any, AsyncGenerator, Optional, Type
 from unittest.mock import Mock
 
 import h11
@@ -7,7 +7,7 @@ import h2
 import pytest
 
 from hypercorn.config import Config
-from hypercorn.h2 import H2Server
+from hypercorn.h2 import H2Server, Stream
 from hypercorn.typing import ASGIFramework
 from .helpers import ErrorFramework, HTTPFramework, MockTransport
 
@@ -173,3 +173,51 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     connection.server.resume_writing()
     await asyncio.sleep(2 * config.keep_alive_timeout)
     assert connection.transport.closed.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'status, headers, body, path, push_headers',
+    [
+        ('201 NO CONTENT', [], b'', '/', []),
+        (200, [('X-Foo', 'foo')], b'', '/', []),
+        (200, [], 'Body', '/', []),
+        (200, [], b'', b'/', []),
+        (200, [], b'', '/', [('X-Foo', 'foo')]),
+    ],
+)
+async def test_asgi_send_invalid_message(
+        status: Any, headers: Any, body: Any, path: Any, push_headers: Any,
+        event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    server = H2Server(HTTPFramework, event_loop, Config(), Mock())
+    server.streams[0] = Stream(
+        {'method': 'GET', 'headers': [(b':authority', b'hypercorn')], 'scheme': 'https'},
+        event_loop,
+    )
+    server.connection = Mock()
+    server.connection.push_stream.side_effect = h2.exceptions.ProtocolError  # Prevent server psuh
+    with pytest.raises((AttributeError, TypeError, ValueError)):
+        await server.asgi_send(
+            0,
+            {
+                'type': 'http.response.start',
+                'headers': headers,
+                'status': status,
+            },
+        )
+        await server.asgi_send(
+            0,
+            {
+                'type': 'http.response.push',
+                'headers': push_headers,
+                'path': path,
+            },
+        )
+        await server.asgi_send(
+            0,
+            {
+                'type': 'http.response.body',
+                'body': body,
+            },
+        )

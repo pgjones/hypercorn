@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Type, Union
+from typing import Any, Type, Union
 from unittest.mock import Mock
 
 import h11
@@ -188,3 +188,29 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     server.resume_writing()
     await asyncio.sleep(2 * config.keep_alive_timeout)
     assert transport.closed.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'status, headers, body',
+    [
+        ('201 NO CONTENT', [], b''),
+        (200, [('X-Foo', 'foo')], b''),
+        (200, [], 'Body'),
+    ],
+)
+async def test_asgi_send_invalid_message(
+        status: Any, headers: Any, body: Any, event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    server = H11Server(HTTPFramework, event_loop, Config(), Mock())
+    server.scope = {'method': 'GET'}
+    with pytest.raises((TypeError, ValueError)):
+        await server.asgi_send({
+            'type': 'http.response.start',
+            'headers': headers,
+            'status': status,
+        })
+        await server.asgi_send({
+            'type': 'http.response.body',
+            'body': body,
+        })

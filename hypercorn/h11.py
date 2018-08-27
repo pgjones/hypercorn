@@ -217,16 +217,19 @@ class H11Server(HTTPServer):
         ):
             if self.state == ASGIState.REQUEST:
                 headers = chain(
-                    ((key.strip(), value.strip()) for key, value in self.response['headers']),
+                    (
+                        (bytes(key).strip(), bytes(value).strip())
+                        for key, value in self.response['headers']
+                    ),
                     self.response_headers(),
                 )
-                self.send(h11.Response(status_code=self.response['status'], headers=headers))
+                self.send(h11.Response(status_code=int(self.response['status']), headers=headers))
                 self.state = ASGIState.RESPONSE
             if (
-                    not suppress_body(self.scope['method'], self.response['status'])
+                    not suppress_body(self.scope['method'], int(self.response['status']))
                     and message.get('body', b'') != b''
             ):
-                self.send(h11.Data(data=message['body']))
+                self.send(h11.Data(data=bytes(message['body'])))
                 await self.drain()
             if not message.get('more_body', False):
                 if self.state != ASGIState.CLOSED:

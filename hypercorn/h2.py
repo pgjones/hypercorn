@@ -203,7 +203,7 @@ class H2Server(HTTPServer):
             if name == b':authority':
                 authority = value
         request_headers = [
-            (name, value) for name, value in chain(
+            (bytes(name), bytes(value)) for name, value in chain(
                 [
                     (b':method', b'GET'), (b':path', path.encode()),
                     (b':scheme', stream.scope['scheme'].encode()),
@@ -271,8 +271,8 @@ class H2Server(HTTPServer):
         ):
             if stream.state == ASGIState.REQUEST:
                 headers = [
-                    (key.strip(), value.strip()) for key, value in chain(
-                        [(b':status', str(stream.response['status']).encode())],
+                    (bytes(key).strip(), bytes(value).strip()) for key, value in chain(
+                        [(b':status', b"%d" % stream.response['status'])],
                         stream.response['headers'],
                         self.response_headers(),
                     )
@@ -284,7 +284,7 @@ class H2Server(HTTPServer):
                     not suppress_body(stream.scope['method'], stream.response['status'])
                     and message.get('body', b'') != b''
             ):
-                await self.send_data(stream_id, message.get('body', b''))
+                await self.send_data(stream_id, bytes(message.get('body', b'')))
             if not message.get('more_body', False):
                 if stream.state != ASGIState.CLOSED:
                     self.connection.end_stream(stream_id)
