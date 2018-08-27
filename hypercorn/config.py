@@ -32,6 +32,7 @@ class Config:
     h2_max_inbound_frame_size = 2**14 * OCTETS
     host = '127.0.0.1'
     keep_alive_timeout = 5 * SECONDS
+    pid_path: Optional[str] = None
     root_path = ''
     ssl: Optional[SSLContext] = None
     unix_domain: Optional[str] = None

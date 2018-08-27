@@ -117,6 +117,9 @@ def run_single(
         config: The configuration that defines the server.
         loop: Asyncio loop to create the server in, if None, take default one.
     """
+    if config.pid_path is not None and not is_child:
+        _write_pid_file(config.pid_path)
+
     if config.uvloop:
         try:
             import uvloop
@@ -205,6 +208,9 @@ def run_multiple(
     if config.use_reloader:
         raise RuntimeError("Reloader can only be used with a single worker")
 
+    if config.pid_path is not None:
+        _write_pid_file(config.pid_path)
+
     if config.unix_domain is not None:
         sock = socket(AF_UNIX)
         sock.bind(config.unix_domain)
@@ -241,3 +247,8 @@ def run_multiple(
         process.terminate()
 
     sock.close()
+
+
+def _write_pid_file(pid_path: str) -> None:
+    with open(pid_path, 'w') as file_:
+        file_.write(f"{os.getpid()}")

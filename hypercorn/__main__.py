@@ -120,6 +120,12 @@ def main(sys_args: Optional[List[str]]=None) -> None:
         default=None,
     )
     parser.add_argument(
+        '-p',
+        '--pid',
+        help='Location to write the PID (Program ID) to.',
+        default=sentinel,
+    )
+    parser.add_argument(
         '--reload',
         help='Enable automatic reloads on code changes',
         action='store_true',
@@ -158,6 +164,8 @@ def main(sys_args: Optional[List[str]]=None) -> None:
         config.error_log_target = args.error_log
     if args.keep_alive is not sentinel:
         config.keep_alive_timeout = args.keep_alive
+    if args.pid is not sentinel:
+        config.pid_path = args.pid
     if args.root_path is not sentinel:
         config.root_path = args.root_path
     if args.reload is not sentinel:
