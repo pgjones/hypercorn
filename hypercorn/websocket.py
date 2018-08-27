@@ -212,7 +212,7 @@ class WebsocketServer(HTTPServer):
                 self.state = WebsocketState.CLOSED
         elif message['type'] == 'websocket.send' and self.state == WebsocketState.CONNECTED:
             data: Union[bytes, str]
-            if message.get('bytes'):
+            if message.get('bytes') is not None:
                 data = bytes(message['bytes'])
             elif not isinstance(message['text'], str):
                 raise ValueError('text should be a str')
