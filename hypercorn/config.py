@@ -28,6 +28,7 @@ class Config:
     access_logger: Optional[logging.Logger] = None
     debug = False
     error_logger: Optional[logging.Logger] = None
+    file_descriptor: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_inbound_frame_size = 2**14 * OCTETS
     host = '127.0.0.1'
@@ -101,6 +102,8 @@ class Config:
     def update_bind(self, bind: str) -> None:
         if bind.startswith('unix:'):
             self.unix_domain = bind[5:]
+        elif bind.startswith('fd://'):
+            self.file_descriptor = int(bind[5:])
         else:
             try:
                 self.host, self.port = bind.rsplit(':', 1)  # type: ignore

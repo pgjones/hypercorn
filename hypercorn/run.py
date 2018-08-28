@@ -5,7 +5,10 @@ import signal
 import sys
 from multiprocessing import Process
 from pathlib import Path
-from socket import AF_INET, AF_INET6, AF_UNIX, SO_REUSEADDR, socket, SOL_SOCKET
+from socket import (
+    AF_INET, AF_INET6, AF_UNIX, fromfd as socket_fromfd, SO_REUSEADDR, SOCK_STREAM, socket,
+    SOL_SOCKET,
+)
 from types import ModuleType
 from typing import Any, Dict, Optional, Type
 
@@ -144,6 +147,11 @@ def run_single(
         create_server = loop.create_server(
             lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=is_child,
         )
+    elif config.file_descriptor is not None:
+        sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
+        create_server = loop.create_server(
+            lambda: Server(app, loop, config), ssl=config.ssl, sock=sock,
+        )
     elif config.unix_domain is not None:
         create_server = loop.create_unix_server(
             lambda: Server(app, loop, config), config.unix_domain, ssl=config.ssl,
@@ -214,6 +222,8 @@ def run_multiple(
     if config.unix_domain is not None:
         sock = socket(AF_UNIX)
         sock.bind(config.unix_domain)
+    elif config.file_descriptor is not None:
+        sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
     else:
         sock = socket(AF_INET6 if ':' in config.host else AF_INET)
         sock.bind((config.host, config.port))

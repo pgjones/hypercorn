@@ -72,7 +72,9 @@ def main(sys_args: Optional[List[str]]=None) -> None:
         '-b',
         '--bind',
         dest='binds',
-        help='The host/address to bind to',
+        help=""" The host/address to bind to. Should be either host:port, host,
+        unix:path or fd://num, e.g. 127.0.0.1:5000, 127.0.0.1,
+        unix:/tmp/socket or fd://33 respectively.  """,
         default=[],
         action='append',
     )
