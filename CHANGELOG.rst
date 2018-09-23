@@ -1,3 +1,19 @@
+0.3.0 2018-09-23
+----------------
+
+* Add ability to specify a file logging target.
+* Support serving on a unix domain socket or a file descriptor.
+* Alter keep alive timeout to require a request to be considered
+  active (rather than just data). This mitigates a HTTP/2 DOS attack.
+* Improve the SSL configuration, including NPN protocols, compression
+  suppression, and disallowed SSL versions for HTTP/2.
+* Allow the h2 max inbound frame size to be configured.
+* Add a PID file to be specified and used.
+* Upgrade to the latest wsproto and h11 libraries.
+* Bugfix propagate TERM signal to workers.
+* Bugfix ensure hosting information is printed when running from the
+  command line.
+
 0.2.4 2018-08-05
 ----------------
 
