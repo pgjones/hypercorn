@@ -52,17 +52,6 @@ class WebsocketServer(HTTPServer):
 
     def initialise(self, request: h11.Request) -> None:
         fake_client = h11.Connection(h11.CLIENT)
-        # wsproto has a bug in the acceptance of Connection headers,
-        # which this works
-        # around. https://github.com/python-hyper/wsproto/pull/56
-        headers = []
-        for name, value in request.headers:
-            if name.lower() == b'connection':
-                headers.append((b'Connection', b'Upgrade'))
-            else:
-                headers.append((name, value))
-        request.headers = headers
-
         self.data_received(fake_client.send(request))
 
     def data_received(self, data: bytes) -> None:

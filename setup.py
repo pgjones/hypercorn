@@ -16,11 +16,11 @@ with open(os.path.join(PROJECT_ROOT, 'README.rst')) as file_:
     long_description = file_.read()
 
 INSTALL_REQUIRES = [
-    'h11 ~= 0.7.0',
+    'h11',
     'h2',
     'pytoml',
     'typing_extensions',
-    'wsproto',
+    'wsproto >= 0.12.0',
 ]
 
 setup(
