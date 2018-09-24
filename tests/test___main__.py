@@ -26,9 +26,8 @@ def test_load_config(monkeypatch: MonkeyPatch) -> None:
 
 
 def test_main_cli_override(monkeypatch: MonkeyPatch) -> None:
-    run_single = Mock()
-    monkeypatch.setattr(hypercorn.__main__, 'run_single', run_single)
-    monkeypatch.setattr(hypercorn.__main__, '_load_application', Mock())
+    run_multiple = Mock()
+    monkeypatch.setattr(hypercorn.__main__, 'run_multiple', run_multiple)
     path = os.path.join(os.path.dirname(__file__), 'assets/config_ssl.py')
     hypercorn.__main__.main(
         [
@@ -36,7 +35,7 @@ def test_main_cli_override(monkeypatch: MonkeyPatch) -> None:
             '--ciphers', 'DHE-RSA-AES128-SHA', 'asgi:App',
         ],
     )
-    run_single.assert_called()
-    config = run_single.call_args_list[0][0][1]
+    run_multiple.assert_called()
+    config = run_multiple.call_args_list[0][0][0]
     assert config.access_log_format == 'jeff'
     assert config.ssl.get_ciphers()[0]['name'] == 'DHE-RSA-AES128-SHA'

@@ -3,6 +3,7 @@ import os
 import platform
 import signal
 import sys
+from importlib import import_module
 from multiprocessing import Process
 from pathlib import Path
 from socket import (
@@ -23,6 +24,10 @@ try:
     from socket import AF_UNIX
 except ImportError:
     AF_UNIX = None
+
+
+class NoAppException(Exception):
+    pass
 
 
 class Shutdown(SystemExit):
@@ -114,7 +119,7 @@ def run_single(
         app: Type[ASGIFramework],
         config: Config,
         *,
-        loop: Optional[asyncio.AbstractEventLoop]=None,
+        loop: asyncio.AbstractEventLoop,
         sock: Optional[socket]=None,
         is_child: bool=False,
 ) -> None:
@@ -127,21 +132,6 @@ def run_single(
     """
     if config.pid_path is not None and not is_child:
         _write_pid_file(config.pid_path)
-
-    if config.uvloop:
-        try:
-            import uvloop
-        except ImportError as error:
-            raise Exception('uvloop is not installed') from error
-        else:
-            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
-    if loop is None:
-        if is_child:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        else:
-            loop = asyncio.get_event_loop()
 
     loop.set_debug(config.debug)
 
@@ -205,18 +195,11 @@ def run_single(
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
-def run_multiple(
-        app: Type[ASGIFramework],
-        config: Config,
-        *,
-        workers: int=2,
-) -> None:
-    """Create a server to run the app on given the options.
+def run_multiple(config: Config) -> None:
+    """Create a server to run as specified in teh config.
 
     Arguments:
-        app: The ASGI Framework to run.
         config: The configuration that defines the server.
-        workers: Number of workers to create.
     """
     if config.use_reloader:
         raise RuntimeError("Reloader can only be used with a single worker")
@@ -237,10 +220,10 @@ def run_multiple(
 
     processes = []
 
-    for _ in range(workers):
+    for _ in range(config.workers):
         process = Process(
-            target=run_single,
-            kwargs={'app': app, 'config': config, 'sock': sock, 'is_child': True},
+            target=_run_worker,
+            kwargs={'config': config, 'sock': sock},
         )
         process.daemon = True
         process.start()
@@ -264,6 +247,50 @@ def run_multiple(
     sock.close()
 
 
+def _run_worker(config: Config, sock: Optional[socket]=None) -> None:
+    if config.uvloop:
+        try:
+            import uvloop
+        except ImportError as error:
+            raise Exception('uvloop is not installed') from error
+        else:
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    app = _load_application(config.application_path)
+    run_single(app, config, loop=loop, sock=sock, is_child=True)
+
+
 def _write_pid_file(pid_path: str) -> None:
     with open(pid_path, 'w') as file_:
         file_.write(f"{os.getpid()}")
+
+
+def _load_application(path: str) -> Type[ASGIFramework]:
+    try:
+        module_name, app_name = path.split(':', 1)
+    except ValueError:
+        module_name, app_name = path, 'app'
+    except AttributeError:
+        raise NoAppException()
+
+    module_path = Path(module_name).resolve()
+    sys.path.insert(0, str(module_path.parent))
+    if module_path.is_file():
+        import_name = module_path.with_suffix('').name
+    else:
+        import_name = module_path.name
+    try:
+        module = import_module(import_name)
+    except ModuleNotFoundError as error:
+        if error.name == import_name:  # type: ignore
+            raise NoAppException()
+        else:
+            raise
+
+    try:
+        return eval(app_name, vars(module))
+    except NameError:
+        raise NoAppException()

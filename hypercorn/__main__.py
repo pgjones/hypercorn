@@ -1,46 +1,11 @@
 import argparse
 import sys
-from importlib import import_module
-from pathlib import Path
-from typing import List, Optional, Type
+from typing import List, Optional
 
 from .config import Config
-from .run import run_multiple, run_single
-from .typing import ASGIFramework
+from .run import run_multiple
 
 sentinel = object()
-
-
-class NoAppException(Exception):
-    pass
-
-
-def _load_application(path: str) -> Type[ASGIFramework]:
-    try:
-        module_name, app_name = path.split(':', 1)
-    except ValueError:
-        module_name, app_name = path, 'app'
-    except AttributeError:
-        raise NoAppException()
-
-    module_path = Path(module_name).resolve()
-    sys.path.insert(0, str(module_path.parent))
-    if module_path.is_file():
-        import_name = module_path.with_suffix('').name
-    else:
-        import_name = module_path.name
-    try:
-        module = import_module(import_name)
-    except ModuleNotFoundError as error:
-        if error.name == import_name:  # type: ignore
-            raise NoAppException()
-        else:
-            raise
-
-    try:
-        return eval(app_name, vars(module))
-    except NameError:
-        raise NoAppException()
 
 
 def _load_config(config_path: Optional[str]) -> Config:
@@ -154,8 +119,8 @@ def main(sys_args: Optional[List[str]]=None) -> None:
         type=int,
     )
     args = parser.parse_args(sys_args or sys.argv[1:])
-    application = _load_application(args.application)
     config = _load_config(args.config)
+    config.application_path = args.application
     if args.access_logformat is not sentinel:
         config.access_log_format = args.access_logformat
     if args.access_log is not sentinel:
@@ -191,10 +156,7 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     else:
         print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
 
-    if config.workers == 1:
-        run_single(application, config)
-    else:
-        run_multiple(application, config, workers=config.workers)
+    run_multiple(config)
 
 
 if __name__ == '__main__':

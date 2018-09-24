@@ -26,6 +26,7 @@ class Config:
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_logger: Optional[logging.Logger] = None
+    application_path: str
     debug = False
     error_logger: Optional[logging.Logger] = None
     file_descriptor: Optional[int] = None
