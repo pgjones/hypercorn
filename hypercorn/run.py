@@ -24,6 +24,7 @@ try:
 except ImportError:
     AF_UNIX = None
 
+
 class Shutdown(SystemExit):
     code = 1
 
