@@ -36,4 +36,4 @@ if __name__ == '__main__':
     config = Config()
     config.update_ssl(certfile='cert.pem', keyfile='key.pem', ciphers='ECDHE+AESGCM')
     config.debug = True
-    run_single(App, config)
+    run_single(App, config, loop=asyncio.get_event_loop())

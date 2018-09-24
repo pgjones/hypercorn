@@ -32,4 +32,4 @@ class App:
 
 if __name__ == '__main__':
     config = Config()
-    run_single(App, config)
+    run_single(App, config, loop=asyncio.get_event_loop())
