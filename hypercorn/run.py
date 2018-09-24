@@ -6,7 +6,7 @@ import sys
 from multiprocessing import Process
 from pathlib import Path
 from socket import (
-    AF_INET, AF_INET6, AF_UNIX, fromfd as socket_fromfd, SO_REUSEADDR, SOCK_STREAM, socket,
+    AF_INET, AF_INET6, fromfd as socket_fromfd, SO_REUSEADDR, SOCK_STREAM, socket,
     SOL_SOCKET,
 )
 from types import ModuleType
@@ -19,6 +19,10 @@ from .h2 import H2Server
 from .typing import ASGIFramework
 from .websocket import WebsocketServer
 
+try:
+    from socket import AF_UNIX
+except ImportError:
+    AF_UNIX = None
 
 class Shutdown(SystemExit):
     code = 1
