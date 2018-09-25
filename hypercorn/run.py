@@ -3,6 +3,7 @@ import os
 import platform
 import signal
 import sys
+import warnings
 from importlib import import_module
 from multiprocessing import Process
 from pathlib import Path
@@ -130,6 +131,10 @@ def run_single(
         config: The configuration that defines the server.
         loop: Asyncio loop to create the server in, if None, take default one.
     """
+    if loop is None:
+        warnings.warn('Event loop is not specified, this can cause unexpected errors')
+        loop = asyncio.get_event_loop()
+
     if config.pid_path is not None and not is_child:
         _write_pid_file(config.pid_path)
 
