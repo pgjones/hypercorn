@@ -1,3 +1,10 @@
+0.3.1 2018-09-25
+----------------
+
+* Bugfix ensure the event-loop is configured before the app is
+  created.
+* Bugfix import error on windows systems.
+
 0.3.0 2018-09-23
 ----------------
 
