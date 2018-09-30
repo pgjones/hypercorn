@@ -1,5 +1,6 @@
 import argparse
 import sys
+import warnings
 from typing import List, Optional
 
 from .config import Config
@@ -76,6 +77,14 @@ def main(sys_args: Optional[List[str]]=None) -> None:
         default=sentinel,
     )
     parser.add_argument(
+        '-k',
+        '--worker-class',
+        dest='worker_class',
+        help="The type of worker to use. "
+        "Options include asyncio, uvloop (pip install hypercorn[uvloop]).",
+        default=sentinel,
+    )
+    parser.add_argument(
         '--keep-alive',
         help='Seconds to keep inactive connections alive for',
         default=sentinel,
@@ -106,12 +115,12 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     parser.add_argument(
         '--uvloop',
         dest='uvloop',
-        help='Enable uvloop usage',
+        help='Enable uvloop usage (Deprecated, use `--worker-class uvloop` instead)',
         action='store_true',
         default=sentinel,
     )
     parser.add_argument(
-        '-k',
+        '-w',
         '--workers',
         dest='workers',
         help='The number of workers to spawn and use',
@@ -138,7 +147,13 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     if args.reload is not sentinel:
         config.use_reloader = args.reload
     if args.uvloop is not sentinel:
-        config.uvloop = args.uvloop
+        warnings.warn(
+            'The uvloop argument is deprecated, use `--worker-class uvloop` instead',
+            DeprecationWarning,
+        )
+        config.worker_class = args.worker_class
+    if args.worker_class is not sentinel:
+        config.worker_class = args.worker_class
     if args.workers is not sentinel:
         config.workers = args.workers
 

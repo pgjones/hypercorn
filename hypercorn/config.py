@@ -39,8 +39,8 @@ class Config:
     ssl: Optional[SSLContext] = None
     unix_domain: Optional[str] = None
     use_reloader = False
-    uvloop = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
+    worker_class = 'asyncio'
     workers = 1
 
     @property

@@ -253,7 +253,7 @@ def run_multiple(config: Config) -> None:
 
 
 def _run_worker(config: Config, sock: Optional[socket]=None) -> None:
-    if config.uvloop:
+    if config.worker_class == 'uvloop':
         try:
             import uvloop
         except ImportError as error:

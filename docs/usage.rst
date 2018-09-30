@@ -19,14 +19,17 @@ Options
 
 The following options exist with the given usage,
 
+  -h, --help            show this help message and exit
   --access-log ACCESS_LOG
                         The target location for the access log, use `-` for
                         stdout
   --access-logformat ACCESS_LOGFORMAT
                         The log format for the access log, see help docs
   -b BINDS, --bind BINDS
-                        The host/address to bind to, can be used multiple
-                        times
+                        The host/address to bind to. Should be either
+                        host:port, host, unix:path or fd://num, e.g.
+                        127.0.0.1:5000, 127.0.0.1, unix:/tmp/socket or fd://33
+                        respectively.
   --ca-certs CA_CERTS   Path to the SSL CA certificate file
   --certfile CERTFILE   Path to the SSL certificate file
   --ciphers CIPHERS     Ciphers to use for the SSL setup
@@ -37,10 +40,15 @@ The following options exist with the given usage,
   --error-log ERROR_LOG
                         The target location for the error log, use `-` for
                         stderr
+  -k WORKER_CLASS, --worker-class WORKER_CLASS
+                        The type of worker to use. Options include asyncio,
+                        uvloop (pip install hypercorn[uvloop]).
   --keep-alive KEEP_ALIVE
                         Seconds to keep inactive connections alive for
   --keyfile KEYFILE     Path to the SSL key file
+  -p PID, --pid PID     Location to write the PID (Program ID) to.
   --reload              Enable automatic reloads on code changes
-  --uvloop              Enable uvloop usage
-  -k WORKERS, --workers WORKERS
+  --root-path ROOT_PATH
+                        The setting for the ASGI root_path variable
+  -w WORKERS, --workers WORKERS
                         The number of workers to spawn and use
