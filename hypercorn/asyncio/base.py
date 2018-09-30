@@ -6,7 +6,7 @@ from time import time
 from typing import List, Optional, Tuple, Union
 from wsgiref.handlers import format_date_time
 
-from .config import Config
+from ..config import Config
 
 
 class ASGIState(Enum):

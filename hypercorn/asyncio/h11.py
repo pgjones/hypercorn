@@ -7,9 +7,9 @@ from urllib.parse import unquote
 import h11
 
 from .base import ASGIState, HTTPServer, suppress_body
-from .config import Config
-from .logging import AccessLogAtoms
-from .typing import ASGIFramework
+from ..config import Config
+from ..logging import AccessLogAtoms
+from ..typing import ASGIFramework
 
 
 class WrongProtocolError(Exception):

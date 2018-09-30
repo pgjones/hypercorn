@@ -12,9 +12,9 @@ import wsproto.events
 import wsproto.extensions
 
 from .base import HTTPServer, suppress_body
-from .config import Config
-from .logging import AccessLogAtoms
-from .typing import ASGIFramework
+from ..config import Config
+from ..logging import AccessLogAtoms
+from ..typing import ASGIFramework
 
 
 class WebsocketState(Enum):

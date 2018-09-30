@@ -12,9 +12,9 @@ import h2.events
 import h2.exceptions
 
 from .base import ASGIState, HTTPServer, suppress_body
-from .config import Config
-from .logging import AccessLogAtoms
-from .typing import ASGIFramework
+from ..config import Config
+from ..logging import AccessLogAtoms
+from ..typing import ASGIFramework
 
 
 class Stream:

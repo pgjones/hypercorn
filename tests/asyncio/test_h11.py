@@ -6,8 +6,8 @@ from unittest.mock import Mock
 import h11
 import pytest
 
+from hypercorn.asyncio.h11 import H11Server
 from hypercorn.config import Config
-from hypercorn.h11 import H11Server
 from hypercorn.typing import ASGIFramework
 from .helpers import ErrorFramework, HTTPFramework, MockTransport
 

@@ -6,8 +6,8 @@ import h11
 import h2
 import pytest
 
+from hypercorn.asyncio.h2 import H2Server, Stream
 from hypercorn.config import Config
-from hypercorn.h2 import H2Server, Stream
 from hypercorn.typing import ASGIFramework
 from .helpers import ErrorFramework, HTTPFramework, MockTransport
 

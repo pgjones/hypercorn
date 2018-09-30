@@ -6,9 +6,9 @@ import pytest
 import wsproto.connection
 import wsproto.events
 
+from hypercorn.asyncio.wsproto import WebsocketServer
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
-from hypercorn.websocket import WebsocketServer
 from .helpers import ErrorFramework, MockTransport, WebsocketFramework
 
 
