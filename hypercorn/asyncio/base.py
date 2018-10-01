@@ -1,21 +1,9 @@
 import asyncio
-from enum import auto, Enum
-from socket import AF_INET, AF_INET6
 from ssl import SSLObject, SSLSocket
-from time import time
 from typing import List, Optional, Tuple, Union
-from wsgiref.handlers import format_date_time
 
 from ..config import Config
-
-
-class ASGIState(Enum):
-    # The ASGI Spec is clear that a response should not start till the
-    # framework has sent at least one body message hence why this
-    # state tracking is required.
-    REQUEST = auto()
-    RESPONSE = auto()
-    CLOSED = auto()
+from ..utils import parse_socket_addr, response_headers
 
 
 class HTTPServer:
@@ -91,33 +79,13 @@ class HTTPServer:
     @property
     def client(self) -> Tuple[str, int]:
         socket = self.transport.get_extra_info('socket')
-        return _parse_socket_addr(socket.family, socket.getpeername())
+        return parse_socket_addr(socket.family, socket.getpeername())
 
     @property
     def server(self) -> Tuple[str, int]:
         socket = self.transport.get_extra_info('socket')
-        return _parse_socket_addr(socket.family, socket.getsockname())
+        return parse_socket_addr(socket.family, socket.getsockname())
 
     @property
     def ssl_info(self) -> Optional[Union[SSLObject, SSLSocket]]:
         return self.transport.get_extra_info('ssl_object')
-
-
-def suppress_body(method: str, status_code: int) -> bool:
-    return method == 'HEAD' or 100 <= status_code < 200 or status_code in {204, 304, 412}
-
-
-def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
-    return [
-        (b'date', format_date_time(time()).encode('ascii')),
-        (b'server', f"hypercorn-{protocol}".encode('ascii')),
-    ]
-
-
-def _parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
-    if family == AF_INET:
-        return address  # type: ignore
-    elif family == AF_INET6:
-        return (address[0], address[1])
-    else:
-        return None

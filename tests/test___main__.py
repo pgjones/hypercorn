@@ -27,7 +27,7 @@ def test_load_config(monkeypatch: MonkeyPatch) -> None:
 
 def test_main_cli_override(monkeypatch: MonkeyPatch) -> None:
     run_multiple = Mock()
-    monkeypatch.setattr(hypercorn.__main__, 'run_multiple', run_multiple)
+    monkeypatch.setattr(hypercorn.__main__, 'run', run_multiple)
     path = os.path.join(os.path.dirname(__file__), 'assets/config_ssl.py')
     hypercorn.__main__.main(
         [

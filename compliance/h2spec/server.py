@@ -2,7 +2,7 @@ import asyncio
 import ssl
 
 from hypercorn.config import Config
-from hypercorn.run import run_single
+from hypercorn import run_single
 
 
 class App:

@@ -4,7 +4,7 @@ import warnings
 from typing import List, Optional
 
 from .config import Config
-from .run import run_multiple
+from .run import run
 
 sentinel = object()
 
@@ -81,7 +81,8 @@ def main(sys_args: Optional[List[str]]=None) -> None:
         '--worker-class',
         dest='worker_class',
         help="The type of worker to use. "
-        "Options include asyncio, uvloop (pip install hypercorn[uvloop]).",
+        "Options include asyncio, uvloop (pip install hypercorn[uvloop]), "
+        "and trio (pip install hypercorn[trio]).",
         default=sentinel,
     )
     parser.add_argument(
@@ -171,7 +172,7 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     else:
         print("Running on {}://{}:{} (CTRL + C to quit)".format(scheme, config.host, config.port))  # noqa: T001, E501
 
-    run_multiple(config)
+    run(config)
 
 
 if __name__ == '__main__':

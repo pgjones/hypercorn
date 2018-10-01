@@ -11,10 +11,11 @@ import h2.connection
 import h2.events
 import h2.exceptions
 
-from .base import ASGIState, HTTPServer, suppress_body
+from .base import HTTPServer
 from ..config import Config
 from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework
+from ..utils import ASGIState, suppress_body
 
 
 class Stream:

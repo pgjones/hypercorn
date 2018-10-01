@@ -1,5 +1,4 @@
 import asyncio
-from enum import auto, Enum
 from functools import partial
 from itertools import chain
 from time import time
@@ -11,19 +10,11 @@ import wsproto.connection
 import wsproto.events
 import wsproto.extensions
 
-from .base import HTTPServer, suppress_body
+from .base import HTTPServer
 from ..config import Config
 from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework
-
-
-class WebsocketState(Enum):
-    # Hypercorn supports the ASGI websocket HTTP response extension,
-    # which allows HTTP responses rather than acceptance.
-    HANDSHAKE = auto()
-    CONNECTED = auto()
-    RESPONSE = auto()
-    CLOSED = auto()
+from ..utils import suppress_body, WebsocketState
 
 
 class WebsocketServer(HTTPServer):

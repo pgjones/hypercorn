@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Any, Type, Union
+from typing import Type, Union
 from unittest.mock import Mock
 
 import h11
@@ -9,7 +9,8 @@ import pytest
 from hypercorn.asyncio.h11 import H11Server
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
-from .helpers import ErrorFramework, HTTPFramework, MockTransport
+from .helpers import MockTransport
+from ..helpers import ChunkedResponseFramework, EchoFramework
 
 BASIC_HEADERS = [('Host', 'hypercorn'), ('Connection', 'close')]
 BASIC_DATA = 'index'
@@ -21,7 +22,7 @@ class MockConnection:
             self,
             event_loop: asyncio.AbstractEventLoop,
             *,
-            framework: Type[ASGIFramework]=HTTPFramework,
+            framework: Type[ASGIFramework]=EchoFramework,
     ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
@@ -48,9 +49,19 @@ class MockConnection:
 
 
 @pytest.mark.asyncio
-async def test_get_request(event_loop: asyncio.AbstractEventLoop) -> None:
+@pytest.mark.parametrize(
+    'method, headers, body',
+    [
+        ('GET', BASIC_HEADERS, ''),
+        ('POST', BASIC_HEADERS + [('content-length', str(len(BASIC_DATA.encode())))], BASIC_DATA),
+    ],
+)
+async def test_requests(
+        method: str, headers: list, body: str, event_loop: asyncio.AbstractEventLoop,
+) -> None:
     connection = MockConnection(event_loop)
-    await connection.send(h11.Request(method='GET', target='/', headers=BASIC_HEADERS))
+    await connection.send(h11.Request(method=method, target='/', headers=headers))
+    await connection.send(h11.Data(data=body.encode()))
     await connection.send(h11.EndOfMessage())
     await connection.transport.closed.wait()
     response, *data, end = connection.get_events()
@@ -61,28 +72,8 @@ async def test_get_request(event_loop: asyncio.AbstractEventLoop) -> None:
     assert all(isinstance(datum, h11.Data) for datum in data)
     data = json.loads(b''.join(datum.data for datum in data).decode())
     assert data['scope']['path'] == '/'  # type: ignore
-    assert isinstance(end, h11.EndOfMessage)
-
-
-@pytest.mark.asyncio
-async def test_post_request(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop)
-    await connection.send(
-        h11.Request(
-            method='POST', target='/echo',
-            headers=BASIC_HEADERS + [('content-length', str(len(BASIC_DATA.encode())))],
-        ),
-    )
-    await connection.send(h11.Data(data=BASIC_DATA.encode()))
-    await connection.send(h11.EndOfMessage())
-    await connection.transport.closed.wait()
-    response, *data, end = connection.get_events()
-    assert isinstance(response, h11.Response)
-    assert response.status_code == 200
-    assert all(isinstance(datum, h11.Data) for datum in data)
-    data = json.loads(b''.join(datum.data for datum in data).decode())
-    assert data['scope']['method'] == 'POST'  # type: ignore
-    assert data['request_body'] == BASIC_DATA  # type: ignore
+    assert data['scope']['method'] == method  # type: ignore
+    assert data['request_body'] == body  # type: ignore
     assert isinstance(end, h11.EndOfMessage)
 
 
@@ -137,8 +128,8 @@ async def test_client_sends_chunked(
 
 @pytest.mark.asyncio
 async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop)
-    await connection.send(h11.Request(method='GET', target='/chunked', headers=BASIC_HEADERS))
+    connection = MockConnection(event_loop, framework=ChunkedResponseFramework)
+    await connection.send(h11.Request(method='GET', target='/', headers=BASIC_HEADERS))
     await connection.send(h11.EndOfMessage())
     await connection.transport.closed.wait()
     events = connection.get_events()
@@ -147,14 +138,6 @@ async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> No
     assert all(isinstance(datum, h11.Data) for datum in data)
     assert b''.join(datum.data for datum in data) == b'chunked data'
     assert isinstance(end, h11.EndOfMessage)
-
-
-@pytest.mark.asyncio
-async def test_close_on_framework_error(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=ErrorFramework)
-    await connection.send(h11.Request(method='GET', target='/', headers=BASIC_HEADERS))
-    await connection.send(h11.EndOfMessage())
-    await connection.transport.closed.wait()  # This is the key part, must close on error
 
 
 def test_max_incomplete_size() -> None:
@@ -170,7 +153,7 @@ def test_max_incomplete_size() -> None:
 async def test_initial_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
     config = Config()
     config.keep_alive_timeout = 0.01
-    server = H11Server(HTTPFramework, event_loop, config, Mock())
+    server = H11Server(EchoFramework, event_loop, config, Mock())
     await asyncio.sleep(2 * config.keep_alive_timeout)
     server.transport.close.assert_called()  # type: ignore
 
@@ -180,7 +163,7 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     config = Config()
     config.keep_alive_timeout = 0.01
     transport = MockTransport()
-    server = H11Server(HTTPFramework, event_loop, config, transport)  # type: ignore
+    server = H11Server(EchoFramework, event_loop, config, transport)  # type: ignore
     server.pause_writing()
     server.data_received(b'GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n')
     await asyncio.sleep(2 * config.keep_alive_timeout)
@@ -188,29 +171,3 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     server.resume_writing()
     await asyncio.sleep(2 * config.keep_alive_timeout)
     assert transport.closed.is_set()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    'status, headers, body',
-    [
-        ('201 NO CONTENT', [], b''),
-        (200, [('X-Foo', 'foo')], b''),
-        (200, [], 'Body'),
-    ],
-)
-async def test_asgi_send_invalid_message(
-        status: Any, headers: Any, body: Any, event_loop: asyncio.AbstractEventLoop,
-) -> None:
-    server = H11Server(HTTPFramework, event_loop, Config(), Mock())
-    server.scope = {'method': 'GET'}
-    with pytest.raises((TypeError, ValueError)):
-        await server.asgi_send({
-            'type': 'http.response.start',
-            'headers': headers,
-            'status': status,
-        })
-        await server.asgi_send({
-            'type': 'http.response.body',
-            'body': body,
-        })
