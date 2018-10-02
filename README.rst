@@ -1,6 +1,9 @@
 Hypercorn
 =========
 
+.. image:: https://assets.gitlab-static.net/pgjones/hypercorn/raw/master/artwork/logo.png
+   :alt: Hypercorn logo
+
 |Build Status| |docs| |pypi| |http| |python| |license|
 
 Hypercorn is an `ASGI
