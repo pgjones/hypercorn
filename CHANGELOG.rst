@@ -1,3 +1,9 @@
+0.3.2 2018-10-04
+----------------
+
+* Bugfix cope with a None loop argument to run_single.
+* Add a new logo.
+
 0.3.1 2018-09-25
 ----------------
 
