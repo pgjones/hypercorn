@@ -10,7 +10,7 @@ from hypercorn.asyncio.h11 import H11Server
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
 from .helpers import MockTransport
-from ..helpers import ChunkedResponseFramework, EchoFramework
+from ..helpers import BadFramework, ChunkedResponseFramework, EchoFramework
 
 BASIC_HEADERS = [('Host', 'hypercorn'), ('Connection', 'close')]
 BASIC_DATA = 'index'
@@ -171,3 +171,15 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     server.resume_writing()
     await asyncio.sleep(2 * config.keep_alive_timeout)
     assert transport.closed.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('path', ['/', '/no_response', '/call'])
+async def test_bad_framework(path: str, event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockConnection(event_loop, framework=BadFramework)
+    await connection.send(h11.Request(method='GET', target=path, headers=BASIC_HEADERS))
+    await connection.send(h11.EndOfMessage())
+    await connection.transport.closed.wait()
+    response, *_ = connection.get_events()
+    assert isinstance(response, h11.Response)
+    assert response.status_code == 500

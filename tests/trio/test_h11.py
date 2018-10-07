@@ -9,7 +9,7 @@ import trio.testing
 from hypercorn.config import Config
 from hypercorn.trio.h11 import H11Server
 from hypercorn.typing import ASGIFramework
-from ..helpers import ChunkedResponseFramework, EchoFramework, MockSocket
+from ..helpers import BadFramework, ChunkedResponseFramework, EchoFramework, MockSocket
 
 BASIC_HEADERS = [('Host', 'hypercorn'), ('Connection', 'close')]
 BASIC_DATA = 'index'
@@ -167,3 +167,15 @@ async def test_post_request_keep_alive_timeout() -> None:
         await server.handle_connection()
     data = await client_stream.receive_some(2**16)
     assert data.startswith(b'HTTP/1.1 200')
+
+
+@pytest.mark.trio
+@pytest.mark.parametrize('path', ['/', '/no_response', '/call'])
+async def test_bad_framework(path: str) -> None:
+    connection = MockConnection(framework=BadFramework)
+    await connection.send(h11.Request(method='GET', target=path, headers=BASIC_HEADERS))
+    await connection.send(h11.EndOfMessage())
+    await connection.server.handle_connection()
+    response, *_ = await connection.get_events()
+    assert isinstance(response, h11.Response)
+    assert response.status_code == 500

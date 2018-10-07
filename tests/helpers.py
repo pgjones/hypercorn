@@ -84,3 +84,17 @@ class ChunkedResponseFramework:
             'body': b'',
             'more_body': False,
         })
+
+
+class BadFramework:
+
+    def __init__(self, scope: dict) -> None:
+        self.scope = scope
+        if self.scope['path'] == '/':
+            raise Exception()
+
+    async def __call__(self, receive: Callable, send: Callable) -> None:
+        if self.scope['path'] == '/no_response':
+            return
+        elif self.scope['path'] == '/call':
+            raise Exception()
