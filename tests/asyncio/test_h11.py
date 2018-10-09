@@ -71,6 +71,7 @@ async def test_requests(
     assert b'date' in (header[0] for header in response.headers)
     assert all(isinstance(datum, h11.Data) for datum in data)
     data = json.loads(b''.join(datum.data for datum in data).decode())
+    assert data['scope']['scheme'] == 'http'  # type: ignore
     assert data['scope']['path'] == '/'  # type: ignore
     assert data['scope']['method'] == method  # type: ignore
     assert data['request_body'] == body  # type: ignore

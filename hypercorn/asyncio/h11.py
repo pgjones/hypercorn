@@ -127,3 +127,7 @@ class H11Server(HTTPServer, H11Mixin):
         self.scope = None
         self.state = ASGIState.REQUEST
         self.start_keep_alive_timeout()
+
+    @property
+    def scheme(self) -> str:
+        return 'https' if self.ssl_info is not None else 'http'
