@@ -8,12 +8,13 @@ import h11
 from .run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..logging import AccessLogAtoms
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, Queue
 from ..utils import ASGIState, suppress_body
 
 
 class H11Mixin:
     app: Type[ASGIFramework]
+    app_queue: Queue
     config: Config
     response: Optional[dict]
     state: ASGIState
@@ -124,7 +125,7 @@ class H11Mixin:
 
     async def asgi_receive(self) -> dict:
         """Called by the ASGI instance to receive a message."""
-        return await self.app_queue.get()  # type: ignore
+        return await self.app_queue.get()
 
     async def asgi_send(self, message: dict) -> None:
         """Called by the ASGI instance to send a message."""
@@ -154,7 +155,7 @@ class H11Mixin:
             if not message.get('more_body', False):
                 if self.state != ASGIState.CLOSED:
                     await self.asend(h11.EndOfMessage())
-                    self.app_queue.put_nowait({'type': 'http.disconnect'})  # type: ignore
+                    self.app_queue.put_nowait({'type': 'http.disconnect'})
                     self.state = ASGIState.CLOSED
         else:
             raise Exception(
