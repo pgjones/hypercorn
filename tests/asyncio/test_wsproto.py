@@ -1,6 +1,5 @@
 import asyncio
-from typing import Any, AnyStr, List, Type
-from unittest.mock import Mock
+from typing import AnyStr, List, Type
 
 import pytest
 import wsproto.connection
@@ -66,61 +65,3 @@ async def test_websocket_response(event_loop: asyncio.AbstractEventLoop) -> None
 async def test_close_on_framework_error(event_loop: asyncio.AbstractEventLoop) -> None:
     connection = MockWebsocketConnection(event_loop, framework=ErrorFramework)
     await connection.transport.closed.wait()  # This is the key part, must close on error
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    'data_bytes, data_text',
-    [
-        (None, b'data'),
-        ('data', None),
-    ],
-)
-async def test_asgi_send_invalid_message(
-        data_bytes: Any, data_text: Any, event_loop: asyncio.AbstractEventLoop,
-) -> None:
-    server = WebsocketServer(ASGIFramework, event_loop, Config(), Mock())  # type: ignore
-    server.connection = Mock()
-    with pytest.raises((TypeError, ValueError)):
-        await server.asgi_send({}, {'type': 'websocket.accept'})
-        await server.asgi_send(
-            {},
-            {
-                'type': 'websocket.send',
-                'bytes': data_bytes,
-                'text': data_text,
-            },
-        )
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    'status, headers, body',
-    [
-        ('201 NO CONTENT', [], b''),
-        (200, [('X-Foo', 'foo')], b''),
-        (200, [], 'Body'),
-    ],
-)
-async def test_asgi_send_http_invalid_message(
-        status: Any, headers: Any, body: Any, event_loop: asyncio.AbstractEventLoop,
-) -> None:
-    server = WebsocketServer(ASGIFramework, event_loop, Config(), Mock())  # type: ignore
-    server.connection = Mock()
-    server.scope = {'method': 'GET'}
-    with pytest.raises((TypeError, ValueError)):
-        await server.asgi_send(
-            {},
-            {
-                'type': 'websocket.http.response.start',
-                'headers': headers,
-                'status': status,
-            },
-        )
-        await server.asgi_send(
-            {},
-            {
-                'type': 'websocket.http.response.body',
-                'body': body,
-            },
-        )

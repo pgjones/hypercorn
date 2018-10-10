@@ -1,13 +1,14 @@
 from itertools import chain
-from typing import List, Optional, Tuple, Type, Union
+from typing import Optional, Type, Union
 
 import h11
 import trio
 
+from .base import HTTPServer
 from ..common.h11 import H11Mixin
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import ASGIState, parse_socket_addr, response_headers
+from ..utils import ASGIState
 
 MAX_RECV = 2 ** 16
 
@@ -16,7 +17,7 @@ class ConnectionClosed(Exception):
     pass
 
 
-class H11Server(H11Mixin):
+class H11Server(HTTPServer, H11Mixin):
 
     def __init__(
             self,
@@ -24,6 +25,7 @@ class H11Server(H11Mixin):
             config: Config,
             stream: trio.abc.Stream,
     ) -> None:
+        super().__init__(stream, 'h11')
         self.app = app
         self.config = config
         self.connection = h11.Connection(
@@ -33,7 +35,6 @@ class H11Server(H11Mixin):
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
         self.state = ASGIState.REQUEST
-        self.stream = stream
 
     async def handle_connection(self):
         try:
@@ -66,13 +67,7 @@ class H11Server(H11Mixin):
 
     async def aclose(self) -> None:
         self.app_queue.put_nowait({'type': 'http.disconnect'})
-        try:
-            await self.stream.send_eof()
-        except (trio.BrokenResourceError, AttributeError):
-            # They're already gone, nothing to do
-            # Or it is a SSL stream
-            return
-        await self.stream.aclose()
+        await super().aclose()
 
     def recycle(self) -> None:
         """Recycle the state in order to accept a new request.
@@ -149,28 +144,5 @@ class H11Server(H11Mixin):
                     raise ConnectionClosed()
 
     @property
-    def _is_ssl(self) -> bool:
-        return isinstance(self.stream, trio.ssl.SSLStream)
-
-    @property
     def scheme(self) -> str:
         return 'https' if self._is_ssl else 'http'
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        if self._is_ssl:
-            socket = self.stream.transport_stream.socket
-        else:
-            socket = self.stream.socket
-        return parse_socket_addr(socket.family, socket.getpeername())
-
-    @property
-    def server(self) -> Tuple[str, int]:
-        if self._is_ssl:
-            socket = self.stream.transport_stream.socket
-        else:
-            socket = self.stream.socket
-        return parse_socket_addr(socket.family, socket.getsockname())
-
-    def response_headers(self) -> List[Tuple[bytes, bytes]]:
-        return response_headers('h11')

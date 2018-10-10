@@ -70,8 +70,10 @@ class Server(asyncio.Protocol):
         try:
             self._server.data_received(data)
         except WebsocketProtocolRequired as error:
-            self._server = WebsocketServer(self.app, self.loop, self.config, self._server.transport)
-            self._server.initialise(error.request)
+            self._server = WebsocketServer(
+                self.app, self.loop, self.config, self._server.transport,
+                upgrade_request=error.request,
+            )
         except H2CProtocolRequired as error:
             self._server = H2Server(
                 self.app, self.loop, self.config, self._server.transport,

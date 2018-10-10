@@ -28,12 +28,20 @@ class EchoFramework:
         body = bytearray()
         while True:
             event = await receive()
-            if event['type'] == 'http.disconnect':
+            if event['type'] in {'http.disconnect', 'websocket.disconnect'}:
                 break
             elif event['type'] == 'http.request':
                 body.extend(event.get('body', b''))
                 if not event.get('more_body', False):
                     await self._send_echo(send, body)
+            elif event['type'] == 'websocket.connect':
+                await send({'type': 'websocket.accept'})
+            elif event['type'] == 'websocket.receive':
+                await send({
+                    'type': 'websocket.send',
+                    'text': event['text'],
+                    'bytes': event['bytes'],
+                })
 
     async def _send_echo(self, send: Callable, request_body: bytes) -> None:
         response = dumps({
