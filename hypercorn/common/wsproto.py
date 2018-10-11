@@ -61,6 +61,15 @@ class WebsocketMixin:
     async def aclose(self) -> None:
         pass
 
+    async def send_http_error(self, status: int) -> None:
+        self.response = {'status': status, 'headers': []}
+        await self.awrite(
+            self.connection._upgrade_connection.send(
+                h11.Response(status_code=status, headers=self.response_headers()),
+            ),
+        )
+        await self.awrite(self.connection._upgrade_connection.send(h11.EndOfMessage()))
+
     async def handle_asgi_app(self, event: wsproto.events.ConnectionRequested) -> None:
         self.start_time = time()
         self.app_queue.put_nowait({'type': 'websocket.connect'})
@@ -70,12 +79,18 @@ class WebsocketMixin:
         except Exception as error:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception("Error in ASGI Framework")
-            if self.state == WebsocketState.CONNECTED:
+            if self.state == WebsocketState.HANDSHAKE:
+                await self.send_http_error(500)
+            elif self.state == WebsocketState.CONNECTED:
                 self.connection.close(1006)  # Close abnormal
                 await self.awrite(self.connection.bytes_to_send())
             await self.aclose()
+
+        if self.response is None:
+            await self.send_http_error(500)
+            await self.aclose()
         else:
-            if self.response is not None and self.config.access_logger is not None:
+            if self.config.access_logger is not None:
                 self.config.access_logger.info(
                     self.config.access_log_format,
                     AccessLogAtoms(self.scope, self.response, time() - self.start_time),
@@ -95,13 +110,7 @@ class WebsocketMixin:
             self.connection.accept(request_event)
             await self.awrite(self.connection.bytes_to_send())
             self.state = WebsocketState.CONNECTED
-            if self.config.access_logger is not None:
-                self.config.access_logger.info(
-                    self.config.access_log_format,
-                    AccessLogAtoms(
-                        self.scope, {'status': 101, 'headers': []}, time() - self.start_time,
-                    ),
-                )
+            self.response = {'status': 101, 'headers': []}
         elif (
                 message['type'] == 'websocket.http.response.start'
                 and self.state == WebsocketState.HANDSHAKE
@@ -149,6 +158,8 @@ class WebsocketMixin:
                 data = message['text']
             self.connection.send_data(data)
             await self.awrite(self.connection.bytes_to_send())
+        elif message['type'] == 'websocket.close' and self.state == WebsocketState.HANDSHAKE:
+            await self.send_http_error(403)
         elif message['type'] == 'websocket.close':
             self.connection.close(int(message['code']))
             await self.awrite(self.connection.bytes_to_send())

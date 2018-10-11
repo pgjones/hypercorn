@@ -1,6 +1,7 @@
 import asyncio
 from typing import AnyStr, List, Type
 
+import h11
 import pytest
 import wsproto.connection
 import wsproto.events
@@ -8,17 +9,54 @@ import wsproto.events
 from hypercorn.asyncio.wsproto import WebsocketServer
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
-from .helpers import ErrorFramework, MockTransport, WebsocketFramework
+from .helpers import MockTransport, WebsocketFramework
+from ..helpers import BadFramework, EchoFramework
+
+
+class MockHTTPConnection:
+
+    def __init__(
+            self,
+            path: str,
+            event_loop: asyncio.AbstractEventLoop,
+            *,
+            framework: Type[ASGIFramework]=EchoFramework,
+    ) -> None:
+        self.transport = MockTransport()
+        self.client = h11.Connection(h11.CLIENT)
+        self.server = WebsocketServer(framework, event_loop, Config(), self.transport)  # type: ignore # noqa: E501
+        self.server.data_received(
+            self.client.send(
+                h11.Request(
+                    method='GET', target=path, headers=[
+                        ('Host', 'Hypercorn'), ('Upgrade', 'WebSocket'), ('Connection', 'Upgrade'),
+                        ('Sec-WebSocket-Version', '13'), ('Sec-WebSocket-Key', '121312'),
+                    ],
+                ),
+            ),
+        )
+
+    def get_events(self) -> list:
+        events = []
+        self.client.receive_data(self.transport.data)
+        while True:
+            event = self.client.next_event()
+            if event in (h11.NEED_DATA, h11.PAUSED):
+                break
+            events.append(event)
+            if isinstance(event, h11.ConnectionClosed):
+                break
+        return events
 
 
 class MockWebsocketConnection:
 
     def __init__(
             self,
+            path: str,
             event_loop: asyncio.AbstractEventLoop,
             *,
             framework: Type[ASGIFramework]=WebsocketFramework,
-            path: str='/ws',
     ) -> None:
         self.transport = MockTransport()
         self.server = WebsocketServer(framework, event_loop, Config(), self.transport)  # type: ignore # noqa: E501
@@ -45,7 +83,7 @@ class MockWebsocketConnection:
 
 @pytest.mark.asyncio
 async def test_websocket_server(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockWebsocketConnection(event_loop)
+    connection = MockWebsocketConnection('/ws', event_loop)
     events = await connection.receive()
     assert isinstance(events[0], wsproto.events.ConnectionEstablished)
     await connection.send('data')
@@ -55,13 +93,21 @@ async def test_websocket_server(event_loop: asyncio.AbstractEventLoop) -> None:
 
 
 @pytest.mark.asyncio
-async def test_websocket_response(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockWebsocketConnection(event_loop, path='/http')
+@pytest.mark.parametrize('path', ['/', '/no_response', '/call'])
+async def test_bad_framework_http(path: str, event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockHTTPConnection(path, event_loop, framework=BadFramework)
+    await asyncio.sleep(0)  # Yield to allow the server to process
     await connection.transport.closed.wait()
-    assert connection.transport.data.startswith(b'HTTP/1.1 401')
+    response, *_ = connection.get_events()
+    assert isinstance(response, h11.Response)
+    assert response.status_code == 500
 
 
 @pytest.mark.asyncio
-async def test_close_on_framework_error(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockWebsocketConnection(event_loop, framework=ErrorFramework)
-    await connection.transport.closed.wait()  # This is the key part, must close on error
+async def test_bad_framework_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
+    connection = MockWebsocketConnection('/accept', event_loop, framework=BadFramework)
+    await asyncio.sleep(0)  # Yield to allow the server to process
+    await connection.transport.closed.wait()
+    *_, close = await connection.receive()
+    assert isinstance(close, wsproto.events.ConnectionClosed)
+    assert close.code == 1000

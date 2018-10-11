@@ -106,3 +106,6 @@ class BadFramework:
             return
         elif self.scope['path'] == '/call':
             raise Exception()
+        elif self.scope['path'] == '/accept':
+            await send({'type': 'websocket.accept'})
+            raise Exception()
