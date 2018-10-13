@@ -191,10 +191,12 @@ async def test_asgi_send_invalid_message(
         event_loop: asyncio.AbstractEventLoop,
 ) -> None:
     server = H2Server(HTTPFramework, event_loop, Config(), Mock())
-    server.streams[0] = Stream(
-        {'method': 'GET', 'headers': [(b':authority', b'hypercorn')], 'scheme': 'https'},
-        event_loop,
-    )
+    server.streams[0] = Stream()
+    server.streams[0].scope = {
+        'method': 'GET',
+        'headers': [(b':authority', b'hypercorn')],
+        'scheme': 'https',
+    }
     server.connection = Mock()
     server.connection.push_stream.side_effect = h2.exceptions.ProtocolError  # Prevent server psuh
     with pytest.raises((AttributeError, TypeError, ValueError)):

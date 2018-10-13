@@ -1,6 +1,7 @@
 import trio
 
 from .h11 import H11Server
+from .h2 import H2Server
 from .wsproto import WebsocketServer
 from ..common.run import WebsocketProtocolRequired
 from ..config import Config
@@ -10,8 +11,16 @@ from ..utils import load_application
 async def _serve(config: Config) -> None:
     async def _http_serve(stream: trio.abc.Stream) -> None:
         app = load_application(config.application_path)
+        if config.ssl is not None:
+            await stream.do_handshake()
+            selected_protocol = stream.selected_alpn_protocol()
+        else:
+            selected_protocol = 'http/1.1'
         try:
-            protocol = H11Server(app, config, stream)
+            if selected_protocol == 'h2':
+                protocol = H2Server(app, config, stream)
+            else:
+                protocol = H11Server(app, config, stream)
             await protocol.handle_connection()
         except WebsocketProtocolRequired as error:
             protocol = WebsocketServer(app, config, stream, upgrade_request=error.request)
