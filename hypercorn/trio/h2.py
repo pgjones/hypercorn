@@ -64,7 +64,7 @@ class H2Server(HTTPServer, H2Mixin):
     def create_stream(self) -> Stream:  # type: ignore
         return Stream()
 
-    async def handle_connection(self):
+    async def handle_connection(self) -> None:
         await self.asend()
         try:
             async with trio.open_nursery() as nursery:
@@ -78,7 +78,7 @@ class H2Server(HTTPServer, H2Mixin):
         ):
             await self.aclose()
 
-    async def handle_data(self, data: bytes, nursery) -> None:
+    async def handle_data(self, data: bytes, nursery: trio._core._run.Nursery) -> None:
         try:
             events = self.connection.receive_data(data)
         except h2.exceptions.ProtocolError:

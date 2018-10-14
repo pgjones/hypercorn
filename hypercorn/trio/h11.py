@@ -36,7 +36,7 @@ class H11Server(HTTPServer, H11Mixin):
         self.scope: Optional[dict] = None
         self.state = ASGIState.REQUEST
 
-    async def handle_connection(self):
+    async def handle_connection(self) -> None:
         try:
             while True:
                 with trio.fail_after(self.config.keep_alive_timeout):

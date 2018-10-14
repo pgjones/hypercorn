@@ -84,7 +84,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                         self._buffer += event.data
                     if len(self._buffer) > self.config.websocket_max_message_size:
                         self.connection.close(1009)  # CLOSE_TOO_LARGE
-                        await self.asend()
+                        await self.awrite(self.connection.bytes_to_send())
                         raise ConnectionClosed()
                     if event.message_finished:
                         if isinstance(event, wsproto.events.BytesReceived):

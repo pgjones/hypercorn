@@ -20,10 +20,10 @@ async def _serve(config: Config) -> None:
             if selected_protocol == 'h2':
                 protocol = H2Server(app, config, stream)
             else:
-                protocol = H11Server(app, config, stream)
+                protocol = H11Server(app, config, stream)  # type: ignore
             await protocol.handle_connection()
         except WebsocketProtocolRequired as error:
-            protocol = WebsocketServer(app, config, stream, upgrade_request=error.request)
+            protocol = WebsocketServer(app, config, stream, upgrade_request=error.request)  # type: ignore # noqa: E501
             await protocol.handle_connection()
 
     try:
