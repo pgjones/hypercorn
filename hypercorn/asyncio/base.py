@@ -46,9 +46,11 @@ class HTTPServer:
         # low-water mark.
         self._can_write.set()
 
-    def connection_lost(self, _: Exception) -> None:
-        # Called once when the connection is closed from our side.
-        self.close()
+    def connection_lost(self, error: Optional[Exception]) -> None:
+        # This is called once when the connection is closed from our
+        # side with an argument of None, otherwise something else
+        # errored.
+        pass
 
     async def drain(self) -> None:
         await self._can_write.wait()

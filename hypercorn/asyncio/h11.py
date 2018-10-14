@@ -1,13 +1,12 @@
 import asyncio
-from itertools import chain
-from typing import Optional, Type, Union
+from typing import Optional, Type
 
 import h11
 
 from .base import HTTPServer
 from ..common.h11 import H11Mixin
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import ASGIState
 
 
@@ -30,38 +29,23 @@ class H11Server(HTTPServer, H11Mixin):
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
         self.state = ASGIState.REQUEST
+        self.task: Optional[asyncio.Future] = None
+
+    def connection_lost(self, error: Optional[Exception]) -> None:
+        if error is not None:
+            self.app_queue.put_nowait({'type': 'http.disconnect'})
+            self.connection.send_failed()  # Set our state to error, prevents recycling
+
+    def eof_received(self) -> bool:
+        self.data_received(b'')
+        return True
 
     def data_received(self, data: bytes) -> None:
-        super().data_received(data)
         self.connection.receive_data(data)
         self.handle_events()
 
-    def eof_received(self) -> bool:
-        self.connection.receive_data(b'')
-        return True
-
-    def send(
-            self,
-            event: Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response],
-    ) -> None:
-        self.write(self.connection.send(event))  # type: ignore
-
-    async def asend(
-            self,
-            event: Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response],
-    ) -> None:
-        self.send(event)
-        await self.drain()
-
-    def close(self) -> None:
-        if not self.closed:
-            self.app_queue.put_nowait({'type': 'http.disconnect'})
-        super().close()
-
-    async def aclose(self) -> None:
-        self.close()
-
     def handle_events(self) -> None:
+        # Called on receipt of data or after recycling the connection
         while True:
             if self.connection.they_are_waiting_for_100_continue:
                 self.send(
@@ -70,7 +54,9 @@ class H11Server(HTTPServer, H11Mixin):
             try:
                 event = self.connection.next_event()
             except h11.RemoteProtocolError:
-                self.handle_error()
+                self.send(self.error_response(400))
+                self.send(h11.EndOfMessage())
+                self.app_queue.put_nowait({'type': 'http.disconnect'})
                 self.close()
                 break
             else:
@@ -78,7 +64,7 @@ class H11Server(HTTPServer, H11Mixin):
                     self.stop_keep_alive_timeout()
                     self.maybe_upgrade_request(event)  # Raises on upgrade
                     self.task = self.loop.create_task(self.handle_request(event))
-                    self.task.add_done_callback(self.after_request)
+                    self.task.add_done_callback(self.recycle_or_close)
                 elif isinstance(event, h11.EndOfMessage):
                     self.app_queue.put_nowait({
                         'type': 'http.request',
@@ -97,36 +83,25 @@ class H11Server(HTTPServer, H11Mixin):
                         or event is h11.PAUSED
                 ):
                     break
-        if self.connection.our_state is h11.MUST_CLOSE:
+
+    def send(self, event: H11SendableEvent) -> None:
+        self.write(self.connection.send(event))  # type: ignore
+
+    async def asend(self, event: H11SendableEvent) -> None:
+        self.send(event)
+        await self.drain()
+
+    def recycle_or_close(self, future: asyncio.Future) -> None:
+        if self.connection.our_state in {h11.ERROR, h11.MUST_CLOSE}:
             self.close()
-
-    def handle_error(self) -> None:
-        self.send(
-            h11.Response(
-                status_code=400, headers=chain(
-                    [(b'content-length', b'0'), (b'connection', b'close')],
-                    self.response_headers(),
-                ),
-            ),
-        )
-        self.send(h11.EndOfMessage())
-
-    def after_request(self, future: asyncio.Future) -> None:
-        if self.connection.our_state is h11.DONE:
-            self.recycle()
-        self.handle_events()
-
-    def recycle(self) -> None:
-        """Recycle the state in order to accept a new request.
-
-        This is vital if this connection can be re-used.
-        """
-        self.connection.start_next_cycle()
-        self.app_queue = asyncio.Queue(loop=self.loop)
-        self.response = None
-        self.scope = None
-        self.state = ASGIState.REQUEST
-        self.start_keep_alive_timeout()
+        elif self.connection.our_state is h11.DONE:
+            self.connection.start_next_cycle()
+            self.app_queue = asyncio.Queue(loop=self.loop)
+            self.response = None
+            self.scope = None
+            self.state = ASGIState.REQUEST
+            self.start_keep_alive_timeout()
+            self.handle_events()
 
     @property
     def scheme(self) -> str:

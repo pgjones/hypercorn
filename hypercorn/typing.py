@@ -1,6 +1,9 @@
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Union
 
+import h11
 from typing_extensions import Protocol  # Till PEP 544 is accepted
+
+H11SendableEvent = Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response]
 
 
 class ASGIFramework(Protocol):

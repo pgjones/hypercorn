@@ -1,6 +1,6 @@
 from itertools import chain
 from time import time
-from typing import List, Optional, Tuple, Type, Union
+from typing import List, Optional, Tuple, Type
 from urllib.parse import unquote
 
 import h11
@@ -8,11 +8,21 @@ import h11
 from .run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..logging import AccessLogAtoms
-from ..typing import ASGIFramework, Queue
+from ..typing import ASGIFramework, H11SendableEvent, Queue
 from ..utils import ASGIState, suppress_body
 
 
+class UnexpectedMessage(Exception):
+
+    def __init__(self, state: ASGIState, message_type: str) -> None:
+        super().__init__(f"Unexpected message type, {message_type} given the state {state}")
+
+
 class H11Mixin:
+    # This handles a h11 request in the ASGI system, all I/O
+    # (including when to close) should be handled by the actual worker
+    # rather than this class.
+
     app: Type[ASGIFramework]
     app_queue: Queue
     config: Config
@@ -34,19 +44,28 @@ class H11Mixin:
     def response_headers(self) -> List[Tuple[bytes, bytes]]:
         pass
 
+    async def asend(self, event: H11SendableEvent) -> None:
+        pass
+
+    def error_response(self, status_code: int) -> h11.Response:
+        return h11.Response(
+            status_code=status_code, headers=chain(
+                [(b'content-length', b'0'), (b'connection', b'close')],
+                self.response_headers(),
+            ),
+        )
+
     def maybe_upgrade_request(self, event: h11.Request) -> None:
         upgrade_value = ''
         connection_value = ''
         has_body = False
         for name, value in event.headers:
-            sanitised_name = name.decode().lower()
+            sanitised_name = name.decode().strip().lower()
             if sanitised_name == 'upgrade':
                 upgrade_value = value.decode().strip()
             elif sanitised_name == 'connection':
                 connection_value = value.decode().strip()
-            elif sanitised_name == 'content-length':
-                has_body = True
-            elif sanitised_name == 'transfer-encoding':
+            elif sanitised_name in {'content-length', 'transfer-encoding'}:
                 has_body = True
 
         connection_tokens = connection_value.lower().split(',')
@@ -86,31 +105,19 @@ class H11Mixin:
         }
         await self.handle_asgi_app()
 
-    async def asend(
-        self,
-        event: Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response],
-    ) -> None:
-        pass
-
-    async def aclose(self) -> None:
-        pass
-
     async def handle_asgi_app(self) -> None:
         start_time = time()
-        must_close = False
         try:
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, self.asgi_send)
         except Exception as error:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception('Error in ASGI Framework')
-            must_close = True
 
-        # If the application doesn't send a response, it has errored -
-        # send a 500 for it and force close the connection.
-        if self.response is None:
-            must_close = True
-            await self.asend(h11.Response(status_code=500, headers=self.response_headers()))
+        # If the application hasn't sent a response, it has errored -
+        # send a 500 for it.
+        if self.state == ASGIState.REQUEST:
+            await self.asend(self.error_response(500))
             await self.asend(h11.EndOfMessage())
             self.response = {'status': 500, 'headers': []}
 
@@ -119,9 +126,6 @@ class H11Mixin:
                 self.config.access_log_format,
                 AccessLogAtoms(self.scope, self.response, time() - start_time),
             )
-
-        if must_close:
-            await self.aclose()
 
     async def asgi_receive(self) -> dict:
         """Called by the ASGI instance to receive a message."""
@@ -147,17 +151,17 @@ class H11Mixin:
                     h11.Response(status_code=int(self.response['status']), headers=headers),
                 )
                 self.state = ASGIState.RESPONSE
+
             if (
                     not suppress_body(self.scope['method'], int(self.response['status']))
                     and message.get('body', b'') != b''
             ):
                 await self.asend(h11.Data(data=bytes(message['body'])))
+
             if not message.get('more_body', False):
                 if self.state != ASGIState.CLOSED:
                     await self.asend(h11.EndOfMessage())
                     self.app_queue.put_nowait({'type': 'http.disconnect'})
                     self.state = ASGIState.CLOSED
         else:
-            raise Exception(
-                f"Unexpected message type, {message['type']} given the state {self.state}",
-            )
+            raise UnexpectedMessage(self.state, message['type'])

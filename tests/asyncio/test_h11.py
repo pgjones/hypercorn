@@ -10,7 +10,7 @@ from hypercorn.asyncio.h11 import H11Server
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
 from .helpers import MockTransport
-from ..helpers import BadFramework, ChunkedResponseFramework, EchoFramework
+from ..helpers import ChunkedResponseFramework, EchoFramework
 
 BASIC_HEADERS = [('Host', 'hypercorn'), ('Connection', 'close')]
 BASIC_DATA = 'index'
@@ -56,7 +56,7 @@ class MockConnection:
         ('POST', BASIC_HEADERS + [('content-length', str(len(BASIC_DATA.encode())))], BASIC_DATA),
     ],
 )
-async def test_requests(
+async def test_request(
         method: str, headers: list, body: str, event_loop: asyncio.AbstractEventLoop,
 ) -> None:
     connection = MockConnection(event_loop)
@@ -71,9 +71,6 @@ async def test_requests(
     assert b'date' in (header[0] for header in response.headers)
     assert all(isinstance(datum, h11.Data) for datum in data)
     data = json.loads(b''.join(datum.data for datum in data).decode())
-    assert data['scope']['scheme'] == 'http'  # type: ignore
-    assert data['scope']['path'] == '/'  # type: ignore
-    assert data['scope']['method'] == method  # type: ignore
     assert data['request_body'] == body  # type: ignore
     assert isinstance(end, h11.EndOfMessage)
 
@@ -175,12 +172,13 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('path', ['/', '/no_response', '/call'])
-async def test_bad_framework(path: str, event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=BadFramework)
-    await connection.send(h11.Request(method='GET', target=path, headers=BASIC_HEADERS))
+async def test_connection_error(event_loop: asyncio.AbstractEventLoop) -> None:
+    # Key is that this works without any Exception being raised,
+    # e.g. when trying to write to a errored connection.
+    connection = MockConnection(event_loop)
+    connection.server.pause_writing()
+    await connection.send(h11.Request(method='GET', target='/', headers=BASIC_HEADERS))
+    connection.server.connection_lost(Exception())
+    connection.server.resume_writing()
     await connection.send(h11.EndOfMessage())
     await connection.transport.closed.wait()
-    response, *_ = connection.get_events()
-    assert isinstance(response, h11.Response)
-    assert response.status_code == 500

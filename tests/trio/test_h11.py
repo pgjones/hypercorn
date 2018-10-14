@@ -9,7 +9,7 @@ import trio.testing
 from hypercorn.config import Config
 from hypercorn.trio.h11 import H11Server
 from hypercorn.typing import ASGIFramework
-from ..helpers import BadFramework, ChunkedResponseFramework, EchoFramework, MockSocket
+from ..helpers import ChunkedResponseFramework, EchoFramework, MockSocket
 
 BASIC_HEADERS = [('Host', 'hypercorn'), ('Connection', 'close')]
 BASIC_DATA = 'index'
@@ -64,9 +64,6 @@ async def test_requests(method: str, headers: list, body: str) -> None:
     assert b'date' in (header[0] for header in response.headers)
     assert all(isinstance(datum, h11.Data) for datum in data)
     data = json.loads(b''.join(datum.data for datum in data).decode())
-    assert data['scope']['scheme'] == 'http'  # type: ignore
-    assert data['scope']['path'] == '/'  # type: ignore
-    assert data['scope']['method'] == method  # type: ignore
     assert data['request_body'] == body  # type: ignore
     assert isinstance(end, h11.EndOfMessage)
 
@@ -168,15 +165,3 @@ async def test_post_request_keep_alive_timeout() -> None:
         await server.handle_connection()
     data = await client_stream.receive_some(2**16)
     assert data.startswith(b'HTTP/1.1 200')
-
-
-@pytest.mark.trio
-@pytest.mark.parametrize('path', ['/', '/no_response', '/call'])
-async def test_bad_framework(path: str) -> None:
-    connection = MockConnection(framework=BadFramework)
-    await connection.send(h11.Request(method='GET', target=path, headers=BASIC_HEADERS))
-    await connection.send(h11.EndOfMessage())
-    await connection.server.handle_connection()
-    response, *_ = await connection.get_events()
-    assert isinstance(response, h11.Response)
-    assert response.status_code == 500
