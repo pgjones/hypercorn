@@ -7,9 +7,12 @@ import wsproto.events
 import wsproto.extensions
 
 from .base import HTTPServer
-from ..common.wsproto import WebsocketMixin
+from ..common.wsproto import (
+    AcceptConnection, CloseConnection, Data, FrameTooLarge, WebsocketBuffer, WebsocketMixin,
+    WsprotoEvent,
+)
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import WebsocketState
 
 
@@ -30,66 +33,70 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         self.connection = wsproto.connection.WSConnection(
             wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()],
         )
-        self.task: Optional[asyncio.Future] = None
 
         self.app_queue: asyncio.Queue = asyncio.Queue()
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
         self.state = WebsocketState.HANDSHAKE
+        self.task: Optional[asyncio.Future] = None
 
-        self._buffer: Optional[Union[bytes, str]] = None
+        self.buffer = WebsocketBuffer(self.config.websocket_max_message_size)
 
         if upgrade_request is not None:
             fake_client = h11.Connection(h11.CLIENT)
             self.data_received(fake_client.send(upgrade_request))
 
+    def connection_lost(self, error: Optional[Exception]) -> None:
+        if error is not None:
+            self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+
     def data_received(self, data: bytes) -> None:
-        super().data_received(data)
         self.connection.receive_bytes(data)
+        self.handle_events()
+
+    def handle_events(self) -> None:
         for event in self.connection.events():
             if isinstance(event, wsproto.events.ConnectionRequested):
-                self.loop.create_task(self.handle_websocket(event))
+                self.task = self.loop.create_task(self.handle_websocket(event))
+                self.task.add_done_callback(self.maybe_close)
             elif isinstance(event, wsproto.events.DataReceived):
-                if self._buffer is None:
-                    if isinstance(event, wsproto.events.TextReceived):
-                        self._buffer = ''
-                    else:
-                        self._buffer = b''
-                self._buffer += event.data
-                if len(self._buffer) > self.config.websocket_max_message_size:
+                try:
+                    self.buffer.extend(event)
+                except FrameTooLarge:
                     self.connection.close(1009)  # CLOSE_TOO_LARGE
                     self.write(self.connection.bytes_to_send())
+                    self.app_queue.put_nowait({'type': 'websocket.disconnect'})
                     self.close()
+                    break
+
                 if event.message_finished:
-                    if isinstance(event, wsproto.events.BytesReceived):
-                        self.app_queue.put_nowait({
-                            'type': 'websocket.receive',
-                            'bytes': self._buffer,
-                            'text': None,
-                        })
-                    else:
-                        self.app_queue.put_nowait({
-                            'type': 'websocket.receive',
-                            'bytes': None,
-                            'text': self._buffer,
-                        })
-                    self._buffer = None
+                    self.app_queue.put_nowait(self.buffer.to_message())
+                    self.buffer.clear()
             elif isinstance(event, wsproto.events.ConnectionClosed):
                 self.write(self.connection.bytes_to_send())
+                self.app_queue.put_nowait({'type': 'websocket.disconnect'})
                 self.close()
-                return
-            self.write(self.connection.bytes_to_send())
+                break
 
-    def close(self) -> None:
-        self.app_queue.put_nowait({'type': 'websocket.disconnect'})
-        super().close()
+    def maybe_close(self, future: asyncio.Future) -> None:
+        # Close the connection iff a HTTP response was sent
+        if self.state == WebsocketState.HTTPCLOSED:
+            self.close()
+
+    async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:
+        if isinstance(event, AcceptConnection):
+            self.connection.accept(event.request)
+            data = self.connection.bytes_to_send()
+        elif isinstance(event, Data):
+            self.connection.send_data(event.data)
+            data = self.connection.bytes_to_send()
+        elif isinstance(event, CloseConnection):
+            self.connection.close(event.code)
+            data = self.connection.bytes_to_send()
+        else:
+            data = self.connection._upgrade_connection.send(event)
+        self.write(data)
 
     @property
     def scheme(self) -> str:
         return 'wss' if self.ssl_info is not None else 'ws'
-
-    async def awrite(self, data: bytes) -> None:
-        self.write(data)
-
-    async def aclose(self) -> None:
-        self.close()

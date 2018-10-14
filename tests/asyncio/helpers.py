@@ -92,45 +92,6 @@ class HTTPFramework:
         })
 
 
-class WebsocketFramework:
-
-    def __init__(self, scope: dict) -> None:
-        self.scope = deepcopy(scope)
-        self.tasks: List[asyncio.Future] = []
-
-    async def __call__(self, receive: Callable, send: Callable) -> None:
-        while True:
-            await asyncio.sleep(0)
-            event = await receive()
-            if event['type'] == 'websocket.disconnect':
-                for task in self.tasks:
-                    task.cancel()
-                break
-            elif event['type'] == 'websocket.connect':
-                if self.scope['path'] == '/http':
-                    self.tasks.append(asyncio.ensure_future(self.send_response(send)))
-                else:
-                    await send({'type': 'websocket.accept'})
-            elif event['type'] == 'websocket.receive':
-                message = deepcopy(event)
-                message['type'] = 'websocket.send'
-                self.tasks.append(asyncio.ensure_future(send(message)))
-
-    async def send_response(self, send: Callable) -> None:
-        response = 'Unauthorised'.encode()
-        content_length = len(response)
-        await send({
-            'type': 'websocket.http.response.start',
-            'status': 401,
-            'headers': [(b'content-length', str(content_length).encode())],
-        })
-        await send({
-            'type': 'websocket.http.response.body',
-            'body': response,
-            'more_body': False,
-        })
-
-
 class MockSocket:
 
     family = AF_INET

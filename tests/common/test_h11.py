@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Tuple
+from typing import Any, List, Tuple
 
 import h11
 import pytest
@@ -7,22 +7,7 @@ from hypercorn.common.h11 import H11Mixin, UnexpectedMessage
 from hypercorn.config import Config
 from hypercorn.typing import H11SendableEvent
 from hypercorn.utils import ASGIState
-from ..helpers import BadFramework
-
-
-class EmptyFramework:
-
-    def __init__(self, scope: dict) -> None:
-        pass
-
-    async def __call__(self, send: Callable, receive: Callable) -> None:
-        pass
-
-
-class EmptyQueue:
-
-    def put_nowait(self, value: Any) -> None:
-        pass
+from ..helpers import BadFramework, EmptyFramework, EmptyQueue
 
 
 class MockH11(H11Mixin):

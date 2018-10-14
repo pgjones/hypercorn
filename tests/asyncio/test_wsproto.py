@@ -9,7 +9,7 @@ import wsproto.events
 from hypercorn.asyncio.wsproto import WebsocketServer
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
-from .helpers import MockTransport, WebsocketFramework
+from .helpers import MockTransport
 from ..helpers import BadFramework, EchoFramework
 
 
@@ -56,7 +56,7 @@ class MockWebsocketConnection:
             path: str,
             event_loop: asyncio.AbstractEventLoop,
             *,
-            framework: Type[ASGIFramework]=WebsocketFramework,
+            framework: Type[ASGIFramework]=EchoFramework,
     ) -> None:
         self.transport = MockTransport()
         self.server = WebsocketServer(framework, event_loop, Config(), self.transport)  # type: ignore # noqa: E501
@@ -107,7 +107,6 @@ async def test_bad_framework_http(path: str, event_loop: asyncio.AbstractEventLo
 async def test_bad_framework_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     connection = MockWebsocketConnection('/accept', event_loop, framework=BadFramework)
     await asyncio.sleep(0)  # Yield to allow the server to process
-    await connection.transport.closed.wait()
     *_, close = await connection.receive()
     assert isinstance(close, wsproto.events.ConnectionClosed)
     assert close.code == 1000

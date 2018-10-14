@@ -27,6 +27,7 @@ class WebsocketState(Enum):
     CONNECTED = auto()
     RESPONSE = auto()
     CLOSED = auto()
+    HTTPCLOSED = auto()
 
 
 class NoAppException(Exception):

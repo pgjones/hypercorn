@@ -13,23 +13,18 @@ class App:
         while True:
             event = await receive()
             if event['type'] == 'websocket.disconnect':
-                for task in self.tasks:
-                    task.cancel()
                 break
             elif event['type'] == 'websocket.connect':
                 await send({'type': 'websocket.accept'})
             elif event['type'] == 'websocket.receive':
-                self.tasks.append(
-                    asyncio.ensure_future(
-                        send({
-                            'type': 'websocket.send',
-                            'bytes': event['bytes'],
-                            'text': event['text'],
-                        }),
-                    ),
-                )
+                await send({
+                    'type': 'websocket.send',
+                    'bytes': event['bytes'],
+                    'text': event['text'],
+                })
 
 
 if __name__ == '__main__':
     config = Config()
+    config.error_log_target = '-'
     run_single(App, config, loop=asyncio.get_event_loop())

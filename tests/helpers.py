@@ -1,7 +1,7 @@
 from copy import deepcopy
 from json import dumps
 from socket import AF_INET
-from typing import Callable, Tuple
+from typing import Any, Callable, Tuple
 
 
 class MockSocket:
@@ -13,6 +13,21 @@ class MockSocket:
 
     def getpeername(self) -> Tuple[str, int]:
         return ('127.0.0.1', 80)
+
+
+class EmptyFramework:
+
+    def __init__(self, scope: dict) -> None:
+        pass
+
+    async def __call__(self, send: Callable, receive: Callable) -> None:
+        pass
+
+
+class EmptyQueue:
+
+    def put_nowait(self, value: Any) -> None:
+        pass
 
 
 class EchoFramework:

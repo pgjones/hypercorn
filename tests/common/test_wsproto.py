@@ -1,10 +1,174 @@
-from typing import Any
-from unittest.mock import Mock
+from typing import Any, List, Tuple, Union
 
+import h11
 import pytest
+import wsproto
 
-from hypercorn.common.wsproto import WebsocketMixin
+from hypercorn.common.wsproto import (
+    AcceptConnection, CloseConnection, Data, FrameTooLarge, UnexpectedMessage, WebsocketBuffer,
+    WebsocketMixin, WsprotoEvent,
+)
+from hypercorn.config import Config
+from hypercorn.typing import H11SendableEvent
 from hypercorn.utils import WebsocketState
+from ..helpers import BadFramework, EmptyFramework, EmptyQueue
+
+
+def test_buffer() -> None:
+    buffer_ = WebsocketBuffer(10)
+    buffer_.extend(wsproto.events.TextReceived('abc', False, True))
+    assert buffer_.to_message() == {
+        'type': 'websocket.receive',
+        'bytes': None,
+        'text': 'abc',
+    }
+    buffer_.clear()
+    buffer_.extend(wsproto.events.BytesReceived(b'abc', False, True))
+    assert buffer_.to_message() == {
+        'type': 'websocket.receive',
+        'bytes': b'abc',
+        'text': None,
+    }
+
+
+def test_buffer_frame_too_large() -> None:
+    buffer_ = WebsocketBuffer(2)
+    with pytest.raises(FrameTooLarge):
+        buffer_.extend(wsproto.events.TextReceived('abc', False, True))
+
+
+@pytest.mark.parametrize(
+    'data',
+    [
+        (
+            wsproto.events.TextReceived('abc', False, True),
+            wsproto.events.BytesReceived(b'abc', False, True),
+        ),
+        (
+            wsproto.events.BytesReceived(b'abc', False, True),
+            wsproto.events.TextReceived('abc', False, True),
+        ),
+    ],
+)
+def test_buffer_mixed_types(data: list) -> None:
+    buffer_ = WebsocketBuffer(10)
+    buffer_.extend(data[0])
+    with pytest.raises(TypeError):
+        buffer_.extend(data[1])
+
+
+class MockWebsocket(WebsocketMixin):
+
+    def __init__(self) -> None:
+        self.app = EmptyFramework  # type: ignore
+        self.app_queue = EmptyQueue()  # type: ignore
+        self.config = Config()
+        self.state = WebsocketState.HANDSHAKE
+
+        self.sent_events: List[Union[H11SendableEvent, WsprotoEvent]] = []
+
+    @property
+    def client(self) -> Tuple[str, int]:
+        return ('127.0.0.1', 5000)
+
+    @property
+    def server(self) -> Tuple[str, int]:
+        return ('remote', 5000)
+
+    @property
+    def scheme(self) -> str:
+        return 'ws'
+
+    def response_headers(self) -> list:
+        return [(b'server', b'hypercorn')]
+
+    async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:
+        self.sent_events.append(event)
+
+
+@pytest.mark.asyncio
+async def test_asgi_scope() -> None:
+    server = MockWebsocket()
+    request = h11.Request(
+        method='GET', target=b'/path?a=b', headers=[(b'host', b'hypercorn')],
+    )
+    connection_request = wsproto.events.ConnectionRequested([], request)
+    await server.handle_websocket(connection_request)
+    scope = server.scope
+    assert scope == {
+        'type': 'websocket',
+        'asgi': {'version': '2.0'},
+        'scheme': 'ws',
+        'path': '/path',
+        'query_string': b'a=b',
+        'root_path': '',
+        'headers': [(b'host', b'hypercorn')],
+        'client': ('127.0.0.1', 5000),
+        'server': ('remote', 5000),
+        'subprotocols': [],
+        'extensions': {
+            'websocket.http.response': {},
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_asgi_send() -> None:
+    server = MockWebsocket()
+    server.app = BadFramework  # type: ignore
+    request = h11.Request(
+        method='GET', target=b'/accept', headers=[
+            (b'host', b'hypercorn'), (b'sec-websocket-key', b'ZdCqRHQRNflNt6o7yU48Pg=='),
+            (b'sec-websocket-version', b'13'), (b'connection', b'upgrade'),
+            (b'upgrade', b'connection'),
+        ],
+    )
+    connection_request = wsproto.events.ConnectionRequested([], request)
+    await server.asgi_send(connection_request, {'type': 'websocket.accept'})
+    await server.asgi_send(connection_request, {'type': 'websocket.send', 'bytes': b'abc'})
+    await server.asgi_send(connection_request, {'type': 'websocket.close', 'code': 1000})
+    assert server.sent_events == [
+        AcceptConnection(connection_request),
+        Data(b'abc'),
+        CloseConnection(1000),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_asgi_send_http() -> None:
+    server = MockWebsocket()
+    server.scope = {'method': 'GET'}
+    await server.asgi_send(
+        None,
+        {
+            'type': 'websocket.http.response.start',
+            'headers': [(b'X-Header', b'Value')],
+            'status': 200,
+        },
+    )
+    # Server must not send a response till the receipt of the first
+    # body chunk.
+    assert server.sent_events == []
+    await server.asgi_send(
+        None,
+        {
+            'type': 'websocket.http.response.body',
+            'body': b'a',
+            'more_body': True,
+        },
+    )
+    await server.asgi_send(
+        None,
+        {
+            'type': 'websocket.http.response.body',
+            'more_body': False,
+        },
+    )
+    assert server.sent_events == [
+        h11.Response(status_code=200, headers=[(b'x-header', b'Value'), (b'server', b'hypercorn')]),
+        h11.Data(data=b'a', chunk_start=False, chunk_end=False),
+        h11.EndOfMessage(headers=[]),
+    ]
 
 
 @pytest.mark.asyncio
@@ -17,7 +181,6 @@ from hypercorn.utils import WebsocketState
 )
 async def test_asgi_send_invalid_message(data_bytes: Any, data_text: Any) -> None:
     server = WebsocketMixin()
-    server.connection = Mock()
     server.state = WebsocketState.CONNECTED
     with pytest.raises((TypeError, ValueError)):
         await server.asgi_send(
@@ -32,6 +195,29 @@ async def test_asgi_send_invalid_message(data_bytes: Any, data_text: Any) -> Non
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    'state, message_type',
+    [
+        (WebsocketState.HANDSHAKE, 'websocket.send'),
+        (WebsocketState.RESPONSE, 'websocket.accept'),
+        (WebsocketState.RESPONSE, 'websocket.send'),
+        (WebsocketState.CONNECTED, 'websocket.http.response.start'),
+        (WebsocketState.CONNECTED, 'websocket.http.response.body'),
+        (WebsocketState.CLOSED, 'websocket.send'),
+        (WebsocketState.CLOSED, 'websocket.http.response.start'),
+        (WebsocketState.CLOSED, 'websocket.http.response.body'),
+    ],
+)
+async def test_asgi_send_invalid_message_given_state(
+        state: WebsocketState, message_type: str,
+) -> None:
+    server = MockWebsocket()
+    server.state = state
+    with pytest.raises(UnexpectedMessage):
+        await server.asgi_send({}, {'type': message_type})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     'status, headers, body',
     [
         ('201 NO CONTENT', [], b''),  # Status should be int
@@ -41,7 +227,6 @@ async def test_asgi_send_invalid_message(data_bytes: Any, data_text: Any) -> Non
 )
 async def test_asgi_send_invalid_http_message(status: Any, headers: Any, body: Any) -> None:
     server = WebsocketMixin()
-    server.connection = Mock()
     server.state = WebsocketState.HANDSHAKE
     server.scope = {'method': 'GET'}
     with pytest.raises((TypeError, ValueError)):
@@ -60,3 +245,35 @@ async def test_asgi_send_invalid_http_message(status: Any, headers: Any, body: A
                 'body': body,
             },
         )
+
+
+@pytest.mark.asyncio
+async def test_bad_framework() -> None:
+    server = MockWebsocket()
+    server.app = BadFramework  # type: ignore
+    request = h11.Request(
+        method='GET', target=b'/accept', headers=[
+            (b'host', b'hypercorn'), (b'sec-websocket-key', b'ZdCqRHQRNflNt6o7yU48Pg=='),
+            (b'sec-websocket-version', b'13'), (b'connection', b'upgrade'),
+            (b'upgrade', b'connection'),
+        ],
+    )
+    connection_request = wsproto.events.ConnectionRequested([], request)
+    await server.handle_websocket(connection_request)
+    assert server.sent_events == [AcceptConnection(connection_request), CloseConnection(1006)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('path', ['/', '/no_response', '/call'])
+async def test_bad_framework_http(path: str) -> None:
+    server = MockWebsocket()
+    server.app = BadFramework  # type: ignore
+    request = h11.Request(
+        method='GET', target=path.encode(), headers=[(b'host', b'hypercorn')],
+    )
+    connection_request = wsproto.events.ConnectionRequested([], request)
+    await server.handle_websocket(connection_request)
+    assert server.sent_events == [
+        h11.Response(status_code=500, headers=[(b'server', b'hypercorn')]),
+        h11.EndOfMessage(headers=[]),
+    ]

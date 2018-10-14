@@ -5,6 +5,7 @@ import trio
 
 from .base import HTTPServer
 from ..common.h11 import H11Mixin
+from ..common.run import WrongProtocolError
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import ASGIState
@@ -51,10 +52,11 @@ class H11Server(HTTPServer, H11Mixin):
                 self.recycle_or_close()
         except (trio.BrokenResourceError, trio.ClosedResourceError):
             self.app_queue.put_nowait({'type': 'http.disconnect'})
-        except (trio.TooSlowError, MustCloseError):
-            pass
-        finally:
             await self.aclose()
+        except (trio.TooSlowError, MustCloseError):
+            await self.aclose()
+        except WrongProtocolError:
+            raise  # Do not close the connection
 
     async def read_request(self) -> h11.Request:
         while True:

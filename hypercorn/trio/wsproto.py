@@ -5,15 +5,18 @@ import trio
 import wsproto
 
 from .base import HTTPServer
-from ..common.wsproto import WebsocketMixin
+from ..common.wsproto import (
+    AcceptConnection, CloseConnection, Data, FrameTooLarge, WebsocketBuffer, WebsocketMixin,
+    WsprotoEvent,
+)
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import WebsocketState
 
 MAX_RECV = 2 ** 16
 
 
-class ConnectionClosed(Exception):
+class MustCloseError(Exception):
     pass
 
 
@@ -38,7 +41,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         self.scope: Optional[dict] = None
         self.state = WebsocketState.HANDSHAKE
 
-        self._buffer: Optional[Union[bytes, str]] = None
+        self.buffer = WebsocketBuffer(self.config.websocket_max_message_size)
 
         if upgrade_request is not None:
             fake_client = h11.Connection(h11.CLIENT)
@@ -48,27 +51,21 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         try:
             request = await self.read_request()
             async with trio.open_nursery() as nursery:
-                nursery.start_soon(self.handle_websocket, request)
-                await self.read_messages()
-        except (
-                ConnectionClosed, trio.TooSlowError, trio.BrokenResourceError,
-                trio.ClosedResourceError,
-        ):
+                nursery.start_soon(self.read_messages)
+                await self.handle_websocket(request)
+                if self.state == WebsocketState.HTTPCLOSED:
+                    raise MustCloseError()
+        except (trio.BrokenResourceError, trio.ClosedResourceError):
+            self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+        except MustCloseError:
+            await self.stream.send_all(self.connection.bytes_to_send())
+        finally:
             await self.aclose()
-
-    async def awrite(self, data: bytes) -> None:
-        await self.stream.send_all(data)
-
-    async def aclose(self) -> None:
-        self.app_queue.put_nowait({'type': 'websocket.disconnect'})
-        await super().aclose()
 
     async def read_request(self) -> wsproto.events.ConnectionRequested:
         for event in self.connection.events():
             if isinstance(event, wsproto.events.ConnectionRequested):
                 return event
-            else:
-                raise ConnectionClosed()
 
     async def read_messages(self) -> None:
         while True:
@@ -76,32 +73,33 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
             self.connection.receive_bytes(data)
             for event in self.connection.events():
                 if isinstance(event, wsproto.events.DataReceived):
-                    if self._buffer is None:
-                        if isinstance(event, wsproto.events.TextReceived):
-                            self._buffer = ''
-                        else:
-                            self._buffer = b''
-                        self._buffer += event.data
-                    if len(self._buffer) > self.config.websocket_max_message_size:
+                    try:
+                        self.buffer.extend(event)
+                    except FrameTooLarge:
                         self.connection.close(1009)  # CLOSE_TOO_LARGE
-                        await self.awrite(self.connection.bytes_to_send())
-                        raise ConnectionClosed()
+                        self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                        raise MustCloseError()
+
                     if event.message_finished:
-                        if isinstance(event, wsproto.events.BytesReceived):
-                            await self.app_queue.put({
-                                'type': 'websocket.receive',
-                                'bytes': self._buffer,
-                                'text': None,
-                            })
-                        else:
-                            await self.app_queue.put({
-                                'type': 'websocket.receive',
-                                'bytes': None,
-                                'text': self._buffer,
-                            })
-                        self._buffer = None
+                        self.app_queue.put_nowait(self.buffer.to_message())
+                        self.buffer.clear()
                 elif isinstance(event, wsproto.events.ConnectionClosed):
-                    raise ConnectionClosed()
+                    self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                    raise MustCloseError()
+
+    async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:
+        if isinstance(event, AcceptConnection):
+            self.connection.accept(event.request)
+            data = self.connection.bytes_to_send()
+        elif isinstance(event, Data):
+            self.connection.send_data(event.data)
+            data = self.connection.bytes_to_send()
+        elif isinstance(event, CloseConnection):
+            self.connection.close(event.code)
+            data = self.connection.bytes_to_send()
+        else:
+            data = self.connection._upgrade_connection.send(event)
+        await self.stream.send_all(data)
 
     @property
     def scheme(self) -> str:
