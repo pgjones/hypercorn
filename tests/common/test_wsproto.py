@@ -1,4 +1,4 @@
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Union
 
 import h11
 import pytest
@@ -62,18 +62,12 @@ class MockWebsocket(WebsocketMixin):
     def __init__(self) -> None:
         self.app = EmptyFramework  # type: ignore
         self.app_queue = EmptyQueue()  # type: ignore
+        self.client = ('127.0.0.1', 5000)
         self.config = Config()
+        self.server = ('remote', 5000)
         self.state = WebsocketState.HANDSHAKE
 
         self.sent_events: List[Union[H11SendableEvent, WsprotoEvent]] = []
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        return ('127.0.0.1', 5000)
-
-    @property
-    def server(self) -> Tuple[str, int]:
-        return ('remote', 5000)
 
     @property
     def scheme(self) -> str:

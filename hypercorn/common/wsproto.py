@@ -77,20 +77,14 @@ class WebsocketBuffer:
 class WebsocketMixin:
     app: Type[ASGIFramework]
     app_queue: Queue
+    client: Tuple[str, int]
     config: Config
     response: Optional[dict]
+    server: Tuple[str, int]
     state: WebsocketState
 
     @property
     def scheme(self) -> str:
-        pass
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        pass
-
-    @property
-    def server(self) -> Tuple[str, int]:
         pass
 
     def response_headers(self) -> List[Tuple[bytes, bytes]]:

@@ -25,20 +25,14 @@ class H11Mixin:
 
     app: Type[ASGIFramework]
     app_queue: Queue
+    client: Tuple[str, int]
     config: Config
     response: Optional[dict]
+    server: Tuple[str, int]
     state: ASGIState
 
     @property
     def scheme(self) -> str:
-        pass
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        pass
-
-    @property
-    def server(self) -> Tuple[str, int]:
         pass
 
     def response_headers(self) -> List[Tuple[bytes, bytes]]:

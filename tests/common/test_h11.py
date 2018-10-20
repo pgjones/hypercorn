@@ -1,4 +1,4 @@
-from typing import Any, List, Tuple
+from typing import Any, List
 
 import h11
 import pytest
@@ -15,17 +15,11 @@ class MockH11(H11Mixin):
     def __init__(self) -> None:
         self.app = EmptyFramework  # type: ignore
         self.app_queue = EmptyQueue()  # type: ignore
+        self.client = ('127.0.0.1', 5000)
         self.config = Config()
+        self.server = ('remote', 5000)
         self.state = ASGIState.REQUEST
         self.sent_events: List[H11SendableEvent] = []
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        return ('127.0.0.1', 5000)
-
-    @property
-    def server(self) -> Tuple[str, int]:
-        return ('remote', 5000)
 
     @property
     def scheme(self) -> str:

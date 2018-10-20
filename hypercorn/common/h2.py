@@ -85,20 +85,14 @@ class H2StreamBase:
 
 class H2Mixin:
     app: Type[ASGIFramework]
+    client: Tuple[str, int]
     config: Config
     connection: h2.connection.H2Connection
+    server: Tuple[str, int]
     streams: Dict[int, H2StreamBase]
 
     @property
     def scheme(self) -> str:
-        pass
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        pass
-
-    @property
-    def server(self) -> Tuple[str, int]:
         pass
 
     def response_headers(self) -> List[Tuple[bytes, bytes]]:

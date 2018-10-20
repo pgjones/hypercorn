@@ -1,6 +1,5 @@
 import asyncio
-from ssl import SSLObject, SSLSocket
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 from ..config import Config
 from ..utils import parse_socket_addr, response_headers
@@ -24,6 +23,11 @@ class HTTPServer:
         self._can_write = asyncio.Event(loop=loop)
         self._can_write.set()
         self.start_keep_alive_timeout()
+
+        socket = self.transport.get_extra_info('socket')
+        self.client = parse_socket_addr(socket.family, socket.getpeername())
+        self.server = parse_socket_addr(socket.family, socket.getsockname())
+        self.ssl_info = self.transport.get_extra_info('ssl_object')
 
     def data_received(self, data: bytes) -> None:
         # Called whenever data is received.
@@ -77,17 +81,3 @@ class HTTPServer:
 
     def _handle_timeout(self) -> None:
         self.close()
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        socket = self.transport.get_extra_info('socket')
-        return parse_socket_addr(socket.family, socket.getpeername())
-
-    @property
-    def server(self) -> Tuple[str, int]:
-        socket = self.transport.get_extra_info('socket')
-        return parse_socket_addr(socket.family, socket.getsockname())
-
-    @property
-    def ssl_info(self) -> Optional[Union[SSLObject, SSLSocket]]:
-        return self.transport.get_extra_info('ssl_object')

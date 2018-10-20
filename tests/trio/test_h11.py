@@ -131,6 +131,7 @@ async def test_server_sends_chunked() -> None:
 @pytest.mark.trio
 async def test_max_incomplete_size() -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream.socket = MockSocket()
     config = Config()
     config.h11_max_incomplete_size = 5
     server = H11Server(EchoFramework, config, server_stream)
@@ -143,6 +144,7 @@ async def test_max_incomplete_size() -> None:
 @pytest.mark.trio
 async def test_initial_keep_alive_timeout() -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream.socket = MockSocket()
     config = Config()
     config.keep_alive_timeout = 0.01
     server = H11Server(EchoFramework, config, server_stream)

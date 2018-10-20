@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 import h2
 import pytest
@@ -22,17 +22,11 @@ class MockH2(H2Mixin):
 
     def __init__(self) -> None:
         self.app = EmptyFramework  # type: ignore
+        self.client = ('127.0.0.1', 5000)
         self.config = Config()
+        self.server = ('remote', 5000)
         self.streams: Dict[int, MockH2Stream] = {}  # type: ignore
         self.sent_events: list = []
-
-    @property
-    def client(self) -> Tuple[str, int]:
-        return ('127.0.0.1', 5000)
-
-    @property
-    def server(self) -> Tuple[str, int]:
-        return ('remote', 5000)
 
     @property
     def scheme(self) -> str:
