@@ -15,6 +15,47 @@ from ..typing import ASGIFramework, Queue
 from ..utils import ASGIState, suppress_body
 
 
+class UnexpectedMessage(Exception):
+
+    def __init__(self, state: ASGIState, message_type: str) -> None:
+        super().__init__(f"Unexpected message type, {message_type} given the state {state}")
+
+
+class H2Event:
+
+    def __init__(self, stream_id: int) -> None:
+        self.stream_id = stream_id
+
+    def __eq__(self, other: object) -> bool:
+        return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
+
+
+class EndStream(H2Event):
+    pass
+
+
+class Response(H2Event):
+
+    def __init__(self, stream_id: int, headers: Iterable[Tuple[bytes, bytes]]) -> None:
+        super().__init__(stream_id)
+        self.headers = headers
+
+
+class Data(H2Event):
+
+    def __init__(self, stream_id: int, data: bytes) -> None:
+        super().__init__(stream_id)
+        self.data = data
+
+
+class ServerPush(H2Event):
+
+    def __init__(self, stream_id: int, path: str, headers: Iterable[Tuple[bytes, bytes]]) -> None:
+        super().__init__(stream_id)
+        self.path = path
+        self.headers = headers
+
+
 class H2StreamBase:
     app_queue: Queue
 
@@ -38,16 +79,8 @@ class H2StreamBase:
             'more_body': False,
         })
 
-    def unblock(self) -> None:
-        pass
-
-    async def block(self) -> None:
-        pass
-
     def close(self) -> None:
-        if self.state != ASGIState.CLOSED:
-            self.app_queue.put_nowait({'type': 'http.disconnect'})
-        self.state = ASGIState.CLOSED
+        self.app_queue.put_nowait({'type': 'http.disconnect'})
 
 
 class H2Mixin:
@@ -71,19 +104,10 @@ class H2Mixin:
     def response_headers(self) -> List[Tuple[bytes, bytes]]:
         pass
 
-    def create_stream(self) -> H2StreamBase:
+    async def asend(self, event: H2Event) -> None:
         pass
 
-    async def asend(self) -> None:
-        pass
-
-    async def aclose(self) -> None:
-        for stream in self.streams.values():
-            stream.close()
-
-    async def handle_request(
-            self, event: h2.events.RequestReceived, *, complete: bool=False,
-    ) -> None:
+    async def handle_request(self, event: h2.events.RequestReceived) -> None:
         headers = []
         for name, value in event.headers:
             if name == b':method':
@@ -110,10 +134,7 @@ class H2Mixin:
         }
         stream_id = event.stream_id
         self.streams[stream_id].scope = scope
-        if complete:
-            self.streams[stream_id].complete()
         await self.handle_asgi_app(stream_id)
-        del self.streams[stream_id]
 
     async def handle_asgi_app(self, stream_id: int) -> None:
         start_time = time()
@@ -126,72 +147,21 @@ class H2Mixin:
         except Exception as error:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception('Error in ASGI Framework')
-            self.connection.end_stream(stream_id)
-            await self.asend()
+
+        # If the application hasn't sent a response, it has errored -
+        # send a 500 for it.
+        if self.streams[stream_id].state == ASGIState.REQUEST:
+            headers = [(b':status', b'500')] + self.response_headers()
+            await self.asend(Response(stream_id, headers))
+            await self.asend(EndStream(stream_id))
             self.streams[stream_id].close()
-        if stream.response is not None and self.config.access_logger is not None:
+            stream.response = {'status': 500, 'headers': []}
+
+        if self.config.access_logger is not None:
             self.config.access_logger.info(
                 self.config.access_log_format,
                 AccessLogAtoms(stream.scope, stream.response, time() - start_time),
             )
-
-    async def server_push(
-            self,
-            stream_id: int,
-            path: str,
-            headers: Iterable[Tuple[bytes, bytes]],
-    ) -> None:
-        push_stream_id = self.connection.get_next_available_stream_id()
-        stream = self.streams[stream_id]
-        for name, value in stream.scope['headers']:
-            if name == b':authority':
-                authority = value
-        request_headers = [
-            (bytes(name), bytes(value)) for name, value in chain(
-                [
-                    (b':method', b'GET'), (b':path', path.encode()),
-                    (b':scheme', stream.scope['scheme'].encode()),
-                    (b':authority', authority),
-                ],
-                headers,
-                self.response_headers(),
-            )
-        ]
-        try:
-            self.connection.push_stream(
-                stream_id=stream_id, promised_stream_id=push_stream_id,
-                request_headers=request_headers,
-            )
-        except h2.exceptions.ProtocolError:
-            pass  # Client does not accept push promises
-        else:
-            event = h2.events.RequestReceived()
-            event.stream_id = push_stream_id
-            event.headers = request_headers
-            self.streams[event.stream_id] = self.create_stream()
-            await self.handle_request(event, complete=True)
-
-    async def send_data(self, stream_id: int, data: bytes) -> None:
-        stream = self.streams[stream_id]
-        while True:
-            while not self.connection.local_flow_control_window(stream_id):
-                await stream.block()  # type: ignore
-
-            chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
-            chunk_size = min(chunk_size, self.connection.max_outbound_frame_size)
-            self.connection.send_data(stream_id, data[:chunk_size])
-            await self.asend()
-            data = data[chunk_size:]
-            if not data:
-                break
-
-    def window_updated(self, stream_id: Optional[int]) -> None:
-        if stream_id:
-            self.streams[stream_id].unblock()  # type: ignore
-        elif stream_id is None:
-            # Unblock all streams
-            for stream in self.streams.values():
-                stream.unblock()  # type: ignore
 
     async def asgi_receive(self, stream_id: int) -> dict:
         """Called by the ASGI instance to receive a message."""
@@ -203,7 +173,10 @@ class H2Mixin:
         if message['type'] == 'http.response.start' and stream.state == ASGIState.REQUEST:
             stream.response = message
         elif message['type'] == 'http.response.push':
-            await self.server_push(stream_id, message['path'], message['headers'])
+            if not isinstance(message['path'], str):
+                raise TypeError(f"{message['path']} should be a str")
+            headers = [(bytes(key), bytes(value)) for key, value in message['headers']]
+            await self.asend(ServerPush(stream_id, message['path'], headers))
         elif (
                 message['type'] == 'http.response.body'
                 and stream.state in {ASGIState.REQUEST, ASGIState.RESPONSE}
@@ -216,20 +189,16 @@ class H2Mixin:
                         self.response_headers(),
                     )
                 ]
-                self.connection.send_headers(stream_id, headers)
-                await self.asend()
+                await self.asend(Response(stream_id, headers))
                 stream.state = ASGIState.RESPONSE
             if (
                     not suppress_body(stream.scope['method'], stream.response['status'])
                     and message.get('body', b'') != b''
             ):
-                await self.send_data(stream_id, bytes(message.get('body', b'')))
+                await self.asend(Data(stream_id, bytes(message.get('body', b''))))
             if not message.get('more_body', False):
                 if stream.state != ASGIState.CLOSED:
-                    self.connection.end_stream(stream_id)
-                    await self.asend()
+                    await self.asend(EndStream(stream_id))
                     stream.close()
         else:
-            raise Exception(
-                f"Unexpected message type, {message['type']} given the state {stream.state}",
-            )
+            raise UnexpectedMessage(stream.state, message['type'])

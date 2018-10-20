@@ -1,17 +1,15 @@
-import asyncio
 import json
 from typing import AsyncGenerator, Optional, Type
-from unittest.mock import Mock
 
 import h11
 import h2
 import pytest
+import trio
 
-from hypercorn.asyncio.h2 import H2Server
 from hypercorn.config import Config
+from hypercorn.trio.h2 import H2Server
 from hypercorn.typing import ASGIFramework
-from .helpers import MockTransport
-from ..helpers import ChunkedResponseFramework, EchoFramework, PushFramework
+from ..helpers import ChunkedResponseFramework, EchoFramework, MockSocket, PushFramework
 
 BASIC_HEADERS = [(':authority', 'hypercorn'), (':scheme', 'https')]
 BASIC_DATA = 'index'
@@ -22,15 +20,15 @@ class MockConnection:
 
     def __init__(
             self,
-            event_loop: asyncio.AbstractEventLoop,
             *,
             config: Config=Config(),
             framework: Type[ASGIFramework]=EchoFramework,
             upgrade_request: Optional[h11.Request]=None,
     ) -> None:
-        self.transport = MockTransport()
+        self.client_stream, server_stream = trio.testing.memory_stream_pair()
+        server_stream.socket = MockSocket()
         self.server = H2Server(  # type: ignore
-            framework, event_loop, config, self.transport, upgrade_request=upgrade_request,
+            framework, config, server_stream, upgrade_request=upgrade_request,
         )
         self.connection = h2.connection.H2Connection()
         if upgrade_request is not None:
@@ -38,47 +36,51 @@ class MockConnection:
         else:
             self.connection.initiate_connection()
 
-    def send_request(self, headers: list, settings: dict) -> int:
+    async def send_request(self, headers: list, settings: dict) -> int:
         self.connection.update_settings(settings)
-        self.server.data_received(self.connection.data_to_send())
+        await self.client_stream.send_all(self.connection.data_to_send())
         stream_id = self.connection.get_next_available_stream_id()
         self.connection.send_headers(stream_id, headers)
-        self.server.data_received(self.connection.data_to_send())
+        await self.client_stream.send_all(self.connection.data_to_send())
         return stream_id
 
     async def send_data(self, stream_id: int, data: bytes) -> None:
         self.connection.send_data(stream_id, data)
-        self.server.data_received(self.connection.data_to_send())
-        await asyncio.sleep(0)  # Yield to allow the server to process
+        await self.client_stream.send_all(self.connection.data_to_send())
+        await trio.sleep(0)  # Yield to allow the server to process
 
     async def end_stream(self, stream_id: int) -> None:
         self.connection.end_stream(stream_id)
-        self.server.data_received(self.connection.data_to_send())
-        await asyncio.sleep(0)  # Yield to allow the server to process
+        await self.client_stream.send_all(self.connection.data_to_send())
+        await trio.sleep(0)  # Yield to allow the server to process
 
-    def close(self) -> None:
+    async def close(self) -> None:
         self.connection.close_connection()
-        self.server.data_received(self.connection.data_to_send())
+        await self.client_stream.send_all(self.connection.data_to_send())
+        await self.client_stream.aclose()
 
     async def get_events(self) -> AsyncGenerator[h2.events.Event, None]:
         while True:
-            await self.transport.updated.wait()
-            events = self.connection.receive_data(self.transport.data)
-            self.transport.clear()
+            try:
+                events = self.connection.receive_data(await self.client_stream.receive_some(2**16))
+            except trio.ClosedResourceError:
+                return
+
             for event in events:
                 if isinstance(event, h2.events.ConnectionTerminated):
-                    self.transport.close()
+                    return
                 elif isinstance(event, h2.events.DataReceived):
                     self.connection.acknowledge_received_data(
                         event.flow_controlled_length, event.stream_id,
                     )
-                    self.server.data_received(self.connection.data_to_send())
+                    try:
+                        await self.client_stream.send_all(self.connection.data_to_send())
+                    except trio.ClosedResourceError:
+                        return
                 yield event
-            if self.transport.closed.is_set():
-                break
 
 
-@pytest.mark.asyncio
+@pytest.mark.trio
 @pytest.mark.parametrize(
     'headers, body',
     [
@@ -88,9 +90,10 @@ class MockConnection:
         ], BASIC_DATA),
     ],
 )
-async def test_request(headers: list, body: str, event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop)
-    stream_id = connection.send_request(headers, {})
+async def test_request(headers: list, body: str, nursery: trio._core._run.Nursery) -> None:
+    connection = MockConnection()
+    nursery.start_soon(connection.server.handle_connection)
+    stream_id = await connection.send_request(headers, {})
     if body != '':
         await connection.send_data(stream_id, body.encode())
     await connection.end_stream(stream_id)
@@ -103,24 +106,25 @@ async def test_request(headers: list, body: str, event_loop: asyncio.AbstractEve
         elif isinstance(event, h2.events.DataReceived):
             response_data += event.data
         elif isinstance(event, h2.events.StreamEnded):
-            connection.close()
+            await connection.close()
     data = json.loads(response_data.decode())
     assert data['request_body'] == body  # type: ignore
 
 
-@pytest.mark.asyncio
-async def test_protocol_error(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop)
-    connection.server.data_received(b'broken nonsense\r\n\r\n')
-    assert connection.transport.closed.is_set()  # H2 just closes on error
+@pytest.mark.trio
+async def test_protocol_error() -> None:
+    connection = MockConnection()
+    await connection.client_stream.send_all(b'broken nonsense\r\n\r\n')
+    await connection.server.handle_connection()
 
 
-@pytest.mark.asyncio
-async def test_pipelining(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop)
+@pytest.mark.trio
+async def test_pipelining(nursery: trio._core._run.Nursery) -> None:
+    connection = MockConnection()
+    nursery.start_soon(connection.server.handle_connection)
     streams = [
-        connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/1')], {}),
-        connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/1')], {}),
+        await connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/1')], {}),
+        await connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/1')], {}),
     ]
     for stream_id in streams:
         await connection.end_stream(stream_id)
@@ -129,52 +133,32 @@ async def test_pipelining(event_loop: asyncio.AbstractEventLoop) -> None:
         if isinstance(event, h2.events.ResponseReceived):
             responses += 1
         elif isinstance(event, h2.events.StreamEnded) and responses == 2:
-            connection.close()
+            await connection.close()
     assert responses == len(streams)
 
 
-@pytest.mark.asyncio
-async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=ChunkedResponseFramework)
-    stream_id = connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/')], {})
+@pytest.mark.trio
+async def test_server_sends_chunked(nursery: trio._core._run.Nursery) -> None:
+    connection = MockConnection(framework=ChunkedResponseFramework)
+    nursery.start_soon(connection.server.handle_connection)
+    stream_id = await connection.send_request(
+        BASIC_HEADERS + [(':method', 'GET'), (':path', '/')], {},
+    )
     await connection.end_stream(stream_id)
     response_data = b''
     async for event in connection.get_events():
         if isinstance(event, h2.events.DataReceived):
             response_data += event.data
         elif isinstance(event, h2.events.StreamEnded):
-            connection.close()
+            await connection.close()
     assert response_data == b'chunked data'
 
 
-@pytest.mark.asyncio
-async def test_initial_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
-    config = Config()
-    config.keep_alive_timeout = 0.01
-    server = H2Server(EchoFramework, event_loop, config, Mock())
-    await asyncio.sleep(2 * config.keep_alive_timeout)
-    server.transport.close.assert_called()  # type: ignore
-
-
-@pytest.mark.asyncio
-async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
-    config = Config()
-    config.keep_alive_timeout = 0.01
-    connection = MockConnection(event_loop, config=config)
-    stream_id = connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/1')], {})
-    connection.server.pause_writing()
-    await connection.end_stream(stream_id)
-    await asyncio.sleep(2 * config.keep_alive_timeout)
-    assert not connection.transport.closed.is_set()
-    connection.server.resume_writing()
-    await asyncio.sleep(2 * config.keep_alive_timeout)
-    assert connection.transport.closed.is_set()
-
-
-@pytest.mark.asyncio
-async def test_h2server_upgrade(event_loop: asyncio.AbstractEventLoop) -> None:
+@pytest.mark.trio
+async def test_h2server_upgrade(nursery: trio._core._run.Nursery) -> None:
     upgrade_request = h11.Request(method="GET", target="/", headers=[("Host", "hypercorn")])
-    connection = MockConnection(event_loop, upgrade_request=upgrade_request)
+    connection = MockConnection(upgrade_request=upgrade_request)
+    nursery.start_soon(connection.server.handle_connection)
     response_data = b''
     async for event in connection.get_events():
         if isinstance(event, h2.events.ResponseReceived):
@@ -184,13 +168,14 @@ async def test_h2server_upgrade(event_loop: asyncio.AbstractEventLoop) -> None:
         elif isinstance(event, h2.events.DataReceived):
             response_data += event.data
         elif isinstance(event, h2.events.StreamEnded):
-            connection.close()
+            await connection.close()
 
 
-@pytest.mark.asyncio
-async def test_h2_flow_control(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop)
-    stream_id = connection.send_request(
+@pytest.mark.trio
+async def test_h2_flow_control(nursery: trio._core._run.Nursery) -> None:
+    connection = MockConnection()
+    nursery.start_soon(connection.server.handle_connection)
+    stream_id = await connection.send_request(
         BASIC_HEADERS + [(':method', 'GET'), (':path', '/')],
         {h2.settings.SettingCodes.INITIAL_WINDOW_SIZE: FLOW_WINDOW_SIZE},
     )
@@ -199,13 +184,16 @@ async def test_h2_flow_control(event_loop: asyncio.AbstractEventLoop) -> None:
         if isinstance(event, h2.events.DataReceived):
             assert len(event.data) <= FLOW_WINDOW_SIZE
         elif isinstance(event, h2.events.StreamEnded):
-            connection.close()
+            await connection.close()
 
 
-@pytest.mark.asyncio
-async def test_h2_push(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=PushFramework)
-    stream_id = connection.send_request(BASIC_HEADERS + [(':method', 'GET'), (':path', '/')], {})
+@pytest.mark.trio
+async def test_h2_push(nursery: trio._core._run.Nursery) -> None:
+    connection = MockConnection(framework=PushFramework)
+    nursery.start_soon(connection.server.handle_connection)
+    stream_id = await connection.send_request(
+        BASIC_HEADERS + [(':method', 'GET'), (':path', '/')], {},
+    )
     await connection.end_stream(stream_id)
     push_received = False
     streams_received = 0
@@ -219,5 +207,5 @@ async def test_h2_push(event_loop: asyncio.AbstractEventLoop) -> None:
         elif isinstance(event, h2.events.StreamEnded):
             streams_received += 1
             if streams_received == 2:
-                connection.close()
+                await connection.close()
     assert push_received

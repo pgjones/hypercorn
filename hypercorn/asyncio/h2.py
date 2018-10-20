@@ -1,6 +1,7 @@
 import asyncio
-from time import time
-from typing import Dict, List, Optional, Type
+from functools import partial
+from itertools import chain
+from typing import Dict, Iterable, List, Optional, Tuple, Type
 
 import h11
 import h2.config
@@ -9,7 +10,7 @@ import h2.events
 import h2.exceptions
 
 from .base import HTTPServer
-from ..common.h2 import H2Mixin, H2StreamBase
+from ..common.h2 import Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, ServerPush
 from ..config import Config
 from ..typing import ASGIFramework
 
@@ -19,16 +20,6 @@ class Stream(H2StreamBase):
     def __init__(self) -> None:
         super().__init__()
         self.app_queue: asyncio.Queue = asyncio.Queue()
-        self.blocked: Optional[asyncio.Event] = None
-
-    def unblock(self) -> None:
-        if self.blocked is not None:
-            self.blocked.set()
-            self.blocked = None
-
-    async def block(self) -> None:
-        self.blocked = asyncio.Event()
-        await self.blocked.wait()
 
 
 class H2Server(HTTPServer, H2Mixin):
@@ -45,6 +36,7 @@ class H2Server(HTTPServer, H2Mixin):
         super().__init__(loop, config, transport, 'h2')
         self.app = app
         self.streams: Dict[int, Stream] = {}  # type: ignore
+        self.flow_control: Dict[int, asyncio.Event] = {}
 
         self.connection = h2.connection.H2Connection(
             config=h2.config.H2Configuration(client_side=False, header_encoding=None),
@@ -68,13 +60,18 @@ class H2Server(HTTPServer, H2Mixin):
             event = h2.events.RequestReceived()
             event.stream_id = 1
             event.headers = headers
-            self.streams[event.stream_id] = Stream()
-            self.loop.create_task(self.handle_request(event, complete=True))
+            self.create_stream(event, complete=True)
         self.send()
 
+    def connection_lost(self, error: Optional[Exception]) -> None:
+        if error is not None:
+            self.close()
+
+    def eof_received(self) -> bool:
+        self.data_received(b'')
+        return True
+
     def data_received(self, data: bytes) -> None:
-        super().data_received(data)
-        self.last_activity = time()
         try:
             events = self.connection.receive_data(data)
         except h2.exceptions.ProtocolError:
@@ -82,28 +79,29 @@ class H2Server(HTTPServer, H2Mixin):
             self.close()
         else:
             self.handle_events(events)
-            self.send()
 
     def close(self) -> None:
         for stream in self.streams.values():
             stream.close()
         super().close()
 
-    async def aclose(self) -> None:
-        self.close()
-
-    def create_stream(self) -> Stream:  # type: ignore
-        return Stream()
+    def create_stream(self, event: h2.events.RequestReceived, *, complete: bool=False) -> None:
+        self.streams[event.stream_id] = Stream()
+        if complete:
+            self.streams[event.stream_id].complete()
+        task = self.loop.create_task(self.handle_request(event))
+        task.add_done_callback(partial(self.after_request, event.stream_id))
 
     def handle_events(self, events: List[h2.events.Event]) -> None:
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
                 self.stop_keep_alive_timeout()
-                self.streams[event.stream_id] = Stream()
-                self.task = self.loop.create_task(self.handle_request(event))
-                self.task.add_done_callback(self.after_request)
+                self.create_stream(event)
             elif isinstance(event, h2.events.DataReceived):
                 self.streams[event.stream_id].append(event.data)
+                self.connection.acknowledge_received_data(
+                    event.flow_controlled_length, event.stream_id,
+                )
             elif isinstance(event, h2.events.StreamReset):
                 self.streams[event.stream_id].close()
             elif isinstance(event, h2.events.StreamEnded):
@@ -113,20 +111,102 @@ class H2Server(HTTPServer, H2Mixin):
             elif isinstance(event, h2.events.ConnectionTerminated):
                 self.close()
                 return
+        self.send()
 
-            self.send()
-
-    def after_request(self, future: asyncio.Future) -> None:
+    def after_request(self, stream_id: int, future: asyncio.Future) -> None:
+        del self.streams[stream_id]
         if len(self.streams) == 0:
             self.start_keep_alive_timeout()
 
     def send(self) -> None:
-        self.last_activity = time()
         self.write(self.connection.data_to_send())  # type: ignore
 
-    async def asend(self) -> None:
-        await self.drain()
-        self.send()
+    async def asend(self, event: H2Event) -> None:
+        connection_state = self.connection.state_machine.state
+        stream_state = self.connection.streams[event.stream_id].state_machine.state
+        if (
+                connection_state == h2.connection.ConnectionState.CLOSED or
+                stream_state == h2.stream.StreamState.CLOSED
+        ):
+            return
+        if isinstance(event, Response):
+            self.connection.send_headers(event.stream_id, event.headers)
+            self.send()
+        elif isinstance(event, EndStream):
+            self.connection.end_stream(event.stream_id)
+            self.send()
+        elif isinstance(event, Data):
+            await self.send_data(event.stream_id, event.data)
+        elif isinstance(event, ServerPush):
+            self.server_push(event.stream_id, event.path, event.headers)
+
+    async def send_data(self, stream_id: int, data: bytes) -> None:
+        while True:
+            while not self.connection.local_flow_control_window(stream_id):
+                await self.wait_for_flow_control(stream_id)
+
+            chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
+            chunk_size = min(chunk_size, self.connection.max_outbound_frame_size)
+            self.connection.send_data(stream_id, data[:chunk_size])
+            await self.drain()
+            self.send()
+            data = data[chunk_size:]
+            if not data:
+                break
+
+    async def wait_for_flow_control(self, stream_id: int) -> None:
+        event = asyncio.Event()
+        self.flow_control[stream_id] = event
+        await event.wait()
+
+    def window_updated(self, stream_id: Optional[int]) -> None:
+        if stream_id is not None:
+            if stream_id in self.flow_control:
+                event = self.flow_control.pop(stream_id)
+                event.set()
+        elif stream_id is None:
+            # Unblock all streams
+            stream_ids = list(self.flow_control.keys())
+            for stream_id in stream_ids:
+                event = self.flow_control.pop(stream_id)
+                event.set()
+
+    def server_push(
+            self,
+            stream_id: int,
+            path: str,
+            headers: Iterable[Tuple[bytes, bytes]],
+    ) -> None:
+        push_stream_id = self.connection.get_next_available_stream_id()
+        stream = self.streams[stream_id]
+        for name, value in stream.scope['headers']:
+            if name == b':authority':
+                authority = value
+        request_headers = [
+            (name, value) for name, value in chain(
+                [
+                    (b':method', b'GET'), (b':path', path.encode()),
+                    (b':scheme', stream.scope['scheme'].encode()),
+                    (b':authority', authority),
+                ],
+                headers,
+                self.response_headers(),
+            )
+        ]
+        try:
+            self.connection.push_stream(
+                stream_id=stream_id, promised_stream_id=push_stream_id,
+                request_headers=request_headers,
+            )
+        except h2.exceptions.ProtocolError:
+            # Client does not accept push promises or we are trying to
+            # push on a push promises request.
+            pass
+        else:
+            event = h2.events.RequestReceived()
+            event.stream_id = push_stream_id
+            event.headers = request_headers
+            self.create_stream(event, complete=True)
 
     @property
     def scheme(self) -> str:

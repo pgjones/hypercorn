@@ -124,3 +124,30 @@ class BadFramework:
         elif self.scope['path'] == '/accept':
             await send({'type': 'websocket.accept'})
             raise Exception()
+
+
+class PushFramework:
+
+    def __init__(self, scope: dict) -> None:
+        self.scope = scope
+
+    async def __call__(self, receive: Callable, send: Callable) -> None:
+        while True:
+            event = await receive()
+            if event['type'] == 'http.disconnect':
+                break
+            elif event['type'] == 'http.request' and not event.get('more_body', False):
+                await send({
+                    'type': 'http.response.start',
+                    'status': 200,
+                    'headers': [],
+                })
+                await send({
+                    'type': 'http.response.push',
+                    'path': '/',
+                    'headers': [],
+                })
+                await send({
+                    'type': 'http.response.body',
+                    'more_body': False,
+                })
