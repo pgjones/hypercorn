@@ -1,6 +1,5 @@
 import os
 import sys
-from enum import auto, Enum
 from importlib import import_module
 from pathlib import Path
 from socket import AF_INET, AF_INET6
@@ -9,25 +8,6 @@ from typing import List, Optional, Tuple, Type
 from wsgiref.handlers import format_date_time
 
 from .typing import ASGIFramework
-
-
-class ASGIState(Enum):
-    # The ASGI Spec is clear that a response should not start till the
-    # framework has sent at least one body message hence why this
-    # state tracking is required.
-    REQUEST = auto()
-    RESPONSE = auto()
-    CLOSED = auto()
-
-
-class WebsocketState(Enum):
-    # Hypercorn supports the ASGI websocket HTTP response extension,
-    # which allows HTTP responses rather than acceptance.
-    HANDSHAKE = auto()
-    CONNECTED = auto()
-    RESPONSE = auto()
-    CLOSED = auto()
-    HTTPCLOSED = auto()
 
 
 class NoAppException(Exception):

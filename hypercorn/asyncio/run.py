@@ -17,7 +17,7 @@ from .base import HTTPServer
 from .h11 import H11Server
 from .h2 import H2Server
 from .wsproto import WebsocketServer
-from ..common.run import H2CProtocolRequired, WebsocketProtocolRequired
+from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import load_application, write_pid_file

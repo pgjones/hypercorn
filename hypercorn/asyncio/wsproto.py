@@ -7,13 +7,12 @@ import wsproto.events
 import wsproto.extensions
 
 from .base import HTTPServer
-from ..common.wsproto import (
-    AcceptConnection, CloseConnection, Data, FrameTooLarge, WebsocketBuffer, WebsocketMixin,
-    WsprotoEvent,
+from ..asgi.wsproto import (
+    AcceptConnection, ASGIWebsocketState, CloseConnection, Data, FrameTooLarge, WebsocketBuffer,
+    WebsocketMixin, WsprotoEvent,
 )
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
-from ..utils import WebsocketState
 
 
 class WebsocketServer(HTTPServer, WebsocketMixin):
@@ -37,7 +36,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         self.app_queue: asyncio.Queue = asyncio.Queue()
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
-        self.state = WebsocketState.HANDSHAKE
+        self.state = ASGIWebsocketState.HANDSHAKE
         self.task: Optional[asyncio.Future] = None
 
         self.buffer = WebsocketBuffer(self.config.websocket_max_message_size)
@@ -80,7 +79,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
 
     def maybe_close(self, future: asyncio.Future) -> None:
         # Close the connection iff a HTTP response was sent
-        if self.state == WebsocketState.HTTPCLOSED:
+        if self.state == ASGIWebsocketState.HTTPCLOSED:
             self.close()
 
     async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:

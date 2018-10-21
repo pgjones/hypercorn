@@ -5,13 +5,12 @@ import trio
 import wsproto
 
 from .base import HTTPServer
-from ..common.wsproto import (
-    AcceptConnection, CloseConnection, Data, FrameTooLarge, WebsocketBuffer, WebsocketMixin,
-    WsprotoEvent,
+from ..asgi.wsproto import (
+    AcceptConnection, ASGIWebsocketState, CloseConnection, Data, FrameTooLarge, WebsocketBuffer,
+    WebsocketMixin, WsprotoEvent,
 )
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
-from ..utils import WebsocketState
 
 MAX_RECV = 2 ** 16
 
@@ -39,7 +38,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         self.app_queue = trio.Queue(10)
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
-        self.state = WebsocketState.HANDSHAKE
+        self.state = ASGIWebsocketState.HANDSHAKE
 
         self.buffer = WebsocketBuffer(self.config.websocket_max_message_size)
 
@@ -53,7 +52,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
             async with trio.open_nursery() as nursery:
                 nursery.start_soon(self.read_messages)
                 await self.handle_websocket(request)
-                if self.state == WebsocketState.HTTPCLOSED:
+                if self.state == ASGIWebsocketState.HTTPCLOSED:
                     raise MustCloseError()
         except (trio.BrokenResourceError, trio.ClosedResourceError):
             self.app_queue.put_nowait({'type': 'websocket.disconnect'})

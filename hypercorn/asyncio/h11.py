@@ -4,10 +4,9 @@ from typing import Optional, Type
 import h11
 
 from .base import HTTPServer
-from ..common.h11 import H11Mixin
+from ..asgi.h11 import ASGIH11State, H11Mixin
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
-from ..utils import ASGIState
 
 
 class H11Server(HTTPServer, H11Mixin):
@@ -28,7 +27,7 @@ class H11Server(HTTPServer, H11Mixin):
         self.app_queue: asyncio.Queue = asyncio.Queue(loop=loop)
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
-        self.state = ASGIState.REQUEST
+        self.state = ASGIH11State.REQUEST
         self.task: Optional[asyncio.Future] = None
 
     def connection_lost(self, error: Optional[Exception]) -> None:
@@ -99,7 +98,7 @@ class H11Server(HTTPServer, H11Mixin):
             self.app_queue = asyncio.Queue(loop=self.loop)
             self.response = None
             self.scope = None
-            self.state = ASGIState.REQUEST
+            self.state = ASGIH11State.REQUEST
             self.start_keep_alive_timeout()
             self.handle_events()
 

@@ -3,7 +3,7 @@ import trio
 from .h11 import H11Server
 from .h2 import H2Server
 from .wsproto import WebsocketServer
-from ..common.run import WebsocketProtocolRequired
+from ..asgi.run import WebsocketProtocolRequired
 from ..config import Config
 from ..utils import load_application
 

@@ -1,3 +1,4 @@
+from enum import auto, Enum
 from functools import partial
 from itertools import chain
 from time import time
@@ -12,12 +13,21 @@ import h2.exceptions
 from ..config import Config
 from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework, Queue
-from ..utils import ASGIState, suppress_body
+from ..utils import suppress_body
+
+
+class ASGIH2State(Enum):
+    # The ASGI Spec is clear that a response should not start till the
+    # framework has sent at least one body message hence why this
+    # state tracking is required.
+    REQUEST = auto()
+    RESPONSE = auto()
+    CLOSED = auto()
 
 
 class UnexpectedMessage(Exception):
 
-    def __init__(self, state: ASGIState, message_type: str) -> None:
+    def __init__(self, state: ASGIH2State, message_type: str) -> None:
         super().__init__(f"Unexpected message type, {message_type} given the state {state}")
 
 
@@ -63,7 +73,7 @@ class H2StreamBase:
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
         self.start_time = time()
-        self.state = ASGIState.REQUEST
+        self.state = ASGIH2State.REQUEST
 
     def append(self, data: bytes) -> None:
         self.app_queue.put_nowait({
@@ -144,7 +154,7 @@ class H2Mixin:
 
         # If the application hasn't sent a response, it has errored -
         # send a 500 for it.
-        if self.streams[stream_id].state == ASGIState.REQUEST:
+        if self.streams[stream_id].state == ASGIH2State.REQUEST:
             headers = [(b':status', b'500')] + self.response_headers()
             await self.asend(Response(stream_id, headers))
             await self.asend(EndStream(stream_id))
@@ -164,7 +174,7 @@ class H2Mixin:
     async def asgi_send(self, stream_id: int, message: dict) -> None:
         """Called by the ASGI instance to send a message."""
         stream = self.streams[stream_id]
-        if message['type'] == 'http.response.start' and stream.state == ASGIState.REQUEST:
+        if message['type'] == 'http.response.start' and stream.state == ASGIH2State.REQUEST:
             stream.response = message
         elif message['type'] == 'http.response.push':
             if not isinstance(message['path'], str):
@@ -173,9 +183,9 @@ class H2Mixin:
             await self.asend(ServerPush(stream_id, message['path'], headers))
         elif (
                 message['type'] == 'http.response.body'
-                and stream.state in {ASGIState.REQUEST, ASGIState.RESPONSE}
+                and stream.state in {ASGIH2State.REQUEST, ASGIH2State.RESPONSE}
         ):
-            if stream.state == ASGIState.REQUEST:
+            if stream.state == ASGIH2State.REQUEST:
                 headers = [
                     (bytes(key).strip(), bytes(value).strip()) for key, value in chain(
                         [(b':status', b"%d" % stream.response['status'])],
@@ -184,14 +194,14 @@ class H2Mixin:
                     )
                 ]
                 await self.asend(Response(stream_id, headers))
-                stream.state = ASGIState.RESPONSE
+                stream.state = ASGIH2State.RESPONSE
             if (
                     not suppress_body(stream.scope['method'], stream.response['status'])
                     and message.get('body', b'') != b''
             ):
                 await self.asend(Data(stream_id, bytes(message.get('body', b''))))
             if not message.get('more_body', False):
-                if stream.state != ASGIState.CLOSED:
+                if stream.state != ASGIH2State.CLOSED:
                     await self.asend(EndStream(stream_id))
                     stream.close()
         else:

@@ -3,10 +3,9 @@ from typing import Any, List
 import h11
 import pytest
 
-from hypercorn.common.h11 import H11Mixin, UnexpectedMessage
+from hypercorn.asgi.h11 import ASGIH11State, H11Mixin, UnexpectedMessage
 from hypercorn.config import Config
 from hypercorn.typing import H11SendableEvent
-from hypercorn.utils import ASGIState
 from ..helpers import BadFramework, EmptyFramework, EmptyQueue
 
 
@@ -18,7 +17,7 @@ class MockH11(H11Mixin):
         self.client = ('127.0.0.1', 5000)
         self.config = Config()
         self.server = ('remote', 5000)
-        self.state = ASGIState.REQUEST
+        self.state = ASGIH11State.REQUEST
         self.sent_events: List[H11SendableEvent] = []
 
     @property
@@ -97,13 +96,15 @@ async def test_asgi_send() -> None:
 @pytest.mark.parametrize(
     'state, message_type',
     [
-        (ASGIState.REQUEST, 'not_a_real_type'),
-        (ASGIState.RESPONSE, 'http.response.start'),
-        (ASGIState.CLOSED, 'http.response.start'),
-        (ASGIState.CLOSED, 'http.response.body'),
+        (ASGIH11State.REQUEST, 'not_a_real_type'),
+        (ASGIH11State.RESPONSE, 'http.response.start'),
+        (ASGIH11State.CLOSED, 'http.response.start'),
+        (ASGIH11State.CLOSED, 'http.response.body'),
     ],
 )
-async def test_asgi_send_invalid_message_given_state(state: ASGIState, message_type: str) -> None:
+async def test_asgi_send_invalid_message_given_state(
+        state: ASGIH11State, message_type: str,
+) -> None:
     server = MockH11()
     server.state = state
     with pytest.raises(UnexpectedMessage):

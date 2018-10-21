@@ -4,13 +4,12 @@ import h11
 import pytest
 import wsproto
 
-from hypercorn.common.wsproto import (
-    AcceptConnection, CloseConnection, Data, FrameTooLarge, UnexpectedMessage, WebsocketBuffer,
-    WebsocketMixin, WsprotoEvent,
+from hypercorn.asgi.wsproto import (
+    AcceptConnection, ASGIWebsocketState, CloseConnection, Data, FrameTooLarge, UnexpectedMessage,
+    WebsocketBuffer, WebsocketMixin, WsprotoEvent,
 )
 from hypercorn.config import Config
 from hypercorn.typing import H11SendableEvent
-from hypercorn.utils import WebsocketState
 from ..helpers import BadFramework, EmptyFramework, EmptyQueue
 
 
@@ -65,7 +64,7 @@ class MockWebsocket(WebsocketMixin):
         self.client = ('127.0.0.1', 5000)
         self.config = Config()
         self.server = ('remote', 5000)
-        self.state = WebsocketState.HANDSHAKE
+        self.state = ASGIWebsocketState.HANDSHAKE
 
         self.sent_events: List[Union[H11SendableEvent, WsprotoEvent]] = []
 
@@ -175,7 +174,7 @@ async def test_asgi_send_http() -> None:
 )
 async def test_asgi_send_invalid_message(data_bytes: Any, data_text: Any) -> None:
     server = WebsocketMixin()
-    server.state = WebsocketState.CONNECTED
+    server.state = ASGIWebsocketState.CONNECTED
     with pytest.raises((TypeError, ValueError)):
         await server.asgi_send(
             {},
@@ -191,18 +190,18 @@ async def test_asgi_send_invalid_message(data_bytes: Any, data_text: Any) -> Non
 @pytest.mark.parametrize(
     'state, message_type',
     [
-        (WebsocketState.HANDSHAKE, 'websocket.send'),
-        (WebsocketState.RESPONSE, 'websocket.accept'),
-        (WebsocketState.RESPONSE, 'websocket.send'),
-        (WebsocketState.CONNECTED, 'websocket.http.response.start'),
-        (WebsocketState.CONNECTED, 'websocket.http.response.body'),
-        (WebsocketState.CLOSED, 'websocket.send'),
-        (WebsocketState.CLOSED, 'websocket.http.response.start'),
-        (WebsocketState.CLOSED, 'websocket.http.response.body'),
+        (ASGIWebsocketState.HANDSHAKE, 'websocket.send'),
+        (ASGIWebsocketState.RESPONSE, 'websocket.accept'),
+        (ASGIWebsocketState.RESPONSE, 'websocket.send'),
+        (ASGIWebsocketState.CONNECTED, 'websocket.http.response.start'),
+        (ASGIWebsocketState.CONNECTED, 'websocket.http.response.body'),
+        (ASGIWebsocketState.CLOSED, 'websocket.send'),
+        (ASGIWebsocketState.CLOSED, 'websocket.http.response.start'),
+        (ASGIWebsocketState.CLOSED, 'websocket.http.response.body'),
     ],
 )
 async def test_asgi_send_invalid_message_given_state(
-        state: WebsocketState, message_type: str,
+        state: ASGIWebsocketState, message_type: str,
 ) -> None:
     server = MockWebsocket()
     server.state = state
@@ -221,7 +220,7 @@ async def test_asgi_send_invalid_message_given_state(
 )
 async def test_asgi_send_invalid_http_message(status: Any, headers: Any, body: Any) -> None:
     server = WebsocketMixin()
-    server.state = WebsocketState.HANDSHAKE
+    server.state = ASGIWebsocketState.HANDSHAKE
     server.scope = {'method': 'GET'}
     with pytest.raises((TypeError, ValueError)):
         await server.asgi_send(

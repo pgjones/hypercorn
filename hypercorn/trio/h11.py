@@ -4,11 +4,10 @@ import h11
 import trio
 
 from .base import HTTPServer
-from ..common.h11 import H11Mixin
-from ..common.run import WrongProtocolError
+from ..asgi.h11 import ASGIH11State, H11Mixin
+from ..asgi.run import WrongProtocolError
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
-from ..utils import ASGIState
 
 MAX_RECV = 2 ** 16
 
@@ -34,7 +33,7 @@ class H11Server(HTTPServer, H11Mixin):
         self.app_queue = trio.Queue(10)
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
-        self.state = ASGIState.REQUEST
+        self.state = ASGIH11State.REQUEST
 
     async def handle_connection(self) -> None:
         try:
@@ -108,7 +107,7 @@ class H11Server(HTTPServer, H11Mixin):
             self.app_queue = trio.Queue(10)
             self.response = None
             self.scope = None
-            self.state = ASGIState.REQUEST
+            self.state = ASGIH11State.REQUEST
 
     async def asend(self, event: H11SendableEvent) -> None:
         data = self.connection.send(event)

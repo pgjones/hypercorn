@@ -1,3 +1,4 @@
+from enum import auto, Enum
 from functools import partial
 from itertools import chain
 from time import time
@@ -10,12 +11,22 @@ import wsproto
 from ..config import Config
 from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework, H11SendableEvent, Queue
-from ..utils import suppress_body, WebsocketState
+from ..utils import suppress_body
+
+
+class ASGIWebsocketState(Enum):
+    # Hypercorn supports the ASGI websocket HTTP response extension,
+    # which allows HTTP responses rather than acceptance.
+    HANDSHAKE = auto()
+    CONNECTED = auto()
+    RESPONSE = auto()
+    CLOSED = auto()
+    HTTPCLOSED = auto()
 
 
 class UnexpectedMessage(Exception):
 
-    def __init__(self, state: WebsocketState, message_type: str) -> None:
+    def __init__(self, state: ASGIWebsocketState, message_type: str) -> None:
         super().__init__(f"Unexpected message type, {message_type} given the state {state}")
 
 
@@ -81,7 +92,7 @@ class WebsocketMixin:
     config: Config
     response: Optional[dict]
     server: Tuple[str, int]
-    state: WebsocketState
+    state: ASGIWebsocketState
 
     @property
     def scheme(self) -> str:
@@ -127,16 +138,16 @@ class WebsocketMixin:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception("Error in ASGI Framework")
 
-            if self.state == WebsocketState.CONNECTED:
+            if self.state == ASGIWebsocketState.CONNECTED:
                 await self.asend(CloseConnection(1006))  # Close abnormal
-                self.state = WebsocketState.CLOSED
+                self.state = ASGIWebsocketState.CLOSED
 
         # If the application hasn't accepted the connection (or sent a
         # response) send a 500 for it. Otherwise if the connection
         # hasn't been closed then close it.
-        if self.state == WebsocketState.HANDSHAKE:
+        if self.state == ASGIWebsocketState.HANDSHAKE:
             await self.send_http_error(500)
-            self.state = WebsocketState.HTTPCLOSED
+            self.state = ASGIWebsocketState.HTTPCLOSED
 
         if self.config.access_logger is not None:
             self.config.access_logger.info(
@@ -154,20 +165,20 @@ class WebsocketMixin:
             message: dict,
     ) -> None:
         """Called by the ASGI instance to send a message."""
-        if message['type'] == 'websocket.accept' and self.state == WebsocketState.HANDSHAKE:
+        if message['type'] == 'websocket.accept' and self.state == ASGIWebsocketState.HANDSHAKE:
             await self.asend(AcceptConnection(request_event))
-            self.state = WebsocketState.CONNECTED
+            self.state = ASGIWebsocketState.CONNECTED
             self.response = {'status': 101, 'headers': []}
         elif (
                 message['type'] == 'websocket.http.response.start'
-                and self.state == WebsocketState.HANDSHAKE
+                and self.state == ASGIWebsocketState.HANDSHAKE
         ):
             self.response = message
         elif (
                 message['type'] == 'websocket.http.response.body'
-                and self.state in {WebsocketState.HANDSHAKE, WebsocketState.RESPONSE}
+                and self.state in {ASGIWebsocketState.HANDSHAKE, ASGIWebsocketState.RESPONSE}
         ):
-            if self.state == WebsocketState.HANDSHAKE:
+            if self.state == ASGIWebsocketState.HANDSHAKE:
                 headers = chain(
                     (
                         (bytes(key).strip(), bytes(value).strip())
@@ -178,18 +189,18 @@ class WebsocketMixin:
                 await self.asend(
                     h11.Response(status_code=int(self.response['status']), headers=headers),
                 )
-                self.state = WebsocketState.RESPONSE
+                self.state = ASGIWebsocketState.RESPONSE
             if (
                     not suppress_body('GET', self.response['status'])
                     and message.get('body', b'') != b''
             ):
                 await self.asend(h11.Data(data=bytes(message.get('body', b''))))
             if not message.get('more_body', False):
-                if self.state != WebsocketState.HTTPCLOSED:
+                if self.state != ASGIWebsocketState.HTTPCLOSED:
                     await self.asend(h11.EndOfMessage())
                     self.app_queue.put_nowait({'type': 'websocket.disconnect'})
-                    self.state = WebsocketState.HTTPCLOSED
-        elif message['type'] == 'websocket.send' and self.state == WebsocketState.CONNECTED:
+                    self.state = ASGIWebsocketState.HTTPCLOSED
+        elif message['type'] == 'websocket.send' and self.state == ASGIWebsocketState.CONNECTED:
             data: Union[bytes, str]
             if message.get('bytes') is not None:
                 data = bytes(message['bytes'])
@@ -198,11 +209,11 @@ class WebsocketMixin:
             else:
                 data = message['text']
             await self.asend(Data(data))
-        elif message['type'] == 'websocket.close' and self.state == WebsocketState.HANDSHAKE:
+        elif message['type'] == 'websocket.close' and self.state == ASGIWebsocketState.HANDSHAKE:
             await self.send_http_error(403)
-            self.state = WebsocketState.HTTPCLOSED
+            self.state = ASGIWebsocketState.HTTPCLOSED
         elif message['type'] == 'websocket.close':
             await self.asend(CloseConnection(int(message['code'])))
-            self.state = WebsocketState.CLOSED
+            self.state = ASGIWebsocketState.CLOSED
         else:
             raise UnexpectedMessage(self.state, message['type'])

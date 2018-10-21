@@ -3,11 +3,10 @@ from typing import Any, Dict
 import h2
 import pytest
 
-from hypercorn.common.h2 import (
-    Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, UnexpectedMessage,
+from hypercorn.asgi.h2 import (
+    ASGIH2State, Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, UnexpectedMessage,
 )
 from hypercorn.config import Config
-from hypercorn.utils import ASGIState
 from ..helpers import BadFramework, EmptyFramework, EmptyQueue
 
 
@@ -113,13 +112,13 @@ async def test_asgi_send() -> None:
 @pytest.mark.parametrize(
     'state, message_type',
     [
-        (ASGIState.REQUEST, 'not_a_real_type'),
-        (ASGIState.RESPONSE, 'http.response.start'),
-        (ASGIState.CLOSED, 'http.response.start'),
-        (ASGIState.CLOSED, 'http.response.body'),
+        (ASGIH2State.REQUEST, 'not_a_real_type'),
+        (ASGIH2State.RESPONSE, 'http.response.start'),
+        (ASGIH2State.CLOSED, 'http.response.start'),
+        (ASGIH2State.CLOSED, 'http.response.body'),
     ],
 )
-async def test_asgi_send_invalid_message_given_state(state: ASGIState, message_type: str) -> None:
+async def test_asgi_send_invalid_message_given_state(state: ASGIH2State, message_type: str) -> None:
     server = MockH2()
     server.streams[1] = MockH2Stream()
     server.streams[1].state = state
