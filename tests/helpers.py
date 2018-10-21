@@ -1,7 +1,7 @@
 from copy import deepcopy
 from json import dumps
 from socket import AF_INET
-from typing import Any, Callable, Tuple
+from typing import Callable, Tuple
 
 
 class MockSocket:
@@ -21,12 +21,6 @@ class EmptyFramework:
         pass
 
     async def __call__(self, send: Callable, receive: Callable) -> None:
-        pass
-
-
-class EmptyQueue:
-
-    def put_nowait(self, value: Any) -> None:
         pass
 
 

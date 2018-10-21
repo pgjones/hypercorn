@@ -50,7 +50,7 @@ setup(
     py_modules=['hypercorn'],
     install_requires=INSTALL_REQUIRES,
     extras_require={
-        'trio': ['trio'],
+        'trio': ['trio >= 0.9.0'],
         'uvloop': ['uvloop'],
     },
     tests_require=INSTALL_REQUIRES + [

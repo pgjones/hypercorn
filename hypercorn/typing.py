@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable, Union
+from typing import Callable, Union
 
 import h11
 from typing_extensions import Protocol  # Till PEP 544 is accepted
@@ -12,12 +12,3 @@ class ASGIFramework(Protocol):
     def __init__(self, scope: dict) -> None: ...
 
     async def __call__(self, receive: Callable, send: Callable) -> None: ...
-
-
-class Queue(Protocol):
-
-    def get(self) -> Awaitable[Any]: ...
-
-    def put(self, value: Any) -> Awaitable[Any]: ...
-
-    def put_nowait(self, value: Any) -> None: ...

@@ -7,14 +7,7 @@ from hypercorn.asgi.h2 import (
     ASGIH2State, Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, UnexpectedMessage,
 )
 from hypercorn.config import Config
-from ..helpers import BadFramework, EmptyFramework, EmptyQueue
-
-
-class MockH2Stream(H2StreamBase):
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.app_queue = EmptyQueue()  # type: ignore
+from ..helpers import BadFramework, EmptyFramework
 
 
 class MockH2(H2Mixin):
@@ -24,7 +17,7 @@ class MockH2(H2Mixin):
         self.client = ('127.0.0.1', 5000)
         self.config = Config()
         self.server = ('remote', 5000)
-        self.streams: Dict[int, MockH2Stream] = {}  # type: ignore
+        self.streams: Dict[int, H2StreamBase] = {}  # type: ignore
         self.sent_events: list = []
 
     @property
@@ -47,7 +40,7 @@ async def test_asgi_scope() -> None:
         (b':method', b'GET'), (b':path', b'/path?a=b'), (b':authority', b'hypercorn'),
         (b':scheme', b'https'),
     ]
-    server.streams[request.stream_id] = MockH2Stream()
+    server.streams[request.stream_id] = H2StreamBase()
     await server.handle_request(request)
     scope = server.streams[request.stream_id].scope
 
@@ -73,7 +66,7 @@ async def test_asgi_scope() -> None:
 @pytest.mark.asyncio
 async def test_asgi_send() -> None:
     server = MockH2()
-    server.streams[0] = MockH2Stream()
+    server.streams[0] = H2StreamBase()
     server.streams[0].scope = {'method': 'GET'}
     await server.asgi_send(
         0,
@@ -120,7 +113,7 @@ async def test_asgi_send() -> None:
 )
 async def test_asgi_send_invalid_message_given_state(state: ASGIH2State, message_type: str) -> None:
     server = MockH2()
-    server.streams[1] = MockH2Stream()
+    server.streams[1] = H2StreamBase()
     server.streams[1].state = state
     with pytest.raises(UnexpectedMessage):
         await server.asgi_send(1, {'type': message_type})
@@ -137,7 +130,7 @@ async def test_asgi_send_invalid_message_given_state(state: ASGIH2State, message
 )
 async def test_asgi_send_invalid_message(status: Any, headers: Any, body: Any) -> None:
     server = MockH2()
-    server.streams[0] = MockH2Stream()
+    server.streams[0] = H2StreamBase()
     server.streams[0].scope = {'method': 'GET'}
     with pytest.raises((TypeError, ValueError)):
         await server.asgi_send(
@@ -164,7 +157,7 @@ async def test_asgi_send_invalid_message(status: Any, headers: Any, body: Any) -
 )
 async def test_asgi_send_invalid_server_push_message(path: str, headers: Any) -> None:
     server = MockH2()
-    server.streams[0] = MockH2Stream()
+    server.streams[0] = H2StreamBase()
     with pytest.raises((TypeError, ValueError)):
         await server.asgi_send(
             0,
@@ -187,7 +180,7 @@ async def test_bad_framework(path: str) -> None:
         (b':method', b'GET'), (b':path', b'/path?a=b'), (b':authority', b'hypercorn'),
         (b':scheme', b'https'),
     ]
-    server.streams[0] = MockH2Stream()
+    server.streams[0] = H2StreamBase()
     await server.handle_request(request)
     assert server.sent_events == [
         Response(0, [(b':status', b'500'), (b'server', b'hypercorn')]),

@@ -10,7 +10,7 @@ from hypercorn.asgi.wsproto import (
 )
 from hypercorn.config import Config
 from hypercorn.typing import H11SendableEvent
-from ..helpers import BadFramework, EmptyFramework, EmptyQueue
+from ..helpers import BadFramework, EmptyFramework
 
 
 def test_buffer() -> None:
@@ -60,7 +60,6 @@ class MockWebsocket(WebsocketMixin):
 
     def __init__(self) -> None:
         self.app = EmptyFramework  # type: ignore
-        self.app_queue = EmptyQueue()  # type: ignore
         self.client = ('127.0.0.1', 5000)
         self.config = Config()
         self.server = ('remote', 5000)

@@ -24,7 +24,27 @@ class Stream(H2StreamBase):
 
     def __init__(self) -> None:
         super().__init__()
-        self.app_queue = trio.Queue(10)
+        self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
+
+    async def append(self, data: bytes) -> None:
+        await self.app_send_channel.send({
+            'type': 'http.request',
+            'body': data,
+            'more_body': True,
+        })
+
+    async def complete(self) -> None:
+        await self.app_send_channel.send({
+            'type': 'http.request',
+            'body': b'',
+            'more_body': False,
+        })
+
+    async def aclose(self) -> None:
+        await self.app_send_channel.send({'type': 'http.disconnect'})
+
+    async def get(self) -> dict:
+        return await self.app_receive_channel.receive()
 
 
 class H2Server(HTTPServer, H2Mixin):
@@ -69,13 +89,15 @@ class H2Server(HTTPServer, H2Mixin):
             event = h2.events.RequestReceived()
             event.stream_id = 1
             event.headers = headers
-            self.create_stream(event, complete=True)
+            await self.create_stream(event, complete=True)
         await self.send()
 
-    def create_stream(self, event: h2.events.RequestReceived, *, complete: bool=False) -> None:
+    async def create_stream(
+            self, event: h2.events.RequestReceived, *, complete: bool=False,
+    ) -> None:
         self.streams[event.stream_id] = Stream()
         if complete:
-            self.streams[event.stream_id].complete()
+            await self.streams[event.stream_id].complete()
         self.nursery.start_soon(self.handle_request, event)
 
     async def handle_request(self, event: h2.events.RequestReceived) -> None:
@@ -94,7 +116,7 @@ class H2Server(HTTPServer, H2Mixin):
             pass
         finally:
             for stream in self.streams.values():
-                stream.close()
+                await stream.aclose()
             await self.aclose()
 
     async def read_data(self) -> None:
@@ -110,16 +132,16 @@ class H2Server(HTTPServer, H2Mixin):
             else:
                 for event in events:
                     if isinstance(event, h2.events.RequestReceived):
-                        self.create_stream(event)
+                        await self.create_stream(event)
                     elif isinstance(event, h2.events.DataReceived):
-                        self.streams[event.stream_id].append(event.data)
+                        await self.streams[event.stream_id].append(event.data)
                         self.connection.acknowledge_received_data(
                             event.flow_controlled_length, event.stream_id,
                         )
                     elif isinstance(event, h2.events.StreamReset):
-                        self.streams[event.stream_id].close()
+                        await self.streams[event.stream_id].aclose()
                     elif isinstance(event, h2.events.StreamEnded):
-                        self.streams[event.stream_id].complete()
+                        await self.streams[event.stream_id].complete()
                     elif isinstance(event, h2.events.WindowUpdated):
                         self.window_updated(event.stream_id)
                     elif isinstance(event, h2.events.ConnectionTerminated):
@@ -143,7 +165,7 @@ class H2Server(HTTPServer, H2Mixin):
         elif isinstance(event, Data):
             await self.send_data(event.stream_id, event.data)
         elif isinstance(event, ServerPush):
-            self.server_push(event.stream_id, event.path, event.headers)
+            await self.server_push(event.stream_id, event.path, event.headers)
 
     async def send_data(self, stream_id: int, data: bytes) -> None:
         while True:
@@ -182,7 +204,7 @@ class H2Server(HTTPServer, H2Mixin):
                 event = self.flow_control.pop(stream_id)
                 event.set()
 
-    def server_push(
+    async def server_push(
             self,
             stream_id: int,
             path: str,
@@ -217,7 +239,7 @@ class H2Server(HTTPServer, H2Mixin):
             event = h2.events.RequestReceived()
             event.stream_id = push_stream_id
             event.headers = request_headers
-            self.create_stream(event, complete=True)
+            await self.create_stream(event, complete=True)
 
     @property
     def scheme(self) -> str:

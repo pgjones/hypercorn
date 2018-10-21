@@ -10,7 +10,7 @@ import wsproto
 
 from ..config import Config
 from ..logging import AccessLogAtoms
-from ..typing import ASGIFramework, H11SendableEvent, Queue
+from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
 
 
@@ -87,7 +87,6 @@ class WebsocketBuffer:
 
 class WebsocketMixin:
     app: Type[ASGIFramework]
-    app_queue: Queue
     client: Tuple[str, int]
     config: Config
     response: Optional[dict]
@@ -102,6 +101,17 @@ class WebsocketMixin:
         pass
 
     async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:
+        pass
+
+    async def asgi_put(self, message: dict) -> None:
+        """Called by the ASGI server to put a message to the ASGI instance.
+
+        See asgi_receive as the get to this put.
+        """
+        pass
+
+    async def asgi_receive(self) -> dict:
+        """Called by the ASGI instance to receive a message."""
         pass
 
     async def handle_websocket(self, event: wsproto.events.ConnectionRequested) -> None:
@@ -130,7 +140,7 @@ class WebsocketMixin:
 
     async def handle_asgi_app(self, event: wsproto.events.ConnectionRequested) -> None:
         start_time = time()
-        self.app_queue.put_nowait({'type': 'websocket.connect'})
+        await self.asgi_put({'type': 'websocket.connect'})
         try:
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, partial(self.asgi_send, event))
@@ -154,10 +164,6 @@ class WebsocketMixin:
                 self.config.access_log_format,
                 AccessLogAtoms(self.scope, self.response, time() - start_time),
             )
-
-    async def asgi_receive(self) -> dict:
-        """Called by the ASGI instance to receive a message."""
-        return await self.app_queue.get()
 
     async def asgi_send(
             self,
@@ -198,7 +204,7 @@ class WebsocketMixin:
             if not message.get('more_body', False):
                 if self.state != ASGIWebsocketState.HTTPCLOSED:
                     await self.asend(h11.EndOfMessage())
-                    self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                    await self.asgi_put({'type': 'websocket.disconnect'})
                     self.state = ASGIWebsocketState.HTTPCLOSED
         elif message['type'] == 'websocket.send' and self.state == ASGIWebsocketState.CONNECTED:
             data: Union[bytes, str]

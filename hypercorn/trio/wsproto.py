@@ -35,12 +35,12 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         self.connection = wsproto.connection.WSConnection(
             wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()],
         )
-        self.app_queue = trio.Queue(10)
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
         self.state = ASGIWebsocketState.HANDSHAKE
 
         self.buffer = WebsocketBuffer(self.config.websocket_max_message_size)
+        self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
 
         if upgrade_request is not None:
             fake_client = h11.Connection(h11.CLIENT)
@@ -55,7 +55,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                 if self.state == ASGIWebsocketState.HTTPCLOSED:
                     raise MustCloseError()
         except (trio.BrokenResourceError, trio.ClosedResourceError):
-            self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+            await self.asgi_put({'type': 'websocket.disconnect'})
         except MustCloseError:
             await self.stream.send_all(self.connection.bytes_to_send())
         finally:
@@ -76,14 +76,14 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                         self.buffer.extend(event)
                     except FrameTooLarge:
                         self.connection.close(1009)  # CLOSE_TOO_LARGE
-                        self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                        await self.asgi_put({'type': 'websocket.disconnect'})
                         raise MustCloseError()
 
                     if event.message_finished:
-                        self.app_queue.put_nowait(self.buffer.to_message())
+                        await self.asgi_put(self.buffer.to_message())
                         self.buffer.clear()
                 elif isinstance(event, wsproto.events.ConnectionClosed):
-                    self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                    await self.asgi_put({'type': 'websocket.disconnect'})
                     raise MustCloseError()
 
     async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:
@@ -99,6 +99,12 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         else:
             data = self.connection._upgrade_connection.send(event)
         await self.stream.send_all(data)
+
+    async def asgi_put(self, message: dict) -> None:
+        await self.app_send_channel.send(message)
+
+    async def asgi_receive(self) -> dict:
+        return await self.app_receive_channel.receive()
 
     @property
     def scheme(self) -> str:

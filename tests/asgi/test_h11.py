@@ -6,14 +6,13 @@ import pytest
 from hypercorn.asgi.h11 import ASGIH11State, H11Mixin, UnexpectedMessage
 from hypercorn.config import Config
 from hypercorn.typing import H11SendableEvent
-from ..helpers import BadFramework, EmptyFramework, EmptyQueue
+from ..helpers import BadFramework, EmptyFramework
 
 
 class MockH11(H11Mixin):
 
     def __init__(self) -> None:
         self.app = EmptyFramework  # type: ignore
-        self.app_queue = EmptyQueue()  # type: ignore
         self.client = ('127.0.0.1', 5000)
         self.config = Config()
         self.server = ('remote', 5000)

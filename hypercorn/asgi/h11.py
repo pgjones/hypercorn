@@ -9,7 +9,7 @@ import h11
 from .run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..logging import AccessLogAtoms
-from ..typing import ASGIFramework, H11SendableEvent, Queue
+from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
 
 
@@ -34,7 +34,6 @@ class H11Mixin:
     # rather than this class.
 
     app: Type[ASGIFramework]
-    app_queue: Queue
     client: Tuple[str, int]
     config: Config
     response: Optional[dict]
@@ -49,6 +48,17 @@ class H11Mixin:
         pass
 
     async def asend(self, event: H11SendableEvent) -> None:
+        pass
+
+    async def asgi_put(self, message: dict) -> None:
+        """Called by the ASGI server to put a message to the ASGI instance.
+
+        See asgi_receive as the get to this put.
+        """
+        pass
+
+    async def asgi_receive(self) -> dict:
+        """Called by the ASGI instance to receive a message."""
         pass
 
     def error_response(self, status_code: int) -> h11.Response:
@@ -131,10 +141,6 @@ class H11Mixin:
                 AccessLogAtoms(self.scope, self.response, time() - start_time),
             )
 
-    async def asgi_receive(self) -> dict:
-        """Called by the ASGI instance to receive a message."""
-        return await self.app_queue.get()
-
     async def asgi_send(self, message: dict) -> None:
         """Called by the ASGI instance to send a message."""
         if message['type'] == 'http.response.start' and self.state == ASGIH11State.REQUEST:
@@ -165,7 +171,7 @@ class H11Mixin:
             if not message.get('more_body', False):
                 if self.state != ASGIH11State.CLOSED:
                     await self.asend(h11.EndOfMessage())
-                    self.app_queue.put_nowait({'type': 'http.disconnect'})
+                    await self.asgi_put({'type': 'http.disconnect'})
                     self.state = ASGIH11State.CLOSED
         else:
             raise UnexpectedMessage(self.state, message['type'])

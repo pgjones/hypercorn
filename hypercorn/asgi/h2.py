@@ -12,7 +12,7 @@ import h2.exceptions
 
 from ..config import Config
 from ..logging import AccessLogAtoms
-from ..typing import ASGIFramework, Queue
+from ..typing import ASGIFramework
 from ..utils import suppress_body
 
 
@@ -67,7 +67,6 @@ class ServerPush(H2Event):
 
 
 class H2StreamBase:
-    app_queue: Queue
 
     def __init__(self) -> None:
         self.response: Optional[dict] = None
@@ -75,22 +74,11 @@ class H2StreamBase:
         self.start_time = time()
         self.state = ASGIH2State.REQUEST
 
-    def append(self, data: bytes) -> None:
-        self.app_queue.put_nowait({
-            'type': 'http.request',
-            'body': data,
-            'more_body': True,
-        })
+    async def aclose(self) -> None:
+        pass
 
-    def complete(self) -> None:
-        self.app_queue.put_nowait({
-            'type': 'http.request',
-            'body': b'',
-            'more_body': False,
-        })
-
-    def close(self) -> None:
-        self.app_queue.put_nowait({'type': 'http.disconnect'})
+    async def get(self) -> dict:
+        pass
 
 
 class H2Mixin:
@@ -158,7 +146,7 @@ class H2Mixin:
             headers = [(b':status', b'500')] + self.response_headers()
             await self.asend(Response(stream_id, headers))
             await self.asend(EndStream(stream_id))
-            self.streams[stream_id].close()
+            await self.streams[stream_id].aclose()
             stream.response = {'status': 500, 'headers': []}
 
         if self.config.access_logger is not None:
@@ -169,7 +157,7 @@ class H2Mixin:
 
     async def asgi_receive(self, stream_id: int) -> dict:
         """Called by the ASGI instance to receive a message."""
-        return await self.streams[stream_id].app_queue.get()
+        return await self.streams[stream_id].get()
 
     async def asgi_send(self, stream_id: int, message: dict) -> None:
         """Called by the ASGI instance to send a message."""
@@ -203,6 +191,6 @@ class H2Mixin:
             if not message.get('more_body', False):
                 if stream.state != ASGIH2State.CLOSED:
                     await self.asend(EndStream(stream_id))
-                    stream.close()
+                    await stream.aclose()
         else:
             raise UnexpectedMessage(stream.state, message['type'])

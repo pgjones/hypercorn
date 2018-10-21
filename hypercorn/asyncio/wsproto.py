@@ -96,6 +96,13 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
             data = self.connection._upgrade_connection.send(event)
         self.write(data)
 
+    async def asgi_put(self, message: dict) -> None:
+        await self.app_queue.put(message)
+
+    async def asgi_receive(self) -> dict:
+        """Called by the ASGI instance to receive a message."""
+        return await self.app_queue.get()
+
     @property
     def scheme(self) -> str:
         return 'wss' if self.ssl_info is not None else 'ws'

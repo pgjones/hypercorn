@@ -21,6 +21,29 @@ class Stream(H2StreamBase):
         super().__init__()
         self.app_queue: asyncio.Queue = asyncio.Queue()
 
+    def append(self, data: bytes) -> None:
+        self.app_queue.put_nowait({
+            'type': 'http.request',
+            'body': data,
+            'more_body': True,
+        })
+
+    def complete(self) -> None:
+        self.app_queue.put_nowait({
+            'type': 'http.request',
+            'body': b'',
+            'more_body': False,
+        })
+
+    def close(self) -> None:
+        self.app_queue.put_nowait({'type': 'http.disconnect'})
+
+    async def aclose(self) -> None:
+        await self.app_queue.put({'type': 'http.disconnect'})
+
+    async def get(self) -> dict:
+        return await self.app_queue.get()
+
 
 class H2Server(HTTPServer, H2Mixin):
 
