@@ -1,4 +1,3 @@
-import asyncio
 import ssl
 
 from hypercorn.config import Config
@@ -8,16 +7,16 @@ from hypercorn import run_single
 class App:
 
     def __init__(self, scope):
-        self.task = None
+        pass
 
     async def __call__(self, receive, send):
         while True:
             event = await receive()
             if event['type'] == 'http.disconnect':
-                self.task.cancel()
                 break
             elif event['type'] == 'http.request' and not event.get('more_body', False):
-                self.task = asyncio.ensure_future(self.send_data(send))
+                await self.send_data(send)
+                break
 
     async def send_data(self, send):
         await send({
@@ -30,10 +29,3 @@ class App:
             'body': b'Hello',
             'more_body': False,
         })
-
-
-if __name__ == '__main__':
-    config = Config()
-    config.update_ssl(certfile='cert.pem', keyfile='key.pem', ciphers='ECDHE+AESGCM')
-    config.debug = True
-    run_single(App, config, loop=asyncio.get_event_loop())
