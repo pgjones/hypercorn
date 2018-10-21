@@ -40,7 +40,7 @@ class Stream(H2StreamBase):
             'more_body': False,
         })
 
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         await self.app_send_channel.send({'type': 'http.disconnect'})
 
     async def get(self) -> dict:
@@ -102,6 +102,7 @@ class H2Server(HTTPServer, H2Mixin):
 
     async def handle_request(self, event: h2.events.RequestReceived) -> None:
         await super().handle_request(event)
+        await self.streams[event.stream_id].close()
         del self.streams[event.stream_id]
 
     async def handle_connection(self) -> None:
@@ -116,7 +117,7 @@ class H2Server(HTTPServer, H2Mixin):
             pass
         finally:
             for stream in self.streams.values():
-                await stream.aclose()
+                await stream.close()
             await self.aclose()
 
     async def read_data(self) -> None:
@@ -139,7 +140,7 @@ class H2Server(HTTPServer, H2Mixin):
                             event.flow_controlled_length, event.stream_id,
                         )
                     elif isinstance(event, h2.events.StreamReset):
-                        await self.streams[event.stream_id].aclose()
+                        await self.streams[event.stream_id].close()
                     elif isinstance(event, h2.events.StreamEnded):
                         await self.streams[event.stream_id].complete()
                     elif isinstance(event, h2.events.WindowUpdated):

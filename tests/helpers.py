@@ -43,6 +43,7 @@ class EchoFramework:
                 body.extend(event.get('body', b''))
                 if not event.get('more_body', False):
                     await self._send_echo(send, body)
+                    break
             elif event['type'] == 'websocket.connect':
                 await send({'type': 'websocket.accept'})
             elif event['type'] == 'websocket.receive':
@@ -83,6 +84,7 @@ class ChunkedResponseFramework:
             elif event['type'] == 'http.request':
                 if not event.get('more_body', False):
                     await self._send_chunked(send)
+                    break
 
     async def _send_chunked(self, send: Callable) -> None:
         await send({
@@ -145,3 +147,4 @@ class PushFramework:
                     'type': 'http.response.body',
                     'more_body': False,
                 })
+                break

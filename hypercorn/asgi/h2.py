@@ -74,9 +74,6 @@ class H2StreamBase:
         self.start_time = time()
         self.state = ASGIH2State.REQUEST
 
-    async def aclose(self) -> None:
-        pass
-
     async def get(self) -> dict:
         pass
 
@@ -146,7 +143,6 @@ class H2Mixin:
             headers = [(b':status', b'500')] + self.response_headers()
             await self.asend(Response(stream_id, headers))
             await self.asend(EndStream(stream_id))
-            await self.streams[stream_id].aclose()
             stream.response = {'status': 500, 'headers': []}
 
         if self.config.access_logger is not None:
@@ -191,6 +187,5 @@ class H2Mixin:
             if not message.get('more_body', False):
                 if stream.state != ASGIH2State.CLOSED:
                     await self.asend(EndStream(stream_id))
-                    await stream.aclose()
         else:
             raise UnexpectedMessage(stream.state, message['type'])

@@ -1,5 +1,4 @@
 import asyncio
-from functools import partial
 from itertools import chain
 from typing import Dict, Iterable, List, Optional, Tuple, Type
 
@@ -37,9 +36,6 @@ class Stream(H2StreamBase):
 
     def close(self) -> None:
         self.app_queue.put_nowait({'type': 'http.disconnect'})
-
-    async def aclose(self) -> None:
-        await self.app_queue.put({'type': 'http.disconnect'})
 
     async def get(self) -> dict:
         return await self.app_queue.get()
@@ -112,8 +108,14 @@ class H2Server(HTTPServer, H2Mixin):
         self.streams[event.stream_id] = Stream()
         if complete:
             self.streams[event.stream_id].complete()
-        task = self.loop.create_task(self.handle_request(event))
-        task.add_done_callback(partial(self.after_request, event.stream_id))
+        self.loop.create_task(self.handle_request(event))
+
+    async def handle_request(self, event: h2.events.RequestReceived) -> None:
+        await super().handle_request(event)
+        self.streams[event.stream_id].close()
+        del self.streams[event.stream_id]
+        if len(self.streams) == 0:
+            self.start_keep_alive_timeout()
 
     def handle_events(self, events: List[h2.events.Event]) -> None:
         for event in events:
@@ -135,11 +137,6 @@ class H2Server(HTTPServer, H2Mixin):
                 self.close()
                 return
         self.send()
-
-    def after_request(self, stream_id: int, future: asyncio.Future) -> None:
-        del self.streams[stream_id]
-        if len(self.streams) == 0:
-            self.start_keep_alive_timeout()
 
     def send(self) -> None:
         self.write(self.connection.data_to_send())  # type: ignore
