@@ -144,7 +144,7 @@ class WebsocketMixin:
         try:
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, partial(self.asgi_send, event))
-        except Exception as error:
+        except Exception:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception("Error in ASGI Framework")
 

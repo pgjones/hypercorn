@@ -145,7 +145,7 @@ class Config:
         if {'certfile', 'keyfile', 'ciphers', 'ca_certs'} & mappings.keys():
             config.update_ssl(
                 mappings.get('certfile'), mappings.get('keyfile'),
-                mappings.get('ciphers'),  mappings.get('ca_certs'),
+                mappings.get('ciphers'), mappings.get('ca_certs'),
             )
         return config
 

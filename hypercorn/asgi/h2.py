@@ -133,7 +133,7 @@ class H2Mixin:
             await asgi_instance(
                 partial(self.asgi_receive, stream_id), partial(self.asgi_send, stream_id),
             )
-        except Exception as error:
+        except Exception:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception('Error in ASGI Framework')
 
