@@ -57,7 +57,7 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     parser.add_argument(
         '--ciphers',
         help='Ciphers to use for the SSL setup',
-        default=None,
+        default=sentinel,
     )
     parser.add_argument(
         '-c',
@@ -131,10 +131,16 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     args = parser.parse_args(sys_args or sys.argv[1:])
     config = _load_config(args.config)
     config.application_path = args.application
+    config.ca_certs = args.ca_certs
+    config.certfile = args.certfile
+    config.keyfile = args.keyfile
+
     if args.access_logformat is not sentinel:
         config.access_log_format = args.access_logformat
     if args.access_log is not sentinel:
         config.access_log_target = args.access_log
+    if args.ciphers is not sentinel:
+        config.ciphers = args.ciphers
     if args.debug is not sentinel:
         config.debug = args.debug
     if args.error_log is not sentinel:
@@ -158,13 +164,7 @@ def main(sys_args: Optional[List[str]]=None) -> None:
     if args.workers is not sentinel:
         config.workers = args.workers
 
-    if (
-            args.certfile is not None or args.keyfile is not None or
-            args.ciphers is not None or args.ca_certs is not None
-    ):
-        config.update_ssl(args.certfile, args.keyfile, args.ciphers, args.ca_certs)
-
-    scheme = 'http' if config.ssl is None else 'https'
+    scheme = 'https' if config.ssl_enabled else 'http'
     if len(args.binds) > 0:
         config.update_bind(args.binds[0])
     if config.unix_domain is not None:

@@ -4,7 +4,7 @@ from typing import Optional
 
 import pytest
 
-from hypercorn.config import Config, create_ssl_context
+from hypercorn.config import Config
 
 access_log_format = "bob"
 h11_max_incomplete_size = 4
@@ -27,7 +27,7 @@ def test_ssl_config_from_pyfile() -> None:
     path = os.path.join(os.path.dirname(__file__), 'assets/config_ssl.py')
     config = Config.from_pyfile(path)
     _check_standard_config(config)
-    assert config.ssl is not None
+    assert config.ssl_enabled
 
 
 def test_config_from_toml() -> None:
@@ -54,7 +54,9 @@ def test_config_update_bind(bind: str, host: str, port: int, unix_domain: Option
 
 
 def test_create_ssl_context() -> None:
-    context = create_ssl_context()
+    path = os.path.join(os.path.dirname(__file__), 'assets/config_ssl.py')
+    config = Config.from_pyfile(path)
+    context = config.create_ssl_context()
     assert context.options & (
         ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         | ssl.OP_NO_COMPRESSION

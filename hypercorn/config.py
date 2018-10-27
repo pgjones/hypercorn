@@ -13,7 +13,6 @@ import pytoml
 BYTES = 1
 OCTETS = 1
 SECONDS = 1.0
-DEFAULT_CIPHERS = 'ECDHE+AESGCM'
 
 FilePath = Union[AnyStr, os.PathLike]
 
@@ -27,6 +26,9 @@ class Config:
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_logger: Optional[logging.Logger] = None
     application_path: str
+    ca_certs: Optional[str] = None
+    certfile: Optional[str] = None
+    ciphers: str = 'ECDHE+AESGCM'
     debug = False
     error_logger: Optional[logging.Logger] = None
     file_descriptor: Optional[int] = None
@@ -34,9 +36,9 @@ class Config:
     h2_max_inbound_frame_size = 2**14 * OCTETS
     host = '127.0.0.1'
     keep_alive_timeout = 5 * SECONDS
+    keyfile: Optional[str] = None
     pid_path: Optional[str] = None
     root_path = ''
-    ssl: Optional[SSLContext] = None
     unix_domain: Optional[str] = None
     use_reloader = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
@@ -81,24 +83,31 @@ class Config:
                 self.error_logger.addHandler(logging.FileHandler(self.error_log_target))
             self.error_logger.setLevel(logging.INFO)
 
-    def update_ssl(
-            self,
-            certfile: Optional[str]=None,
-            keyfile: Optional[str]=None,
-            ciphers: Optional[str]=None,
-            ca_certs: Optional[str]=None,
-    ) -> None:
-        if self.ssl is None:
-            self.ssl = create_ssl_context()
+    def create_ssl_context(self) -> Optional[SSLContext]:
+        if not self.ssl_enabled:
+            return None
 
-        if ciphers is not None:
-            self.ssl.set_ciphers(ciphers)
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.set_ciphers(self.ciphers)
+        context.options |= (
+            ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        )  # RFC 7540 Section 9.2: MUST be TLS >=1.2
+        context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
+        context.set_alpn_protocols(['h2', 'http/1.1'])
+        try:
+            context.set_npn_protocols(["h2", "http/1.1"])
+        except NotImplementedError:
+            pass  # NPN is not necessarily available
 
-        if certfile is not None and keyfile is not None:
-            self.ssl.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
+        if self.ca_certs is not None:
+            context.load_verify_locations(self.ca_certs)
 
-        if ca_certs is not None:
-            self.ssl.load_verify_locations(ca_certs)
+        return context
+
+    @property
+    def ssl_enabled(self) -> bool:
+        return self.certfile is not None and self.keyfile is not None
 
     def update_bind(self, bind: str) -> None:
         if bind.startswith('unix:'):
@@ -142,11 +151,6 @@ class Config:
             if hasattr(config, key):
                 setattr(config, key, value)
 
-        if {'certfile', 'keyfile', 'ciphers', 'ca_certs'} & mappings.keys():
-            config.update_ssl(
-                mappings.get('certfile'), mappings.get('keyfile'),
-                mappings.get('ciphers'), mappings.get('ca_certs'),
-            )
         return config
 
     @classmethod
@@ -220,18 +224,3 @@ class Config:
             if not isinstance(getattr(instance, key), types.ModuleType)
         }
         return cls.from_mapping(mapping)
-
-
-def create_ssl_context() -> SSLContext:
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.set_ciphers(DEFAULT_CIPHERS)
-    context.options |= (
-        ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-    )  # RFC 7540 Section 9.2: MUST be TLS >=1.2
-    context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
-    context.set_alpn_protocols(['h2', 'http/1.1'])
-    try:
-        context.set_npn_protocols(["h2", "http/1.1"])
-    except NotImplementedError:
-        pass  # NPN is not necessarily available
-    return context

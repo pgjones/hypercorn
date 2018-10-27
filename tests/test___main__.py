@@ -38,4 +38,4 @@ def test_main_cli_override(monkeypatch: MonkeyPatch) -> None:
     run_multiple.assert_called()
     config = run_multiple.call_args_list[0][0][0]
     assert config.access_log_format == 'jeff'
-    assert config.ssl.get_ciphers()[0]['name'] == 'DHE-RSA-AES128-SHA'
+    assert config.ciphers == 'DHE-RSA-AES128-SHA'

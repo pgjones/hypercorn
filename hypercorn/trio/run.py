@@ -11,7 +11,7 @@ from ..utils import load_application
 async def _serve(config: Config) -> None:
     async def _http_serve(stream: trio.abc.Stream) -> None:
         app = load_application(config.application_path)
-        if config.ssl is not None:
+        if config.ssl_enabled:
             await stream.do_handshake()
             selected_protocol = stream.selected_alpn_protocol()
         else:
@@ -28,13 +28,14 @@ async def _serve(config: Config) -> None:
             await protocol.handle_connection()
 
     try:
-        if config.ssl is None:
-            await trio.serve_tcp(_http_serve, host=config.host, port=config.port)
-        else:
+        if config.ssl_enabled:
             await trio.serve_ssl_over_tcp(
-                _http_serve, ssl_context=config.ssl, host=config.host, port=config.port,
-                https_compatible=True,
+                _http_serve, ssl_context=config.create_ssl_context(), host=config.host,
+                port=config.port, https_compatible=True,
             )
+        else:
+            await trio.serve_tcp(_http_serve, host=config.host, port=config.port)
+
     except KeyboardInterrupt:
         pass
 

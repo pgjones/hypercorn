@@ -142,22 +142,24 @@ def run_single(
     if hasattr(app, 'startup'):
         loop.run_until_complete(app.startup())  # type: ignore
 
+    ssl_context = config.create_ssl_context()
+
     if sock is not None:
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=config.ssl, sock=sock, reuse_port=is_child,
+            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock, reuse_port=is_child,
         )
     elif config.file_descriptor is not None:
         sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=config.ssl, sock=sock,
+            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock,
         )
     elif config.unix_domain is not None:
         create_server = loop.create_unix_server(
-            lambda: Server(app, loop, config), config.unix_domain, ssl=config.ssl,
+            lambda: Server(app, loop, config), config.unix_domain, ssl=ssl_context,
         )
     else:
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), host=config.host, port=config.port, ssl=config.ssl,
+            lambda: Server(app, loop, config), host=config.host, port=config.port, ssl=ssl_context,
             reuse_port=is_child,
         )
     server = loop.run_until_complete(create_server)
