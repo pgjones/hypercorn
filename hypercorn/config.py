@@ -39,6 +39,8 @@ class Config:
     keyfile: Optional[str] = None
     pid_path: Optional[str] = None
     root_path = ''
+    startup_timeout = 60 * SECONDS
+    shutdown_timeout = 60 * SECONDS
     unix_domain: Optional[str] = None
     use_reloader = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES

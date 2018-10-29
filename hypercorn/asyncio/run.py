@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional, Type
 from .base import HTTPServer
 from .h11 import H11Server
 from .h2 import H2Server
+from .lifespan import Lifespan
 from .wsproto import WebsocketServer
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
@@ -139,8 +140,10 @@ def run_single(
 
     loop.set_debug(config.debug)
 
-    if hasattr(app, 'startup'):
-        loop.run_until_complete(app.startup())  # type: ignore
+    lifespan = Lifespan(app, config)
+    lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
+
+    loop.run_until_complete(lifespan.wait_for_startup())
 
     ssl_context = config.create_ssl_context()
 
@@ -193,9 +196,10 @@ def run_single(
         except NotImplementedError:
             pass  # Unix only
 
-        if hasattr(app, 'cleanup'):
-            loop.run_until_complete(app.cleanup())  # type: ignore
+        loop.run_until_complete(lifespan.wait_for_shutdown())
+        lifespan_task.cancel()
         loop.close()
+
     if reload_:
         # Restart this process (only safe for dev/debug)
         os.execv(sys.executable, [sys.executable] + sys.argv)
