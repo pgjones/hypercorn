@@ -22,6 +22,11 @@ class App:
                     'bytes': event['bytes'],
                     'text': event['text'],
                 })
+            elif event['type'] == 'lifespan.startup':
+                await send({'type': 'lifespan.startup.complete'})
+            elif event['type'] == 'lifespan.shutdown':
+                await send({'type': 'lifespan.shutdown.complete'})
+                break
 
 
 if __name__ == '__main__':

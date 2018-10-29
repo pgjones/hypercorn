@@ -17,6 +17,11 @@ class App:
             elif event['type'] == 'http.request' and not event.get('more_body', False):
                 await self.send_data(send)
                 break
+            elif event['type'] == 'lifespan.startup':
+                await send({'type': 'lifespan.startup.complete'})
+            elif event['type'] == 'lifespan.shutdown':
+                await send({'type': 'lifespan.shutdown.complete'})
+                break
 
     async def send_data(self, send):
         await send({
