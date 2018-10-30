@@ -188,6 +188,7 @@ def run_single(
     finally:
         server.close()
         loop.run_until_complete(server.wait_closed())
+        _cancel_all_other_tasks(loop, lifespan_task)
         loop.run_until_complete(loop.shutdown_asyncgens())
 
         try:
@@ -198,6 +199,7 @@ def run_single(
 
         loop.run_until_complete(lifespan.wait_for_shutdown())
         lifespan_task.cancel()
+        loop.run_until_complete(lifespan_task)
         loop.close()
 
     if reload_:
@@ -271,3 +273,22 @@ def _run_worker(config: Config, sock: Optional[socket]=None) -> None:
 
     app = load_application(config.application_path)
     run_single(app, config, loop=loop, sock=sock, is_child=True)
+
+
+def _cancel_all_other_tasks(
+        loop: asyncio.AbstractEventLoop, protected_task: asyncio.Future,
+) -> None:
+    tasks = [task for task in asyncio.tasks.all_tasks(loop) if task != protected_task]
+    for task in tasks:
+        task.cancel()
+    loop.run_until_complete(asyncio.gather(*tasks, loop=loop, return_exceptions=True))
+
+    for task in tasks:
+        if task.cancelled():
+            continue
+        if task.exception() is not None:
+            loop.call_exception_handler({
+                'message': 'unhandled exception during asyncio.run() shutdown',
+                'exception': task.exception(),
+                'task': task,
+            })

@@ -24,6 +24,8 @@ class Lifespan:
         try:
             asgi_instance = self.app(scope)
             await asgi_instance(self.asgi_receive, self.asgi_send)
+        except asyncio.CancelledError:
+            pass
         except Exception:
             self.supported = False
             if self.config.error_logger is not None:
