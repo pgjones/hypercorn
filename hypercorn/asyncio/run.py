@@ -4,7 +4,8 @@ import platform
 import signal
 import sys
 import warnings
-from multiprocessing import Process
+from multiprocessing import Event, Process
+from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
 from socket import (
     AF_INET, AF_INET6, fromfd as socket_fromfd, SO_REUSEADDR, SOCK_STREAM, socket,
@@ -33,8 +34,15 @@ class Shutdown(SystemExit):
     code = 1
 
 
-def _raise_shutdown() -> None:
+def _raise_shutdown(*args: Any) -> None:
     raise Shutdown()
+
+
+async def _check_shutdown(shutdown_event: EventType) -> None:
+    while True:
+        if shutdown_event.is_set():
+            raise Shutdown()
+        await asyncio.sleep(0.1)
 
 
 class Server(asyncio.Protocol):
@@ -123,6 +131,7 @@ def run_single(
         loop: asyncio.AbstractEventLoop,
         sock: Optional[socket]=None,
         is_child: bool=False,
+        shutdown_event: Optional[EventType]=None,
 ) -> None:
     """Create a server to run the app on given the options.
 
@@ -170,11 +179,12 @@ def run_single(
     if platform.system() == 'Windows':
         loop.create_task(_windows_signal_support())
 
-    try:
-        loop.add_signal_handler(signal.SIGINT, _raise_shutdown)
-        loop.add_signal_handler(signal.SIGTERM, _raise_shutdown)
-    except NotImplementedError:
-        pass  # Unix only
+    if shutdown_event is not None:
+        loop.create_task(_check_shutdown(shutdown_event))
+    else:
+        for signal_name in {'SIGINT', 'SIGTERM', 'SIGBREAK'}:
+            if hasattr(signal, signal_name):
+                signal.signal(getattr(signal, signal_name), _raise_shutdown)
 
     reload_ = False
     try:
@@ -232,24 +242,28 @@ def run_multiple(config: Config) -> None:
 
     processes = []
 
+    # Ignore SIGINT before creating the processes, so that they
+    # inherit the signal handling. This means that the shutdown
+    # function controls the shutdown.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    shutdown_event = Event()
+
     for _ in range(config.workers):
         process = Process(
             target=_run_worker,
-            kwargs={'config': config, 'sock': sock},
+            kwargs={'config': config, 'shutdown_event': shutdown_event, 'sock': sock},
         )
         process.daemon = True
         process.start()
         processes.append(process)
 
-    # These are caught by the processes (children) and should be
-    # ignored in the master.
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
     def shutdown(*args: Any) -> None:
-        for process in processes:
-            process.terminate()
+        shutdown_event.set()
 
-    signal.signal(signal.SIGTERM, shutdown)
+    for signal_name in {'SIGINT', 'SIGTERM', 'SIGBREAK'}:
+        if hasattr(signal, signal_name):
+            signal.signal(getattr(signal, signal_name), shutdown)
 
     for process in processes:
         process.join()
@@ -259,7 +273,7 @@ def run_multiple(config: Config) -> None:
     sock.close()
 
 
-def _run_worker(config: Config, sock: Optional[socket]=None) -> None:
+def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket]=None) -> None:
     if config.worker_class == 'uvloop':
         try:
             import uvloop
@@ -272,7 +286,7 @@ def _run_worker(config: Config, sock: Optional[socket]=None) -> None:
     asyncio.set_event_loop(loop)
 
     app = load_application(config.application_path)
-    run_single(app, config, loop=loop, sock=sock, is_child=True)
+    run_single(app, config, loop=loop, sock=sock, is_child=True, shutdown_event=shutdown_event)
 
 
 def _cancel_all_other_tasks(
