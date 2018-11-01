@@ -25,7 +25,6 @@ class ASGIWebsocketState(Enum):
 
 
 class UnexpectedMessage(Exception):
-
     def __init__(self, state: ASGIWebsocketState, message_type: str) -> None:
         super().__init__(f"Unexpected message type, {message_type} given the state {state}")
 
@@ -35,31 +34,26 @@ class FrameTooLarge(Exception):
 
 
 class WsprotoEvent:
-
     def __eq__(self, other: object) -> bool:
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
 
 
 class CloseConnection(WsprotoEvent):
-
     def __init__(self, code: int) -> None:
         self.code = code
 
 
 class AcceptConnection(WsprotoEvent):
-
     def __init__(self, request: wsproto.events.ConnectionRequested) -> None:
         self.request = request
 
 
 class Data(WsprotoEvent):
-
     def __init__(self, data: Union[bytes, str]) -> None:
         self.data = data
 
 
 class WebsocketBuffer:
-
     def __init__(self, max_length: int) -> None:
         self.value: Optional[Union[bytes, str]] = None
         self.max_length = max_length
@@ -67,9 +61,9 @@ class WebsocketBuffer:
     def extend(self, event: wsproto.events.DataReceived) -> None:
         if self.value is None:
             if isinstance(event, wsproto.events.TextReceived):
-                self.value = ''
+                self.value = ""
             else:
-                self.value = b''
+                self.value = b""
         self.value += event.data  # type: ignore
         if len(self.value) > self.max_length:
             raise FrameTooLarge()
@@ -79,9 +73,9 @@ class WebsocketBuffer:
 
     def to_message(self) -> dict:
         return {
-            'type': 'websocket.receive',
-            'bytes': self.value if isinstance(self.value, bytes) else None,
-            'text': self.value if isinstance(self.value, str) else None,
+            "type": "websocket.receive",
+            "bytes": self.value if isinstance(self.value, bytes) else None,
+            "text": self.value if isinstance(self.value, str) else None,
         }
 
 
@@ -115,32 +109,30 @@ class WebsocketMixin:
         pass
 
     async def handle_websocket(self, event: wsproto.events.ConnectionRequested) -> None:
-        path, _, query_string = event.h11request.target.partition(b'?')
+        path, _, query_string = event.h11request.target.partition(b"?")
         self.scope = {
-            'type': 'websocket',
-            'asgi': {'version': '2.0'},
-            'scheme': self.scheme,
-            'path': unquote(path.decode('ascii')),
-            'query_string': query_string,
-            'root_path': self.config.root_path,
-            'headers': event.h11request.headers,
-            'client': self.client,
-            'server': self.server,
-            'subprotocols': [],
-            'extensions': {
-                'websocket.http.response': {},
-            },
+            "type": "websocket",
+            "asgi": {"version": "2.0"},
+            "scheme": self.scheme,
+            "path": unquote(path.decode("ascii")),
+            "query_string": query_string,
+            "root_path": self.config.root_path,
+            "headers": event.h11request.headers,
+            "client": self.client,
+            "server": self.server,
+            "subprotocols": [],
+            "extensions": {"websocket.http.response": {}},
         }
         await self.handle_asgi_app(event)
 
     async def send_http_error(self, status: int) -> None:
-        self.response = {'status': status, 'headers': []}
+        self.response = {"status": status, "headers": []}
         await self.asend(h11.Response(status_code=status, headers=self.response_headers()))
         await self.asend(h11.EndOfMessage())
 
     async def handle_asgi_app(self, event: wsproto.events.ConnectionRequested) -> None:
         start_time = time()
-        await self.asgi_put({'type': 'websocket.connect'})
+        await self.asgi_put({"type": "websocket.connect"})
         try:
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, partial(self.asgi_send, event))
@@ -166,60 +158,58 @@ class WebsocketMixin:
             )
 
     async def asgi_send(
-            self,
-            request_event: wsproto.events.ConnectionRequested,
-            message: dict,
+        self, request_event: wsproto.events.ConnectionRequested, message: dict
     ) -> None:
         """Called by the ASGI instance to send a message."""
-        if message['type'] == 'websocket.accept' and self.state == ASGIWebsocketState.HANDSHAKE:
+        if message["type"] == "websocket.accept" and self.state == ASGIWebsocketState.HANDSHAKE:
             await self.asend(AcceptConnection(request_event))
             self.state = ASGIWebsocketState.CONNECTED
-            self.response = {'status': 101, 'headers': []}
+            self.response = {"status": 101, "headers": []}
         elif (
-                message['type'] == 'websocket.http.response.start'
-                and self.state == ASGIWebsocketState.HANDSHAKE
+            message["type"] == "websocket.http.response.start"
+            and self.state == ASGIWebsocketState.HANDSHAKE
         ):
             self.response = message
-        elif (
-                message['type'] == 'websocket.http.response.body'
-                and self.state in {ASGIWebsocketState.HANDSHAKE, ASGIWebsocketState.RESPONSE}
-        ):
+        elif message["type"] == "websocket.http.response.body" and self.state in {
+            ASGIWebsocketState.HANDSHAKE,
+            ASGIWebsocketState.RESPONSE,
+        }:
             if self.state == ASGIWebsocketState.HANDSHAKE:
                 headers = chain(
                     (
                         (bytes(key).strip(), bytes(value).strip())
-                        for key, value in self.response['headers']
+                        for key, value in self.response["headers"]
                     ),
                     self.response_headers(),
                 )
                 await self.asend(
-                    h11.Response(status_code=int(self.response['status']), headers=headers),
+                    h11.Response(status_code=int(self.response["status"]), headers=headers)
                 )
                 self.state = ASGIWebsocketState.RESPONSE
             if (
-                    not suppress_body('GET', self.response['status'])
-                    and message.get('body', b'') != b''
+                not suppress_body("GET", self.response["status"])
+                and message.get("body", b"") != b""
             ):
-                await self.asend(h11.Data(data=bytes(message.get('body', b''))))
-            if not message.get('more_body', False):
+                await self.asend(h11.Data(data=bytes(message.get("body", b""))))
+            if not message.get("more_body", False):
                 if self.state != ASGIWebsocketState.HTTPCLOSED:
                     await self.asend(h11.EndOfMessage())
-                    await self.asgi_put({'type': 'websocket.disconnect'})
+                    await self.asgi_put({"type": "websocket.disconnect"})
                     self.state = ASGIWebsocketState.HTTPCLOSED
-        elif message['type'] == 'websocket.send' and self.state == ASGIWebsocketState.CONNECTED:
+        elif message["type"] == "websocket.send" and self.state == ASGIWebsocketState.CONNECTED:
             data: Union[bytes, str]
-            if message.get('bytes') is not None:
-                data = bytes(message['bytes'])
-            elif not isinstance(message['text'], str):
+            if message.get("bytes") is not None:
+                data = bytes(message["bytes"])
+            elif not isinstance(message["text"], str):
                 raise TypeError(f"{message['text']} should be a str")
             else:
-                data = message['text']
+                data = message["text"]
             await self.asend(Data(data))
-        elif message['type'] == 'websocket.close' and self.state == ASGIWebsocketState.HANDSHAKE:
+        elif message["type"] == "websocket.close" and self.state == ASGIWebsocketState.HANDSHAKE:
             await self.send_http_error(403)
             self.state = ASGIWebsocketState.HTTPCLOSED
-        elif message['type'] == 'websocket.close':
-            await self.asend(CloseConnection(int(message['code'])))
+        elif message["type"] == "websocket.close":
+            await self.asend(CloseConnection(int(message["code"])))
             self.state = ASGIWebsocketState.CLOSED
         else:
-            raise UnexpectedMessage(self.state, message['type'])
+            raise UnexpectedMessage(self.state, message["type"])

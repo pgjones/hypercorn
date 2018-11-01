@@ -6,13 +6,12 @@ from ..utils import parse_socket_addr, response_headers
 
 
 class HTTPServer:
-
     def __init__(
-            self,
-            loop: asyncio.AbstractEventLoop,
-            config: Config,
-            transport: asyncio.BaseTransport,
-            protocol: str,
+        self,
+        loop: asyncio.AbstractEventLoop,
+        config: Config,
+        transport: asyncio.BaseTransport,
+        protocol: str,
     ) -> None:
         self.loop = loop
         self.config = config
@@ -24,10 +23,10 @@ class HTTPServer:
         self._can_write.set()
         self.start_keep_alive_timeout()
 
-        socket = self.transport.get_extra_info('socket')
+        socket = self.transport.get_extra_info("socket")
         self.client = parse_socket_addr(socket.family, socket.getpeername())
         self.server = parse_socket_addr(socket.family, socket.getsockname())
-        self.ssl_info = self.transport.get_extra_info('ssl_object')
+        self.ssl_info = self.transport.get_extra_info("ssl_object")
 
     def data_received(self, data: bytes) -> None:
         # Called whenever data is received.
@@ -73,7 +72,7 @@ class HTTPServer:
 
     def start_keep_alive_timeout(self) -> None:
         self._keep_alive_timeout_handle = self.loop.call_later(
-            self.config.keep_alive_timeout, self._handle_timeout,
+            self.config.keep_alive_timeout, self._handle_timeout
         )
 
     def stop_keep_alive_timeout(self) -> None:

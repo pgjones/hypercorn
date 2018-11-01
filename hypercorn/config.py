@@ -28,23 +28,23 @@ class Config:
     application_path: str
     ca_certs: Optional[str] = None
     certfile: Optional[str] = None
-    ciphers: str = 'ECDHE+AESGCM'
+    ciphers: str = "ECDHE+AESGCM"
     debug = False
     error_logger: Optional[logging.Logger] = None
     file_descriptor: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
-    h2_max_inbound_frame_size = 2**14 * OCTETS
-    host = '127.0.0.1'
+    h2_max_inbound_frame_size = 2 ** 14 * OCTETS
+    host = "127.0.0.1"
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
     pid_path: Optional[str] = None
-    root_path = ''
+    root_path = ""
     startup_timeout = 60 * SECONDS
     shutdown_timeout = 60 * SECONDS
     unix_domain: Optional[str] = None
     use_reloader = False
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
-    worker_class = 'asyncio'
+    worker_class = "asyncio"
     workers = 1
 
     @property
@@ -63,8 +63,8 @@ class Config:
     def access_log_target(self, value: Optional[str]) -> None:
         self._access_log_target = value
         if self.access_log_target is not None:
-            self.access_logger = logging.getLogger('hypercorn.access')
-            if self.access_log_target == '-':
+            self.access_logger = logging.getLogger("hypercorn.access")
+            if self.access_log_target == "-":
                 self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
             else:
                 self.access_logger.addHandler(logging.FileHandler(self.access_log_target))
@@ -78,8 +78,8 @@ class Config:
     def error_log_target(self, value: Optional[str]) -> None:
         self._error_log_target = value
         if self.error_log_target is not None:
-            self.error_logger = logging.getLogger('hypercorn.error')
-            if self.error_log_target == '-':
+            self.error_logger = logging.getLogger("hypercorn.error")
+            if self.error_log_target == "-":
                 self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
             else:
                 self.error_logger.addHandler(logging.FileHandler(self.error_log_target))
@@ -95,7 +95,7 @@ class Config:
             ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         )  # RFC 7540 Section 9.2: MUST be TLS >=1.2
         context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
-        context.set_alpn_protocols(['h2', 'http/1.1'])
+        context.set_alpn_protocols(["h2", "http/1.1"])
         try:
             context.set_npn_protocols(["h2", "http/1.1"])
         except NotImplementedError:
@@ -112,22 +112,20 @@ class Config:
         return self.certfile is not None and self.keyfile is not None
 
     def update_bind(self, bind: str) -> None:
-        if bind.startswith('unix:'):
+        if bind.startswith("unix:"):
             self.unix_domain = bind[5:]
-        elif bind.startswith('fd://'):
+        elif bind.startswith("fd://"):
             self.file_descriptor = int(bind[5:])
         else:
             try:
-                self.host, self.port = bind.rsplit(':', 1)  # type: ignore
+                self.host, self.port = bind.rsplit(":", 1)  # type: ignore
             except ValueError:
                 self.host = bind
 
     @classmethod
     def from_mapping(
-            cls: Type['Config'],
-            mapping: Optional[Mapping[str, Any]]=None,
-            **kwargs: Any,
-    ) -> 'Config':
+        cls: Type["Config"], mapping: Optional[Mapping[str, Any]] = None, **kwargs: Any
+    ) -> "Config":
         """Create a configuration from a mapping.
 
         This allows either a mapping to be directly passed or as
@@ -156,7 +154,7 @@ class Config:
         return config
 
     @classmethod
-    def from_pyfile(cls: Type['Config'], filename: FilePath) -> 'Config':
+    def from_pyfile(cls: Type["Config"], filename: FilePath) -> "Config":
         """Create a configuration from a Python file.
 
         .. code-block:: python
@@ -173,7 +171,7 @@ class Config:
         return cls.from_object(module)
 
     @classmethod
-    def from_toml(cls: Type['Config'], filename: FilePath) -> 'Config':
+    def from_toml(cls: Type["Config"], filename: FilePath) -> "Config":
         """Load the configuration values from a TOML formatted file.
 
         This allows configuration to be loaded as so
@@ -191,7 +189,7 @@ class Config:
         return cls.from_mapping(data)
 
     @classmethod
-    def from_object(cls: Type['Config'], instance: Union[object, str]) -> 'Config':
+    def from_object(cls: Type["Config"], instance: Union[object, str]) -> "Config":
         """Create a configuration from a Python object.
 
         This can be used to reference modules or objects within
@@ -213,7 +211,7 @@ class Config:
         """
         if isinstance(instance, str):
             try:
-                path, config = instance.rsplit('.', 1)
+                path, config = instance.rsplit(".", 1)
             except ValueError:
                 path = instance
                 instance = importlib.import_module(instance)
@@ -222,7 +220,8 @@ class Config:
                 instance = getattr(module, config)
 
         mapping = {
-            key: getattr(instance, key) for key in dir(instance)
+            key: getattr(instance, key)
+            for key in dir(instance)
             if not isinstance(getattr(instance, key), types.ModuleType)
         }
         return cls.from_mapping(mapping)

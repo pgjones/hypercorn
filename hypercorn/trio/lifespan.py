@@ -1,7 +1,6 @@
 from typing import Type
 
 import trio
-
 from ..config import Config
 from ..typing import ASGIFramework
 
@@ -11,7 +10,6 @@ class UnexpectedMessage(Exception):
 
 
 class Lifespan:
-
     def __init__(self, app: Type[ASGIFramework], config: Config) -> None:
         self.app = app
         self.config = config
@@ -21,10 +19,10 @@ class Lifespan:
         self.supported = True
 
     async def handle_lifespan(
-            self, *, task_status: trio._core._run._TaskStatus=trio.TASK_STATUS_IGNORED,
+        self, *, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
     ) -> None:
         task_status.started()
-        scope = {'type': 'lifespan'}
+        scope = {"type": "lifespan"}
         try:
             asgi_instance = self.app(scope)
             await asgi_instance(self.asgi_receive, self.asgi_send)
@@ -32,7 +30,7 @@ class Lifespan:
             self.supported = False
             if self.config.error_logger is not None:
                 self.config.error_logger.exception(
-                    'ASGI Framework Lifespan error, continuing without Lifespan support',
+                    "ASGI Framework Lifespan error, continuing without Lifespan support"
                 )
 
         await self.app_send_channel.aclose()
@@ -42,7 +40,7 @@ class Lifespan:
         if not self.supported:
             return
 
-        await self.app_send_channel.send({'type': 'lifespan.startup'})
+        await self.app_send_channel.send({"type": "lifespan.startup"})
         with trio.fail_after(self.config.startup_timeout):
             await self.startup.wait()
 
@@ -50,7 +48,7 @@ class Lifespan:
         if not self.supported:
             return
 
-        await self.app_send_channel.send({'type': 'lifespan.shutdown'})
+        await self.app_send_channel.send({"type": "lifespan.shutdown"})
         with trio.fail_after(self.config.shutdown_timeout):
             await self.shutdown.wait()
 
@@ -58,9 +56,9 @@ class Lifespan:
         return await self.app_receive_channel.receive()
 
     async def asgi_send(self, message: dict) -> None:
-        if message['type'] == 'lifespan.startup.complete':
+        if message["type"] == "lifespan.startup.complete":
             self.startup.set()
-        elif message['type'] == 'lifespan.shutdown.complete':
+        elif message["type"] == "lifespan.shutdown.complete":
             self.shutdown.set()
         else:
-            raise UnexpectedMessage(message['type'])
+            raise UnexpectedMessage(message["type"])

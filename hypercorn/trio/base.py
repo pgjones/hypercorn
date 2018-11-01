@@ -1,12 +1,10 @@
 from typing import List, Tuple
 
 import trio
-
 from ..utils import parse_socket_addr, response_headers
 
 
 class HTTPServer:
-
     def __init__(self, stream: trio.abc.Stream, protocol: str) -> None:
         self.stream = stream
         self.protocol = protocol

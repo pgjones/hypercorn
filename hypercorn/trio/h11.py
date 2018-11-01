@@ -1,13 +1,13 @@
 from typing import Optional, Type
 
 import h11
-import trio
 
-from .base import HTTPServer
+import trio
 from ..asgi.h11 import ASGIH11State, H11Mixin
 from ..asgi.run import WrongProtocolError
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
+from .base import HTTPServer
 
 MAX_RECV = 2 ** 16
 
@@ -17,18 +17,12 @@ class MustCloseError(Exception):
 
 
 class H11Server(HTTPServer, H11Mixin):
-
-    def __init__(
-            self,
-            app: Type[ASGIFramework],
-            config: Config,
-            stream: trio.abc.Stream,
-    ) -> None:
-        super().__init__(stream, 'h11')
+    def __init__(self, app: Type[ASGIFramework], config: Config, stream: trio.abc.Stream) -> None:
+        super().__init__(stream, "h11")
         self.app = app
         self.config = config
         self.connection = h11.Connection(
-            h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size,
+            h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size
         )
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
@@ -50,7 +44,7 @@ class H11Server(HTTPServer, H11Mixin):
 
                 await self.recycle_or_close()
         except (trio.BrokenResourceError, trio.ClosedResourceError):
-            await self.asgi_put({'type': 'http.disconnect'})
+            await self.asgi_put({"type": "http.disconnect"})
             await self.aclose()
         except (trio.TooSlowError, MustCloseError):
             await self.aclose()
@@ -78,24 +72,18 @@ class H11Server(HTTPServer, H11Mixin):
                 event = self.connection.next_event()
             except h11.RemoteProtocolError:
                 await self.send_error()
-                await self.asgi_put({'type': 'http.disconnect'})
+                await self.asgi_put({"type": "http.disconnect"})
                 raise MustCloseError()
             else:
                 if event is h11.NEED_DATA:
                     await self.read_data()
                 elif isinstance(event, h11.EndOfMessage):
-                    await self.asgi_put({
-                        'type': 'http.request',
-                        'body': b'',
-                        'more_body': False,
-                    })
+                    await self.asgi_put({"type": "http.request", "body": b"", "more_body": False})
                     return
                 elif isinstance(event, h11.Data):
-                    await self.asgi_put({
-                        'type': 'http.request',
-                        'body': event.data,
-                        'more_body': True,
-                    })
+                    await self.asgi_put(
+                        {"type": "http.request", "body": event.data, "more_body": True}
+                    )
                 elif isinstance(event, h11.ConnectionClosed) or event is h11.PAUSED:
                     break
 
@@ -126,7 +114,7 @@ class H11Server(HTTPServer, H11Mixin):
     async def read_data(self) -> None:
         if self.connection.they_are_waiting_for_100_continue:
             await self.asend(
-                h11.InformationalResponse(status_code=100, headers=self.response_headers()),
+                h11.InformationalResponse(status_code=100, headers=self.response_headers())
             )
         data = await self.stream.receive_some(MAX_RECV)
         self.connection.receive_data(data)
@@ -143,4 +131,4 @@ class H11Server(HTTPServer, H11Mixin):
 
     @property
     def scheme(self) -> str:
-        return 'https' if self._is_ssl else 'http'
+        return "https" if self._is_ssl else "http"

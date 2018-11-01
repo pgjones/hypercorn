@@ -1,16 +1,22 @@
 from typing import Optional, Type, Union
 
 import h11
-import trio
 import wsproto
 
-from .base import HTTPServer
+import trio
 from ..asgi.wsproto import (
-    AcceptConnection, ASGIWebsocketState, CloseConnection, Data, FrameTooLarge, WebsocketBuffer,
-    WebsocketMixin, WsprotoEvent,
+    AcceptConnection,
+    ASGIWebsocketState,
+    CloseConnection,
+    Data,
+    FrameTooLarge,
+    WebsocketBuffer,
+    WebsocketMixin,
+    WsprotoEvent,
 )
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
+from .base import HTTPServer
 
 MAX_RECV = 2 ** 16
 
@@ -20,20 +26,19 @@ class MustCloseError(Exception):
 
 
 class WebsocketServer(HTTPServer, WebsocketMixin):
-
     def __init__(
-            self,
-            app: Type[ASGIFramework],
-            config: Config,
-            stream: trio.abc.Stream,
-            *,
-            upgrade_request: Optional[h11.Request]=None,
+        self,
+        app: Type[ASGIFramework],
+        config: Config,
+        stream: trio.abc.Stream,
+        *,
+        upgrade_request: Optional[h11.Request] = None,
     ) -> None:
-        super().__init__(stream, 'wsproto')
+        super().__init__(stream, "wsproto")
         self.app = app
         self.config = config
         self.connection = wsproto.connection.WSConnection(
-            wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()],
+            wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()]
         )
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
@@ -55,7 +60,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                 if self.state == ASGIWebsocketState.HTTPCLOSED:
                     raise MustCloseError()
         except (trio.BrokenResourceError, trio.ClosedResourceError):
-            await self.asgi_put({'type': 'websocket.disconnect'})
+            await self.asgi_put({"type": "websocket.disconnect"})
         except MustCloseError:
             await self.stream.send_all(self.connection.bytes_to_send())
         finally:
@@ -76,14 +81,14 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                         self.buffer.extend(event)
                     except FrameTooLarge:
                         self.connection.close(1009)  # CLOSE_TOO_LARGE
-                        await self.asgi_put({'type': 'websocket.disconnect'})
+                        await self.asgi_put({"type": "websocket.disconnect"})
                         raise MustCloseError()
 
                     if event.message_finished:
                         await self.asgi_put(self.buffer.to_message())
                         self.buffer.clear()
                 elif isinstance(event, wsproto.events.ConnectionClosed):
-                    await self.asgi_put({'type': 'websocket.disconnect'})
+                    await self.asgi_put({"type": "websocket.disconnect"})
                     raise MustCloseError()
 
     async def asend(self, event: Union[H11SendableEvent, WsprotoEvent]) -> None:
@@ -108,4 +113,4 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
 
     @property
     def scheme(self) -> str:
-        return 'wss' if self._is_ssl else 'ws'
+        return "wss" if self._is_ssl else "ws"

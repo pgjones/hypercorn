@@ -1,17 +1,17 @@
 from itertools import chain
 from typing import Dict, Iterable, Optional, Tuple, Type
 
-import h11
 import h2.config
 import h2.connection
 import h2.events
 import h2.exceptions
-import trio
+import h11
 
-from .base import HTTPServer
+import trio
 from ..asgi.h2 import Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, ServerPush
 from ..config import Config
 from ..typing import ASGIFramework
+from .base import HTTPServer
 
 MAX_RECV = 2 ** 16
 
@@ -21,43 +21,33 @@ class MustCloseError(Exception):
 
 
 class Stream(H2StreamBase):
-
     def __init__(self) -> None:
         super().__init__()
         self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
 
     async def append(self, data: bytes) -> None:
-        await self.app_send_channel.send({
-            'type': 'http.request',
-            'body': data,
-            'more_body': True,
-        })
+        await self.app_send_channel.send({"type": "http.request", "body": data, "more_body": True})
 
     async def complete(self) -> None:
-        await self.app_send_channel.send({
-            'type': 'http.request',
-            'body': b'',
-            'more_body': False,
-        })
+        await self.app_send_channel.send({"type": "http.request", "body": b"", "more_body": False})
 
     async def close(self) -> None:
-        await self.app_send_channel.send({'type': 'http.disconnect'})
+        await self.app_send_channel.send({"type": "http.disconnect"})
 
     async def get(self) -> dict:
         return await self.app_receive_channel.receive()
 
 
 class H2Server(HTTPServer, H2Mixin):
-
     def __init__(
-            self,
-            app: Type[ASGIFramework],
-            config: Config,
-            stream: trio.abc.Stream,
-            *,
-            upgrade_request: Optional[h11.Request]=None,
+        self,
+        app: Type[ASGIFramework],
+        config: Config,
+        stream: trio.abc.Stream,
+        *,
+        upgrade_request: Optional[h11.Request] = None,
     ) -> None:
-        super().__init__(stream, 'h2')
+        super().__init__(stream, "h2")
         self.app = app
         self.config = config
 
@@ -67,7 +57,7 @@ class H2Server(HTTPServer, H2Mixin):
         self.upgrade_request = upgrade_request
 
         self.connection = h2.connection.H2Connection(
-            config=h2.config.H2Configuration(client_side=False, header_encoding=None),
+            config=h2.config.H2Configuration(client_side=False, header_encoding=None)
         )
         self.connection.DEFAULT_MAX_INBOUND_FRAME_SIZE = config.h2_max_inbound_frame_size
 
@@ -75,16 +65,16 @@ class H2Server(HTTPServer, H2Mixin):
         if self.upgrade_request is None:
             self.connection.initiate_connection()
         else:
-            settings = ''
+            settings = ""
             headers = []
             for name, value in self.upgrade_request.headers:
-                if name.lower() == b'http2-settings':
+                if name.lower() == b"http2-settings":
                     settings = value.decode()
-                elif name.lower() == b'host':
-                    headers.append((b':authority', value))
+                elif name.lower() == b"host":
+                    headers.append((b":authority", value))
                 headers.append((name, value))
-            headers.append((b':method', self.upgrade_request.method))
-            headers.append((b':path', self.upgrade_request.target))
+            headers.append((b":method", self.upgrade_request.method))
+            headers.append((b":path", self.upgrade_request.target))
             self.connection.initiate_upgrade_connection(settings)
             event = h2.events.RequestReceived()
             event.stream_id = 1
@@ -93,7 +83,7 @@ class H2Server(HTTPServer, H2Mixin):
         await self.send()
 
     async def create_stream(
-            self, event: h2.events.RequestReceived, *, complete: bool=False,
+        self, event: h2.events.RequestReceived, *, complete: bool = False
     ) -> None:
         self.streams[event.stream_id] = Stream()
         if complete:
@@ -123,7 +113,7 @@ class H2Server(HTTPServer, H2Mixin):
     async def read_data(self) -> None:
         while True:
             data = await self.stream.receive_some(MAX_RECV)
-            if data == b'':
+            if data == b"":
                 return
 
             try:
@@ -137,7 +127,7 @@ class H2Server(HTTPServer, H2Mixin):
                     elif isinstance(event, h2.events.DataReceived):
                         await self.streams[event.stream_id].append(event.data)
                         self.connection.acknowledge_received_data(
-                            event.flow_controlled_length, event.stream_id,
+                            event.flow_controlled_length, event.stream_id
                         )
                     elif isinstance(event, h2.events.StreamReset):
                         await self.streams[event.stream_id].close()
@@ -153,8 +143,8 @@ class H2Server(HTTPServer, H2Mixin):
         connection_state = self.connection.state_machine.state
         stream_state = self.connection.streams[event.stream_id].state_machine.state
         if (
-                connection_state == h2.connection.ConnectionState.CLOSED or
-                stream_state == h2.stream.StreamState.CLOSED
+            connection_state == h2.connection.ConnectionState.CLOSED
+            or stream_state == h2.stream.StreamState.CLOSED
         ):
             return
         if isinstance(event, Response):
@@ -206,22 +196,21 @@ class H2Server(HTTPServer, H2Mixin):
                 event.set()
 
     async def server_push(
-            self,
-            stream_id: int,
-            path: str,
-            headers: Iterable[Tuple[bytes, bytes]],
+        self, stream_id: int, path: str, headers: Iterable[Tuple[bytes, bytes]]
     ) -> None:
         push_stream_id = self.connection.get_next_available_stream_id()
         stream = self.streams[stream_id]
-        for name, value in stream.scope['headers']:
-            if name == b':authority':
+        for name, value in stream.scope["headers"]:
+            if name == b":authority":
                 authority = value
         request_headers = [
-            (name, value) for name, value in chain(
+            (name, value)
+            for name, value in chain(
                 [
-                    (b':method', b'GET'), (b':path', path.encode()),
-                    (b':scheme', stream.scope['scheme'].encode()),
-                    (b':authority', authority),
+                    (b":method", b"GET"),
+                    (b":path", path.encode()),
+                    (b":scheme", stream.scope["scheme"].encode()),
+                    (b":authority", authority),
                 ],
                 headers,
                 self.response_headers(),
@@ -229,7 +218,8 @@ class H2Server(HTTPServer, H2Mixin):
         ]
         try:
             self.connection.push_stream(
-                stream_id=stream_id, promised_stream_id=push_stream_id,
+                stream_id=stream_id,
+                promised_stream_id=push_stream_id,
                 request_headers=request_headers,
             )
         except h2.exceptions.ProtocolError:
@@ -244,4 +234,4 @@ class H2Server(HTTPServer, H2Mixin):
 
     @property
     def scheme(self) -> str:
-        return 'https' if self._is_ssl else 'http'
+        return "https" if self._is_ssl else "http"

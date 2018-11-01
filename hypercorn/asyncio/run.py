@@ -8,21 +8,26 @@ from multiprocessing import Event, Process
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
 from socket import (
-    AF_INET, AF_INET6, fromfd as socket_fromfd, SO_REUSEADDR, SOCK_STREAM, socket,
+    AF_INET,
+    AF_INET6,
+    fromfd as socket_fromfd,
+    SO_REUSEADDR,
+    SOCK_STREAM,
+    socket,
     SOL_SOCKET,
 )
 from types import ModuleType
 from typing import Any, Dict, Optional, Type
 
-from .base import HTTPServer
-from .h11 import H11Server
-from .h2 import H2Server
-from .lifespan import Lifespan
-from .wsproto import WebsocketServer
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import load_application, write_pid_file
+from .base import HTTPServer
+from .h2 import H2Server
+from .h11 import H11Server
+from .lifespan import Lifespan
+from .wsproto import WebsocketServer
 
 try:
     from socket import AF_UNIX
@@ -46,12 +51,8 @@ async def _check_shutdown(shutdown_event: EventType) -> None:
 
 
 class Server(asyncio.Protocol):
-
     def __init__(
-            self,
-            app: Type[ASGIFramework],
-            loop: asyncio.AbstractEventLoop,
-            config: Config,
+        self, app: Type[ASGIFramework], loop: asyncio.AbstractEventLoop, config: Config
     ) -> None:
         self.app = app
         self.loop = loop
@@ -60,14 +61,14 @@ class Server(asyncio.Protocol):
         self._ssl_enabled = False
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        ssl_object = transport.get_extra_info('ssl_object')
+        ssl_object = transport.get_extra_info("ssl_object")
         if ssl_object is not None:
             self._ssl_enabled = True
             protocol = ssl_object.selected_alpn_protocol()
         else:
-            protocol = 'http/1.1'
+            protocol = "http/1.1"
 
-        if protocol == 'h2':
+        if protocol == "h2":
             self._server = H2Server(self.app, self.loop, self.config, transport)
         else:
             self._server = H11Server(self.app, self.loop, self.config, transport)
@@ -80,12 +81,18 @@ class Server(asyncio.Protocol):
             self._server.data_received(data)
         except WebsocketProtocolRequired as error:
             self._server = WebsocketServer(
-                self.app, self.loop, self.config, self._server.transport,
+                self.app,
+                self.loop,
+                self.config,
+                self._server.transport,
                 upgrade_request=error.request,
             )
         except H2CProtocolRequired as error:
             self._server = H2Server(
-                self.app, self.loop, self.config, self._server.transport,
+                self.app,
+                self.loop,
+                self.config,
+                self._server.transport,
                 upgrade_request=error.request,
             )
 
@@ -107,7 +114,7 @@ async def _observe_changes() -> bool:
     last_updates: Dict[ModuleType, float] = {}
     while True:
         for module in list(sys.modules.values()):
-            filename = getattr(module, '__file__', None)
+            filename = getattr(module, "__file__", None)
             if filename is None:
                 continue
             mtime = Path(filename).stat().st_mtime
@@ -125,13 +132,13 @@ async def _windows_signal_support() -> None:
 
 
 def run_single(
-        app: Type[ASGIFramework],
-        config: Config,
-        *,
-        loop: asyncio.AbstractEventLoop,
-        sock: Optional[socket]=None,
-        is_child: bool=False,
-        shutdown_event: Optional[EventType]=None,
+    app: Type[ASGIFramework],
+    config: Config,
+    *,
+    loop: asyncio.AbstractEventLoop,
+    sock: Optional[socket] = None,
+    is_child: bool = False,
+    shutdown_event: Optional[EventType] = None,
 ) -> None:
     """Create a server to run the app on given the options.
 
@@ -141,7 +148,7 @@ def run_single(
         loop: Asyncio loop to create the server in, if None, take default one.
     """
     if loop is None:
-        warnings.warn('Event loop is not specified, this can cause unexpected errors')
+        warnings.warn("Event loop is not specified, this can cause unexpected errors")
         loop = asyncio.get_event_loop()
 
     if config.pid_path is not None and not is_child:
@@ -158,31 +165,34 @@ def run_single(
 
     if sock is not None:
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock, reuse_port=is_child,
+            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock, reuse_port=is_child
         )
     elif config.file_descriptor is not None:
         sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock,
+            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock
         )
     elif config.unix_domain is not None:
         create_server = loop.create_unix_server(
-            lambda: Server(app, loop, config), config.unix_domain, ssl=ssl_context,
+            lambda: Server(app, loop, config), config.unix_domain, ssl=ssl_context
         )
     else:
         create_server = loop.create_server(
-            lambda: Server(app, loop, config), host=config.host, port=config.port, ssl=ssl_context,
+            lambda: Server(app, loop, config),
+            host=config.host,
+            port=config.port,
+            ssl=ssl_context,
             reuse_port=is_child,
         )
     server = loop.run_until_complete(create_server)
 
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         loop.create_task(_windows_signal_support())
 
     if shutdown_event is not None:
         loop.create_task(_check_shutdown(shutdown_event))
     else:
-        for signal_name in {'SIGINT', 'SIGTERM', 'SIGBREAK'}:
+        for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
             if hasattr(signal, signal_name):
                 signal.signal(getattr(signal, signal_name), _raise_shutdown)
 
@@ -235,7 +245,7 @@ def run_multiple(config: Config) -> None:
     elif config.file_descriptor is not None:
         sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
     else:
-        sock = socket(AF_INET6 if ':' in config.host else AF_INET)
+        sock = socket(AF_INET6 if ":" in config.host else AF_INET)
         sock.bind((config.host, config.port))
     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     sock.set_inheritable(True)  # type: ignore
@@ -252,7 +262,7 @@ def run_multiple(config: Config) -> None:
     for _ in range(config.workers):
         process = Process(
             target=_run_worker,
-            kwargs={'config': config, 'shutdown_event': shutdown_event, 'sock': sock},
+            kwargs={"config": config, "shutdown_event": shutdown_event, "sock": sock},
         )
         process.daemon = True
         process.start()
@@ -261,7 +271,7 @@ def run_multiple(config: Config) -> None:
     def shutdown(*args: Any) -> None:
         shutdown_event.set()
 
-    for signal_name in {'SIGINT', 'SIGTERM', 'SIGBREAK'}:
+    for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
         if hasattr(signal, signal_name):
             signal.signal(getattr(signal, signal_name), shutdown)
 
@@ -273,12 +283,12 @@ def run_multiple(config: Config) -> None:
     sock.close()
 
 
-def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket]=None) -> None:
-    if config.worker_class == 'uvloop':
+def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket] = None) -> None:
+    if config.worker_class == "uvloop":
         try:
             import uvloop
         except ImportError as error:
-            raise Exception('uvloop is not installed') from error
+            raise Exception("uvloop is not installed") from error
         else:
             asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -290,7 +300,7 @@ def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket
 
 
 def _cancel_all_other_tasks(
-        loop: asyncio.AbstractEventLoop, protected_task: asyncio.Future,
+    loop: asyncio.AbstractEventLoop, protected_task: asyncio.Future
 ) -> None:
     tasks = [task for task in asyncio.tasks.all_tasks(loop) if task != protected_task]
     for task in tasks:
@@ -301,8 +311,10 @@ def _cancel_all_other_tasks(
         if task.cancelled():
             continue
         if task.exception() is not None:
-            loop.call_exception_handler({
-                'message': 'unhandled exception during asyncio.run() shutdown',
-                'exception': task.exception(),
-                'task': task,
-            })
+            loop.call_exception_handler(
+                {
+                    "message": "unhandled exception during asyncio.run() shutdown",
+                    "exception": task.exception(),
+                    "task": task,
+                }
+            )

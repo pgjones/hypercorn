@@ -6,31 +6,36 @@ import wsproto.connection
 import wsproto.events
 import wsproto.extensions
 
-from .base import HTTPServer
 from ..asgi.wsproto import (
-    AcceptConnection, ASGIWebsocketState, CloseConnection, Data, FrameTooLarge, WebsocketBuffer,
-    WebsocketMixin, WsprotoEvent,
+    AcceptConnection,
+    ASGIWebsocketState,
+    CloseConnection,
+    Data,
+    FrameTooLarge,
+    WebsocketBuffer,
+    WebsocketMixin,
+    WsprotoEvent,
 )
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
+from .base import HTTPServer
 
 
 class WebsocketServer(HTTPServer, WebsocketMixin):
-
     def __init__(
-            self,
-            app: Type[ASGIFramework],
-            loop: asyncio.AbstractEventLoop,
-            config: Config,
-            transport: asyncio.BaseTransport,
-            *,
-            upgrade_request: Optional[h11.Request]=None,
+        self,
+        app: Type[ASGIFramework],
+        loop: asyncio.AbstractEventLoop,
+        config: Config,
+        transport: asyncio.BaseTransport,
+        *,
+        upgrade_request: Optional[h11.Request] = None,
     ) -> None:
-        super().__init__(loop, config, transport, 'wsproto')
+        super().__init__(loop, config, transport, "wsproto")
         self.stop_keep_alive_timeout()
         self.app = app
         self.connection = wsproto.connection.WSConnection(
-            wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()],
+            wsproto.connection.SERVER, extensions=[wsproto.extensions.PerMessageDeflate()]
         )
 
         self.app_queue: asyncio.Queue = asyncio.Queue()
@@ -47,7 +52,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
 
     def connection_lost(self, error: Optional[Exception]) -> None:
         if error is not None:
-            self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+            self.app_queue.put_nowait({"type": "websocket.disconnect"})
 
     def data_received(self, data: bytes) -> None:
         self.connection.receive_bytes(data)
@@ -64,7 +69,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                 except FrameTooLarge:
                     self.connection.close(1009)  # CLOSE_TOO_LARGE
                     self.write(self.connection.bytes_to_send())
-                    self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                    self.app_queue.put_nowait({"type": "websocket.disconnect"})
                     self.close()
                     break
 
@@ -73,7 +78,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                     self.buffer.clear()
             elif isinstance(event, wsproto.events.ConnectionClosed):
                 self.write(self.connection.bytes_to_send())
-                self.app_queue.put_nowait({'type': 'websocket.disconnect'})
+                self.app_queue.put_nowait({"type": "websocket.disconnect"})
                 self.close()
                 break
 
@@ -105,4 +110,4 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
 
     @property
     def scheme(self) -> str:
-        return 'wss' if self.ssl_info is not None else 'ws'
+        return "wss" if self.ssl_info is not None else "ws"

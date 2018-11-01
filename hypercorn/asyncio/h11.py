@@ -3,25 +3,24 @@ from typing import Optional, Type
 
 import h11
 
-from .base import HTTPServer
 from ..asgi.h11 import ASGIH11State, H11Mixin
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
+from .base import HTTPServer
 
 
 class H11Server(HTTPServer, H11Mixin):
-
     def __init__(
-            self,
-            app: Type[ASGIFramework],
-            loop: asyncio.AbstractEventLoop,
-            config: Config,
-            transport: asyncio.BaseTransport,
+        self,
+        app: Type[ASGIFramework],
+        loop: asyncio.AbstractEventLoop,
+        config: Config,
+        transport: asyncio.BaseTransport,
     ) -> None:
-        super().__init__(loop, config, transport, 'h11')
+        super().__init__(loop, config, transport, "h11")
         self.app = app
         self.connection = h11.Connection(
-            h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size,
+            h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size
         )
 
         self.app_queue: asyncio.Queue = asyncio.Queue(loop=loop)
@@ -32,11 +31,11 @@ class H11Server(HTTPServer, H11Mixin):
 
     def connection_lost(self, error: Optional[Exception]) -> None:
         if error is not None:
-            self.app_queue.put_nowait({'type': 'http.disconnect'})
+            self.app_queue.put_nowait({"type": "http.disconnect"})
             self.connection.send_failed()  # Set our state to error, prevents recycling
 
     def eof_received(self) -> bool:
-        self.data_received(b'')
+        self.data_received(b"")
         return True
 
     def data_received(self, data: bytes) -> None:
@@ -48,14 +47,14 @@ class H11Server(HTTPServer, H11Mixin):
         while True:
             if self.connection.they_are_waiting_for_100_continue:
                 self.send(
-                    h11.InformationalResponse(status_code=100, headers=self.response_headers()),
+                    h11.InformationalResponse(status_code=100, headers=self.response_headers())
                 )
             try:
                 event = self.connection.next_event()
             except h11.RemoteProtocolError:
                 self.send(self.error_response(400))
                 self.send(h11.EndOfMessage())
-                self.app_queue.put_nowait({'type': 'http.disconnect'})
+                self.app_queue.put_nowait({"type": "http.disconnect"})
                 self.close()
                 break
             else:
@@ -65,21 +64,17 @@ class H11Server(HTTPServer, H11Mixin):
                     self.task = self.loop.create_task(self.handle_request(event))
                     self.task.add_done_callback(self.recycle_or_close)
                 elif isinstance(event, h11.EndOfMessage):
-                    self.app_queue.put_nowait({
-                        'type': 'http.request',
-                        'body': b'',
-                        'more_body': False,
-                    })
+                    self.app_queue.put_nowait(
+                        {"type": "http.request", "body": b"", "more_body": False}
+                    )
                 elif isinstance(event, h11.Data):
-                    self.app_queue.put_nowait({
-                        'type': 'http.request',
-                        'body': event.data,
-                        'more_body': True,
-                    })
+                    self.app_queue.put_nowait(
+                        {"type": "http.request", "body": event.data, "more_body": True}
+                    )
                 elif (
-                        isinstance(event, h11.ConnectionClosed)
-                        or event is h11.NEED_DATA
-                        or event is h11.PAUSED
+                    isinstance(event, h11.ConnectionClosed)
+                    or event is h11.NEED_DATA
+                    or event is h11.PAUSED
                 ):
                     break
 
@@ -111,4 +106,4 @@ class H11Server(HTTPServer, H11Mixin):
 
     @property
     def scheme(self) -> str:
-        return 'https' if self.ssl_info is not None else 'http'
+        return "https" if self.ssl_info is not None else "http"

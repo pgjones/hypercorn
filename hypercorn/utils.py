@@ -15,28 +15,28 @@ class NoAppException(Exception):
 
 
 def suppress_body(method: str, status_code: int) -> bool:
-    return method == 'HEAD' or 100 <= status_code < 200 or status_code in {204, 304, 412}
+    return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
 
 
 def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
     return [
-        (b'date', format_date_time(time()).encode('ascii')),
-        (b'server', f"hypercorn-{protocol}".encode('ascii')),
+        (b"date", format_date_time(time()).encode("ascii")),
+        (b"server", f"hypercorn-{protocol}".encode("ascii")),
     ]
 
 
 def load_application(path: str) -> Type[ASGIFramework]:
     try:
-        module_name, app_name = path.split(':', 1)
+        module_name, app_name = path.split(":", 1)
     except ValueError:
-        module_name, app_name = path, 'app'
+        module_name, app_name = path, "app"
     except AttributeError:
         raise NoAppException()
 
     module_path = Path(module_name).resolve()
     sys.path.insert(0, str(module_path.parent))
     if module_path.is_file():
-        import_name = module_path.with_suffix('').name
+        import_name = module_path.with_suffix("").name
     else:
         import_name = module_path.name
     try:
@@ -54,7 +54,7 @@ def load_application(path: str) -> Type[ASGIFramework]:
 
 
 def write_pid_file(pid_path: str) -> None:
-    with open(pid_path, 'w') as file_:
+    with open(pid_path, "w") as file_:
         file_.write(f"{os.getpid()}")
 
 
