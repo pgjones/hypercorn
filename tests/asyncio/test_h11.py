@@ -25,9 +25,7 @@ class MockConnection:
     ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
-        self.server = H11Server(  # type: ignore
-            framework, event_loop, Config(), self.transport
-        )
+        self.server = H11Server(framework, event_loop, Config(), self.transport)  # type: ignore
 
     async def send(self, event: Union[h11.Request, h11.Data, h11.EndOfMessage]) -> None:
         await self.send_raw(self.client.send(event))
