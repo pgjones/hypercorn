@@ -165,6 +165,8 @@ class H2Server(HTTPServer, H2Mixin):
 
             chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
             chunk_size = min(chunk_size, self.connection.max_outbound_frame_size)
+            if chunk_size < 1:  # Pathological client sending negative window sizes
+                continue
             self.connection.send_data(stream_id, data[:chunk_size])
             await self.send()
             data = data[chunk_size:]
