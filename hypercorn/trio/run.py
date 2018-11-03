@@ -1,3 +1,5 @@
+import os
+import sys
 from functools import partial
 from typing import Type
 
@@ -5,7 +7,7 @@ import trio
 from ..asgi.run import WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import load_application, write_pid_file
+from ..utils import load_application, MustReloadException, observe_changes, write_pid_file
 from .h2 import H2Server
 from .h11 import H11Server
 from .lifespan import Lifespan
@@ -35,28 +37,40 @@ async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.ab
 async def run_single(config: Config) -> None:
     app = load_application(config.application_path)
     lifespan = Lifespan(app, config)
-    async with trio.open_nursery() as nursery:
-        await nursery.start(lifespan.handle_lifespan)
+    reload_ = False
+
+    async with trio.open_nursery() as lifespan_nursery:
+        await lifespan_nursery.start(lifespan.handle_lifespan)
         await lifespan.wait_for_startup()
 
         try:
-            if config.ssl_enabled:
-                await trio.serve_ssl_over_tcp(
-                    partial(serve_stream, app, config),
-                    ssl_context=config.create_ssl_context(),
-                    host=config.host,
-                    port=config.port,
-                    https_compatible=True,
-                )
-            else:
-                await trio.serve_tcp(
-                    partial(serve_stream, app, config), host=config.host, port=config.port
-                )
+            async with trio.open_nursery() as nursery:
+                if config.use_reloader:
+                    nursery.start_soon(observe_changes, trio.sleep)
+
+                if config.ssl_enabled:
+                    await trio.serve_ssl_over_tcp(
+                        partial(serve_stream, app, config),
+                        ssl_context=config.create_ssl_context(),
+                        host=config.host,
+                        port=config.port,
+                        https_compatible=True,
+                    )
+                else:
+                    await trio.serve_tcp(
+                        partial(serve_stream, app, config), host=config.host, port=config.port
+                    )
+        except MustReloadException:
+            reload_ = True
         except KeyboardInterrupt:
             pass
         finally:
             await lifespan.wait_for_shutdown()
-            nursery.cancel_scope.cancel()
+            lifespan_nursery.cancel_scope.cancel()
+
+    if reload_:
+        # Restart this process (only safe for dev/debug)
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 def run(config: Config) -> None:

@@ -6,7 +6,6 @@ import sys
 import warnings
 from multiprocessing import Event, Process
 from multiprocessing.synchronize import Event as EventType
-from pathlib import Path
 from socket import (
     AF_INET,
     AF_INET6,
@@ -16,13 +15,12 @@ from socket import (
     socket,
     SOL_SOCKET,
 )
-from types import ModuleType
-from typing import Any, Dict, Optional, Type
+from typing import Any, Optional, Type
 
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import load_application, write_pid_file
+from ..utils import load_application, MustReloadException, observe_changes, write_pid_file
 from .base import HTTPServer
 from .h2 import H2Server
 from .h11 import H11Server
@@ -110,20 +108,6 @@ class Server(asyncio.Protocol):
         self._server.resume_writing()
 
 
-async def _observe_changes() -> bool:
-    last_updates: Dict[ModuleType, float] = {}
-    while True:
-        for module in list(sys.modules.values()):
-            filename = getattr(module, "__file__", None)
-            if filename is None:
-                continue
-            mtime = Path(filename).stat().st_mtime
-            if mtime > last_updates.get(module, mtime):
-                return True
-            last_updates[module] = mtime
-        await asyncio.sleep(1)
-
-
 async def _windows_signal_support() -> None:
     # See https://bugs.python.org/issue23057, to catch signals on
     # Windows it is necessary for an IO event to happen periodically.
@@ -196,10 +180,11 @@ def run_single(
     reload_ = False
     try:
         if config.use_reloader:
-            loop.run_until_complete(_observe_changes())
-            reload_ = True
+            loop.run_until_complete(observe_changes(asyncio.sleep))
         else:
             loop.run_forever()
+    except MustReloadException:
+        reload_ = True
     except (SystemExit, KeyboardInterrupt):
         pass
     finally:

@@ -4,10 +4,15 @@ from importlib import import_module
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 from time import time
-from typing import List, Optional, Tuple, Type
+from types import ModuleType
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Type
 from wsgiref.handlers import format_date_time
 
 from .typing import ASGIFramework
+
+
+class MustReloadException(Exception):
+    pass
 
 
 class NoAppException(Exception):
@@ -51,6 +56,20 @@ def load_application(path: str) -> Type[ASGIFramework]:
         return eval(app_name, vars(module))
     except NameError:
         raise NoAppException()
+
+
+async def observe_changes(sleep: Callable[[int], Awaitable[Any]]) -> None:
+    last_updates: Dict[ModuleType, float] = {}
+    while True:
+        for module in list(sys.modules.values()):
+            filename = getattr(module, "__file__", None)
+            if filename is None:
+                continue
+            mtime = Path(filename).stat().st_mtime
+            if mtime > last_updates.get(module, mtime):
+                raise MustReloadException()
+            last_updates[module] = mtime
+        await sleep(1)
 
 
 def write_pid_file(pid_path: str) -> None:
