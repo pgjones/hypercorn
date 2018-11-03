@@ -174,9 +174,12 @@ class H2Server(HTTPServer, H2Mixin):
                 break
 
     async def send(self) -> None:
+        data = self.connection.data_to_send()
+        if data == b"":
+            return
         async with self.send_lock:
             try:
-                await self.stream.send_all(self.connection.data_to_send())
+                await self.stream.send_all(data)
             except trio.BrokenResourceError:
                 pass
 

@@ -129,7 +129,9 @@ class H2Server(HTTPServer, H2Mixin):
         self.send()
 
     def send(self) -> None:
-        self.write(self.connection.data_to_send())  # type: ignore
+        data = self.connection.data_to_send()
+        if data != b"":
+            self.write(data)
 
     async def asend(self, event: H2Event) -> None:
         connection_state = self.connection.state_machine.state
