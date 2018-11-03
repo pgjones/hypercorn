@@ -5,7 +5,7 @@ import trio
 from ..asgi.run import WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import load_application
+from ..utils import load_application, write_pid_file
 from .h2 import H2Server
 from .h11 import H11Server
 from .lifespan import Lifespan
@@ -63,5 +63,8 @@ def run(config: Config) -> None:
 
     if config.unix_domain is not None or config.file_descriptor is not None:
         raise NotImplementedError()
+
+    if config.pid_path is not None:
+        write_pid_file(config.pid_path)
 
     trio.run(run_single, config)

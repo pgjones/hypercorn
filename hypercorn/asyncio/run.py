@@ -151,9 +151,6 @@ def run_single(
         warnings.warn("Event loop is not specified, this can cause unexpected errors")
         loop = asyncio.get_event_loop()
 
-    if config.pid_path is not None and not is_child:
-        write_pid_file(config.pid_path)
-
     loop.set_debug(config.debug)
 
     lifespan = Lifespan(app, config)
@@ -236,9 +233,6 @@ def run_multiple(config: Config) -> None:
     if config.use_reloader:
         raise RuntimeError("Reloader can only be used with a single worker")
 
-    if config.pid_path is not None:
-        write_pid_file(config.pid_path)
-
     if config.unix_domain is not None:
         sock = socket(AF_UNIX)
         sock.bind(config.unix_domain)
@@ -300,6 +294,9 @@ def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket
 
 
 def run(config: Config) -> None:
+    if config.pid_path is not None:
+        write_pid_file(config.pid_path)
+
     if config.workers == 1:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
