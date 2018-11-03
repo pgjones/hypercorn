@@ -299,6 +299,16 @@ def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket
     run_single(app, config, loop=loop, sock=sock, is_child=True, shutdown_event=shutdown_event)
 
 
+def run(config: Config) -> None:
+    if config.workers == 1:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        app = load_application(config.application_path)
+        run_single(app, config, loop=loop)
+    else:
+        run_multiple(config)
+
+
 def _cancel_all_other_tasks(
     loop: asyncio.AbstractEventLoop, protected_task: asyncio.Future
 ) -> None:
