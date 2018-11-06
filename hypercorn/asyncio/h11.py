@@ -79,7 +79,10 @@ class H11Server(HTTPServer, H11Mixin):
                     break
 
     def send(self, event: H11SendableEvent) -> None:
-        self.write(self.connection.send(event))  # type: ignore
+        try:
+            self.write(self.connection.send(event))  # type: ignore
+        except h11.LocalProtocolError:
+            pass
 
     async def asend(self, event: H11SendableEvent) -> None:
         self.send(event)
