@@ -300,9 +300,7 @@ def _cancel_all_other_tasks(
     loop.run_until_complete(asyncio.gather(*tasks, loop=loop, return_exceptions=True))
 
     for task in tasks:
-        if task.cancelled():
-            continue
-        if task.exception() is not None:
+        if not task.cancelled() and task.exception() is not None:
             loop.call_exception_handler(
                 {
                     "message": "unhandled exception during asyncio.run() shutdown",
