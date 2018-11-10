@@ -146,7 +146,7 @@ def run_single(
         sock = create_socket(config)
 
     create_server = loop.create_server(
-        lambda: Server(app, loop, config), ssl=ssl_context, sock=sock
+        lambda: Server(app, loop, config), backlog=config.backlog, ssl=ssl_context, sock=sock
     )
     server = loop.run_until_complete(create_server)
 

@@ -55,7 +55,7 @@ async def run_single(config: Config) -> None:
                     nursery.start_soon(observe_changes, trio.sleep)
 
                 sock = create_socket(config)
-                sock.listen(100)
+                sock.listen(config.backlog)
                 listeners = [trio.SocketListener(trio.socket.from_stdlib_socket(sock))]
                 if config.ssl_enabled:
                     listeners = [

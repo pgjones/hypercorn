@@ -34,6 +34,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=sentinel,
     )
     parser.add_argument(
+        "--backlog", help="The maximum number of pending connections", type=int, default=sentinel
+    )
+    parser.add_argument(
         "-b",
         "--bind",
         dest="binds",
@@ -117,6 +120,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.access_log_format = args.access_logformat
     if args.access_log is not sentinel:
         config.access_log_target = args.access_log
+    if args.backlog is not sentinel:
+        config.backlog = args.backlog
     if args.ciphers is not sentinel:
         config.ciphers = args.ciphers
     if args.debug is not sentinel:

@@ -26,6 +26,7 @@ class Config:
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_logger: Optional[logging.Logger] = None
     application_path: str
+    backlog = 100
     ca_certs: Optional[str] = None
     certfile: Optional[str] = None
     ciphers: str = "ECDHE+AESGCM"
