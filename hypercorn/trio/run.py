@@ -7,7 +7,13 @@ import trio
 from ..asgi.run import WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import load_application, MustReloadException, observe_changes, write_pid_file
+from ..utils import (
+    create_socket,
+    load_application,
+    MustReloadException,
+    observe_changes,
+    write_pid_file,
+)
 from .h2 import H2Server
 from .h11 import H11Server
 from .lifespan import Lifespan
@@ -48,18 +54,19 @@ async def run_single(config: Config) -> None:
                 if config.use_reloader:
                     nursery.start_soon(observe_changes, trio.sleep)
 
+                sock = create_socket(config)
+                sock.listen(100)
+                listeners = [trio.SocketListener(trio.socket.from_stdlib_socket(sock))]
                 if config.ssl_enabled:
-                    await trio.serve_ssl_over_tcp(
-                        partial(serve_stream, app, config),
-                        ssl_context=config.create_ssl_context(),
-                        host=config.host,
-                        port=config.port,
-                        https_compatible=True,
-                    )
-                else:
-                    await trio.serve_tcp(
-                        partial(serve_stream, app, config), host=config.host, port=config.port
-                    )
+                    listeners = [
+                        trio.ssl.SSLListener(
+                            tcp_listener, config.create_ssl_context(), https_compatible=True
+                        )
+                        for tcp_listener in listeners
+                    ]
+
+                await trio.serve_listeners(partial(serve_stream, app, config), listeners)
+
         except MustReloadException:
             reload_ = True
         except KeyboardInterrupt:
@@ -74,9 +81,6 @@ async def run_single(config: Config) -> None:
 
 
 def run(config: Config) -> None:
-
-    if config.unix_domain is not None or config.file_descriptor is not None:
-        raise NotImplementedError()
 
     if config.pid_path is not None:
         write_pid_file(config.pid_path)
