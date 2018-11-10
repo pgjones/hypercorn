@@ -1,3 +1,4 @@
+import asyncio
 from enum import auto, Enum
 from itertools import chain
 from time import time
@@ -123,6 +124,8 @@ class H11Mixin:
         try:
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, self.asgi_send)
+        except asyncio.CancelledError:
+            pass
         except Exception:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception("Error in ASGI Framework")

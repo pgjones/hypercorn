@@ -1,3 +1,4 @@
+import asyncio
 from enum import auto, Enum
 from functools import partial
 from itertools import chain
@@ -136,6 +137,8 @@ class WebsocketMixin:
         try:
             asgi_instance = self.app(self.scope)
             await asgi_instance(self.asgi_receive, partial(self.asgi_send, event))
+        except asyncio.CancelledError:
+            pass
         except Exception:
             if self.config.error_logger is not None:
                 self.config.error_logger.exception("Error in ASGI Framework")
