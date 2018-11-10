@@ -150,20 +150,24 @@ def run_single(
     )
     server = loop.run_until_complete(create_server)
 
+    tasks = []
     if platform.system() == "Windows":
-        loop.create_task(_windows_signal_support())
+        tasks.append(loop.create_task(_windows_signal_support()))
 
     if shutdown_event is not None:
-        loop.create_task(_check_shutdown(shutdown_event))
+        tasks.append(loop.create_task(_check_shutdown(shutdown_event)))
     else:
         for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
             if hasattr(signal, signal_name):
                 signal.signal(getattr(signal, signal_name), _raise_shutdown)
 
+    if config.use_reloader:
+        tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
+
     reload_ = False
     try:
-        if config.use_reloader:
-            loop.run_until_complete(observe_changes(asyncio.sleep))
+        if tasks:
+            loop.run_until_complete(asyncio.gather(*tasks))
         else:
             loop.run_forever()
     except MustReloadException:
