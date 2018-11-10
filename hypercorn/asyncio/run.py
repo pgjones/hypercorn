@@ -6,21 +6,19 @@ import sys
 import warnings
 from multiprocessing import Event, Process
 from multiprocessing.synchronize import Event as EventType
-from socket import (
-    AF_INET,
-    AF_INET6,
-    fromfd as socket_fromfd,
-    SO_REUSEADDR,
-    SOCK_STREAM,
-    socket,
-    SOL_SOCKET,
-)
+from socket import socket
 from typing import Any, Optional, Type
 
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import load_application, MustReloadException, observe_changes, write_pid_file
+from ..utils import (
+    create_socket,
+    load_application,
+    MustReloadException,
+    observe_changes,
+    write_pid_file,
+)
 from .base import HTTPServer
 from .h2 import H2Server
 from .h11 import H11Server
@@ -144,27 +142,12 @@ def run_single(
 
     ssl_context = config.create_ssl_context()
 
-    if sock is not None:
-        create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock, reuse_port=is_child
-        )
-    elif config.file_descriptor is not None:
-        sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
-        create_server = loop.create_server(
-            lambda: Server(app, loop, config), ssl=ssl_context, sock=sock
-        )
-    elif config.unix_domain is not None:
-        create_server = loop.create_unix_server(
-            lambda: Server(app, loop, config), config.unix_domain, ssl=ssl_context
-        )
-    else:
-        create_server = loop.create_server(
-            lambda: Server(app, loop, config),
-            host=config.host,
-            port=config.port,
-            ssl=ssl_context,
-            reuse_port=is_child,
-        )
+    if sock is None:
+        sock = create_socket(config)
+
+    create_server = loop.create_server(
+        lambda: Server(app, loop, config), ssl=ssl_context, sock=sock
+    )
     server = loop.run_until_complete(create_server)
 
     if platform.system() == "Windows":
@@ -218,16 +201,7 @@ def run_multiple(config: Config) -> None:
     if config.use_reloader:
         raise RuntimeError("Reloader can only be used with a single worker")
 
-    if config.unix_domain is not None:
-        sock = socket(AF_UNIX)
-        sock.bind(config.unix_domain)
-    elif config.file_descriptor is not None:
-        sock = socket_fromfd(config.file_descriptor, AF_UNIX, SOCK_STREAM)
-    else:
-        sock = socket(AF_INET6 if ":" in config.host else AF_INET)
-        sock.bind((config.host, config.port))
-    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    sock.set_inheritable(True)  # type: ignore
+    sock = create_socket(config)
 
     processes = []
 

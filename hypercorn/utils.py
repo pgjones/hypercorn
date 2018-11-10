@@ -1,13 +1,15 @@
 import os
+import socket
+import stat
 import sys
 from importlib import import_module
 from pathlib import Path
-from socket import AF_INET, AF_INET6
 from time import time
 from types import ModuleType
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Type, Union
 from wsgiref.handlers import format_date_time
 
+from .config import Config
 from .typing import ASGIFramework
 
 
@@ -78,9 +80,42 @@ def write_pid_file(pid_path: str) -> None:
 
 
 def parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
-    if family == AF_INET:
+    if family == socket.AF_INET:
         return address  # type: ignore
-    elif family == AF_INET6:
+    elif family == socket.AF_INET6:
         return (address[0], address[1])
     else:
         return None
+
+
+def create_socket(config: Config) -> socket.socket:
+    bind: Optional[Union[str, tuple]] = None
+    if config.unix_domain is not None:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            if stat.S_ISSOCK(os.stat(config.unix_domain).st_mode):
+                os.remove(config.unix_domain)
+        except FileNotFoundError:
+            pass
+        bind = config.unix_domain
+    elif config.file_descriptor is not None:
+        sock = socket.fromfd(config.file_descriptor, socket.AF_UNIX, socket.SOCK_STREAM)
+    else:
+        sock = socket.socket(
+            socket.AF_INET6 if ":" in config.host else socket.AF_INET, socket.SOCK_STREAM
+        )
+        if config.workers > 1:
+            try:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_RESUSEPORT, 1)  # type: ignore
+            except AttributeError:
+                pass
+        bind = (config.host, config.port)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if bind is not None:
+        sock.bind(bind)
+    sock.setblocking(False)
+    try:
+        sock.set_inheritable(True)  # type: ignore
+    except AttributeError:
+        pass
+    return sock
