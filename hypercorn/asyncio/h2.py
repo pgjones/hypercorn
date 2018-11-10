@@ -51,6 +51,13 @@ class H2Server(HTTPServer, H2Mixin):
             config=h2.config.H2Configuration(client_side=False, header_encoding=None)
         )
         self.connection.DEFAULT_MAX_INBOUND_FRAME_SIZE = config.h2_max_inbound_frame_size
+        self.connection.local_settings = h2.settings.Settings(
+            client=False,
+            initial_values={
+                h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: config.h2_max_concurrent_streams,
+                h2.settings.SettingCodes.MAX_HEADER_LIST_SIZE: config.h2_max_header_list_size,
+            },
+        )
 
         if upgrade_request is None:
             self.connection.initiate_connection()
