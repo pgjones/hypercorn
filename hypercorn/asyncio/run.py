@@ -6,7 +6,7 @@ import sys
 import warnings
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import Any, Callable, Optional, Type
+from typing import Any, Optional, Type
 
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
@@ -142,16 +142,12 @@ def run_single(
     if platform.system() == "Windows":
         tasks.append(loop.create_task(_windows_signal_support()))
 
-    signal_handler: Callable
     if shutdown_event is not None:
         tasks.append(loop.create_task(check_shutdown(shutdown_event, asyncio.sleep)))
-        signal_handler = signal.SIG_IGN  # type: ignore
-    else:
-        signal_handler = _raise_shutdown
 
     for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
         if hasattr(signal, signal_name):
-            signal.signal(getattr(signal, signal_name), signal_handler)
+            signal.signal(getattr(signal, signal_name), _raise_shutdown)
 
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
