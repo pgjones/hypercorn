@@ -64,7 +64,7 @@ async def run_single(
 
                 if sock is None:
                     sock = create_socket(config)
-                sock.listen(config.backlog)
+                    sock.listen(config.backlog)
                 listeners = [trio.SocketListener(trio.socket.from_stdlib_socket(sock))]
                 if config.ssl_enabled:
                     listeners = [
@@ -92,4 +92,6 @@ async def run_single(
 def trio_worker(
     config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
+    if sock is not None:
+        sock.listen(config.backlog)
     trio.run(partial(run_single, config, sock=sock, shutdown_event=shutdown_event))
