@@ -4,20 +4,20 @@ import platform
 import signal
 import sys
 import warnings
-from multiprocessing import Event, Process
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import Any, Optional, Type
+from typing import Any, Callable, Optional, Type
 
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import (
+    check_shutdown,
     create_socket,
     load_application,
     MustReloadException,
     observe_changes,
-    write_pid_file,
+    Shutdown,
 )
 from .base import HTTPServer
 from .h2 import H2Server
@@ -31,19 +31,8 @@ except ImportError:
     AF_UNIX = None
 
 
-class Shutdown(SystemExit):
-    code = 1
-
-
 def _raise_shutdown(*args: Any) -> None:
     raise Shutdown()
-
-
-async def _check_shutdown(shutdown_event: EventType) -> None:
-    while True:
-        if shutdown_event.is_set():
-            raise Shutdown()
-        await asyncio.sleep(0.1)
 
 
 class Server(asyncio.Protocol):
@@ -119,7 +108,6 @@ def run_single(
     *,
     loop: asyncio.AbstractEventLoop,
     sock: Optional[socket] = None,
-    is_child: bool = False,
     shutdown_event: Optional[EventType] = None,
 ) -> None:
     """Create a server to run the app on given the options.
@@ -154,12 +142,16 @@ def run_single(
     if platform.system() == "Windows":
         tasks.append(loop.create_task(_windows_signal_support()))
 
+    signal_handler: Callable
     if shutdown_event is not None:
-        tasks.append(loop.create_task(_check_shutdown(shutdown_event)))
+        tasks.append(loop.create_task(check_shutdown(shutdown_event, asyncio.sleep)))
+        signal_handler = signal.SIG_IGN  # type: ignore
     else:
-        for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
-            if hasattr(signal, signal_name):
-                signal.signal(getattr(signal, signal_name), _raise_shutdown)
+        signal_handler = _raise_shutdown
+
+    for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
+        if hasattr(signal, signal_name):
+            signal.signal(getattr(signal, signal_name), signal_handler)
 
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
@@ -172,23 +164,17 @@ def run_single(
             loop.run_forever()
     except MustReloadException:
         reload_ = True
-    except (SystemExit, KeyboardInterrupt):
+    except (Shutdown, KeyboardInterrupt):
         pass
     finally:
         server.close()
         loop.run_until_complete(server.wait_closed())
         _cancel_all_other_tasks(loop, lifespan_task)
-        loop.run_until_complete(loop.shutdown_asyncgens())
-
-        try:
-            loop.remove_signal_handler(signal.SIGINT)
-            loop.remove_signal_handler(signal.SIGTERM)
-        except NotImplementedError:
-            pass  # Unix only
 
         loop.run_until_complete(lifespan.wait_for_shutdown())
         lifespan_task.cancel()
         loop.run_until_complete(lifespan_task)
+        loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
 
     if reload_:
@@ -196,77 +182,31 @@ def run_single(
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
-def run_multiple(config: Config) -> None:
-    """Create a server to run as specified in teh config.
+def asyncio_worker(
+    config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+) -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-    Arguments:
-        config: The configuration that defines the server.
-    """
-    if config.use_reloader:
-        raise RuntimeError("Reloader can only be used with a single worker")
-
-    sock = create_socket(config)
-
-    processes = []
-
-    # Ignore SIGINT before creating the processes, so that they
-    # inherit the signal handling. This means that the shutdown
-    # function controls the shutdown.
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-    shutdown_event = Event()
-
-    for _ in range(config.workers):
-        process = Process(
-            target=_run_worker,
-            kwargs={"config": config, "shutdown_event": shutdown_event, "sock": sock},
-        )
-        process.daemon = True
-        process.start()
-        processes.append(process)
-
-    def shutdown(*args: Any) -> None:
-        shutdown_event.set()
-
-    for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
-        if hasattr(signal, signal_name):
-            signal.signal(getattr(signal, signal_name), shutdown)
-
-    for process in processes:
-        process.join()
-    for process in processes:
-        process.terminate()
-
-    sock.close()
+    app = load_application(config.application_path)
+    run_single(app, config, loop=loop, sock=sock, shutdown_event=shutdown_event)
 
 
-def _run_worker(config: Config, shutdown_event: EventType, sock: Optional[socket] = None) -> None:
-    if config.worker_class == "uvloop":
-        try:
-            import uvloop
-        except ImportError as error:
-            raise Exception("uvloop is not installed") from error
-        else:
-            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+def uvloop_worker(
+    config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+) -> None:
+    try:
+        import uvloop
+    except ImportError as error:
+        raise Exception("uvloop is not installed") from error
+    else:
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     app = load_application(config.application_path)
-    run_single(app, config, loop=loop, sock=sock, is_child=True, shutdown_event=shutdown_event)
-
-
-def run(config: Config) -> None:
-    if config.pid_path is not None:
-        write_pid_file(config.pid_path)
-
-    if config.workers == 1:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        app = load_application(config.application_path)
-        run_single(app, config, loop=loop)
-    else:
-        run_multiple(config)
+    run_single(app, config, loop=loop, sock=sock, shutdown_event=shutdown_event)
 
 
 def _cancel_all_other_tasks(

@@ -1,18 +1,21 @@
 import os
 import sys
 from functools import partial
-from typing import Type
+from multiprocessing.synchronize import Event as EventType
+from socket import socket
+from typing import Optional, Type
 
 import trio
 from ..asgi.run import WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import (
+    check_shutdown,
     create_socket,
     load_application,
     MustReloadException,
     observe_changes,
-    write_pid_file,
+    Shutdown,
 )
 from .h2 import H2Server
 from .h11 import H11Server
@@ -40,7 +43,9 @@ async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.ab
         await protocol.handle_connection()
 
 
-async def run_single(config: Config) -> None:
+async def run_single(
+    config: Config, *, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+) -> None:
     app = load_application(config.application_path)
     lifespan = Lifespan(app, config)
     reload_ = False
@@ -54,7 +59,11 @@ async def run_single(config: Config) -> None:
                 if config.use_reloader:
                     nursery.start_soon(observe_changes, trio.sleep)
 
-                sock = create_socket(config)
+                if shutdown_event is not None:
+                    nursery.start_soon(check_shutdown, shutdown_event, trio.sleep)
+
+                if sock is None:
+                    sock = create_socket(config)
                 sock.listen(config.backlog)
                 listeners = [trio.SocketListener(trio.socket.from_stdlib_socket(sock))]
                 if config.ssl_enabled:
@@ -69,7 +78,7 @@ async def run_single(config: Config) -> None:
 
         except MustReloadException:
             reload_ = True
-        except KeyboardInterrupt:
+        except (Shutdown, KeyboardInterrupt):
             pass
         finally:
             await lifespan.wait_for_shutdown()
@@ -80,9 +89,7 @@ async def run_single(config: Config) -> None:
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
-def run(config: Config) -> None:
-
-    if config.pid_path is not None:
-        write_pid_file(config.pid_path)
-
-    trio.run(run_single, config)
+def trio_worker(
+    config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+) -> None:
+    trio.run(partial(run_single, config, sock=sock, shutdown_event=shutdown_event))

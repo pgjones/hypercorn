@@ -3,6 +3,7 @@ import socket
 import stat
 import sys
 from importlib import import_module
+from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
 from time import time
 from types import ModuleType
@@ -11,6 +12,10 @@ from wsgiref.handlers import format_date_time
 
 from .config import Config
 from .typing import ASGIFramework
+
+
+class Shutdown(SystemExit):
+    code = 1
 
 
 class MustReloadException(Exception):
@@ -60,7 +65,7 @@ def load_application(path: str) -> Type[ASGIFramework]:
         raise NoAppException()
 
 
-async def observe_changes(sleep: Callable[[int], Awaitable[Any]]) -> None:
+async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
     last_updates: Dict[ModuleType, float] = {}
     while True:
         for module in list(sys.modules.values()):
@@ -72,6 +77,15 @@ async def observe_changes(sleep: Callable[[int], Awaitable[Any]]) -> None:
                 raise MustReloadException()
             last_updates[module] = mtime
         await sleep(1)
+
+
+async def check_shutdown(
+    shutdown_event: EventType, sleep: Callable[[float], Awaitable[Any]]
+) -> None:
+    while True:
+        if shutdown_event.is_set():
+            raise Shutdown()
+        await sleep(0.1)
 
 
 def write_pid_file(pid_path: str) -> None:
