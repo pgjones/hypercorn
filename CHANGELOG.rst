@@ -1,3 +1,35 @@
+0.4.0 2018-11-11
+----------------
+
+* Introduce a worker-class configuration option. Note that the ``-k``
+  cli option is now mapped to ``-w`` to match Gunicorn. ``-k`` for the
+  worker class and ``-w`` for the number of workers. Note also that
+  ``--uvloop`` is deprecated and replaced with ``-k uvloop``.
+* Add a trio worker, ``-k trio`` to run trio or neutral ASGI
+  applications. This worker supports HTTP/1, HTTP/2 and
+  websockets. Note trio must be installed, ideally via the Hypercorn
+  ``trio`` extra requires.
+* Handle application failures with a 500 response if no (partial)
+  response has been sent.
+* Handle application failures with a 500 HTTP or 1006 websocket
+  response depending on upgrade acceptance.
+* Bugfix a race condition establishing the client/server address.
+* Bugfix don't create an unpickleable (on windows) ssl context in the
+  master worker, rather do so in each worker. This should support
+  multiple workers on windows.
+* Support the ASGI lifespan protocol (with backwards compatibility to
+  the provisional protocol for asyncio & uvloop workers).
+* Bugfix cleanup all tasks on asyncio & uvloop workers.
+* Adopt Black for code formatting.
+* Bugfix h2 don't try to send negative or zero bytes.
+* Bugfix h2 don't send nothing.
+* Bugfix restore the single worker behaviour of being a single
+  process.
+* Bugfix Ensure sending doesn't error when the connection is closed.
+* Allow configuration of h2 max concurrent streams and max header list
+  size.
+* Introduce a backlog configuration option.
+
 0.3.2 2018-10-04
 ----------------
 
