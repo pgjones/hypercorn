@@ -1,3 +1,10 @@
+0.4.1 2018-11-12
+----------------
+
+* Bugfix uvloop argument usage
+* Bugfix lifespan not supported error
+* Bugfix downgrade logging to warning for no lifespan support
+
 0.4.0 2018-11-11
 ----------------
 
