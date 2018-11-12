@@ -36,6 +36,7 @@ class Lifespan:
         if not self.supported:
             if hasattr(self.app, "startup"):  # Compatibility with Quart 0.6.X
                 await self.app.startup()  # type: ignore
+            return
 
         await self.app_queue.put({"type": "lifespan.startup"})
         await asyncio.wait_for(self.startup.wait(), timeout=self.config.startup_timeout)
@@ -44,6 +45,7 @@ class Lifespan:
         if not self.supported:
             if hasattr(self.app, "cleanup"):  # Compatibility with Quart 0.6.X
                 await self.app.cleanup()  # type: ignore
+            return
 
         await self.app_queue.put({"type": "lifespan.shutdown"})
         await asyncio.wait_for(self.shutdown.wait(), timeout=self.config.shutdown_timeout)
