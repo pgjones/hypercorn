@@ -1,3 +1,8 @@
+0.4.2 2018-11-13
+----------------
+
+* Bugfix allow SSL setting to be configured in a file
+
 0.4.1 2018-11-12
 ----------------
 
