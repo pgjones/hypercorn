@@ -46,8 +46,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=[],
         action="append",
     )
-    parser.add_argument("--ca-certs", help="Path to the SSL CA certificate file", default=None)
-    parser.add_argument("--certfile", help="Path to the SSL certificate file", default=None)
+    parser.add_argument("--ca-certs", help="Path to the SSL CA certificate file", default=sentinel)
+    parser.add_argument("--certfile", help="Path to the SSL certificate file", default=sentinel)
     parser.add_argument("--ciphers", help="Ciphers to use for the SSL setup", default=sentinel)
     parser.add_argument(
         "-c",
@@ -81,7 +81,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=sentinel,
         type=int,
     )
-    parser.add_argument("--keyfile", help="Path to the SSL key file", default=None)
+    parser.add_argument("--keyfile", help="Path to the SSL key file", default=sentinel)
     parser.add_argument(
         "-p", "--pid", help="Location to write the PID (Program ID) to.", default=sentinel
     )
@@ -112,9 +112,6 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     args = parser.parse_args(sys_args or sys.argv[1:])
     config = _load_config(args.config)
     config.application_path = args.application
-    config.ca_certs = args.ca_certs
-    config.certfile = args.certfile
-    config.keyfile = args.keyfile
 
     if args.access_logformat is not sentinel:
         config.access_log_format = args.access_logformat
@@ -122,6 +119,10 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.access_log_target = args.access_log
     if args.backlog is not sentinel:
         config.backlog = args.backlog
+    if args.ca_certs is not sentinel:
+        config.ca_certs = args.ca_certs
+    if args.certfile is not sentinel:
+        config.certfile = args.certfile
     if args.ciphers is not sentinel:
         config.ciphers = args.ciphers
     if args.debug is not sentinel:
@@ -130,6 +131,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.error_log_target = args.error_log
     if args.keep_alive is not sentinel:
         config.keep_alive_timeout = args.keep_alive
+    if args.keyfile is not sentinel:
+        config.keyfile = args.keyfile
     if args.pid is not sentinel:
         config.pid_path = args.pid
     if args.root_path is not sentinel:
