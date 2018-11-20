@@ -208,7 +208,8 @@ def uvloop_worker(
 def _cancel_all_other_tasks(
     loop: asyncio.AbstractEventLoop, protected_task: asyncio.Future
 ) -> None:
-    tasks = [task for task in asyncio.tasks.all_tasks(loop) if task != protected_task]
+    # With Python 3.7 switch to asyncio.all_tasks(loop)
+    tasks = [task for task in asyncio.Task.all_tasks(loop) if task != protected_task]
     for task in tasks:
         task.cancel()
     loop.run_until_complete(asyncio.gather(*tasks, loop=loop, return_exceptions=True))
