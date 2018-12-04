@@ -42,6 +42,7 @@ class Config:
     keyfile: Optional[str] = None
     pid_path: Optional[str] = None
     root_path = ""
+    ssl = None
     startup_timeout = 60 * SECONDS
     shutdown_timeout = 60 * SECONDS
     unix_domain: Optional[str] = None
@@ -89,6 +90,9 @@ class Config:
             self.error_logger.setLevel(logging.INFO)
 
     def create_ssl_context(self) -> Optional[SSLContext]:
+        if self.ssl:
+            return self.ssl
+
         if not self.ssl_enabled:
             return None
 
