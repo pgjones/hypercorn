@@ -155,7 +155,8 @@ def run_single(
     reload_ = False
     try:
         if tasks:
-            loop.run_until_complete(asyncio.gather(*tasks))
+            gathered_tasks = asyncio.gather(*tasks)
+            loop.run_until_complete(gathered_tasks)
         else:
             loop.run_forever()
     except MustReloadException:
@@ -166,6 +167,10 @@ def run_single(
         server.close()
         loop.run_until_complete(server.wait_closed())
         _cancel_all_other_tasks(loop, lifespan_task)
+        if tasks:
+            # Retrieve the Gathered Tasks Cancelled Exception, to
+            # prevent a warning that this hasn't been done.
+            gathered_tasks.exception()
 
         loop.run_until_complete(lifespan.wait_for_shutdown())
         lifespan_task.cancel()
@@ -218,7 +223,7 @@ def _cancel_all_other_tasks(
         if not task.cancelled() and task.exception() is not None:
             loop.call_exception_handler(
                 {
-                    "message": "unhandled exception during asyncio.run() shutdown",
+                    "message": "unhandled exception during shutdown",
                     "exception": task.exception(),
                     "task": task,
                 }
