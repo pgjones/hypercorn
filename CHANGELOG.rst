@@ -1,3 +1,9 @@
+0.4.3 2018-12-16
+----------------
+
+* Bugfix ensure task cancellation works on Python 3.6
+* Bugfix task cancellation warnings
+
 0.4.2 2018-11-13
 ----------------
 
