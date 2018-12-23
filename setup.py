@@ -63,4 +63,5 @@ setup(
             'hypercorn = hypercorn.__main__:main',
         ],
     },
+    include_package_data=True,
 )
