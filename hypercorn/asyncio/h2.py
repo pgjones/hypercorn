@@ -182,14 +182,14 @@ class H2Server(HTTPServer, H2Mixin):
         await event.wait()
 
     def window_updated(self, stream_id: Optional[int]) -> None:
-        if stream_id is not None:
-            if stream_id in self.flow_control:
-                event = self.flow_control.pop(stream_id)
-                event.set()
-        elif stream_id is None:
+        if stream_id is None or stream_id == 0:
             # Unblock all streams
             stream_ids = list(self.flow_control.keys())
             for stream_id in stream_ids:
+                event = self.flow_control.pop(stream_id)
+                event.set()
+        elif stream_id is not None:
+            if stream_id in self.flow_control:
                 event = self.flow_control.pop(stream_id)
                 event.set()
 
