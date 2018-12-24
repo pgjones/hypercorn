@@ -72,11 +72,11 @@ class HTTPServer:
 
     def start_keep_alive_timeout(self) -> None:
         self._keep_alive_timeout_handle = self.loop.call_later(
-            self.config.keep_alive_timeout, self._handle_timeout
+            self.config.keep_alive_timeout, self.handle_timeout
         )
 
     def stop_keep_alive_timeout(self) -> None:
         self._keep_alive_timeout_handle.cancel()
 
-    def _handle_timeout(self) -> None:
+    def handle_timeout(self) -> None:
         self.close()

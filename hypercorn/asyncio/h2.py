@@ -232,3 +232,8 @@ class H2Server(HTTPServer, H2Mixin):
     @property
     def scheme(self) -> str:
         return "https" if self.ssl_info is not None else "http"
+
+    def handle_timeout(self) -> None:
+        self.connection.close_connection()
+        self.send()
+        super().handle_timeout()

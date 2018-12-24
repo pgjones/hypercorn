@@ -174,6 +174,8 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     connection.server.resume_writing()
     await asyncio.sleep(2 * config.keep_alive_timeout)
     assert connection.transport.closed.is_set()
+    events = [event async for event in connection.get_events()]
+    assert isinstance(events[-1], h2.events.ConnectionTerminated)
 
 
 @pytest.mark.asyncio
