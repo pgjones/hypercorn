@@ -148,6 +148,7 @@ class H2Server(HTTPServer, H2Mixin):
                         )
                     elif isinstance(event, h2.events.StreamReset):
                         await self.streams[event.stream_id].close()
+                        del self.streams[event.stream_id]
                     elif isinstance(event, h2.events.StreamEnded):
                         await self.streams[event.stream_id].complete()
                     elif isinstance(event, h2.events.WindowUpdated):
