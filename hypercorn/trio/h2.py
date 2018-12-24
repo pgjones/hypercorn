@@ -108,6 +108,9 @@ class H2Server(HTTPServer, H2Mixin):
                 self.nursery = nursery
                 await self.initiate()
                 await self.read_data()
+        except trio.TooSlowError:
+            self.connection.close_connection()
+            await self.send()
         except MustCloseError:
             await self.send()
         except (trio.BrokenResourceError, trio.ClosedResourceError):
@@ -119,7 +122,14 @@ class H2Server(HTTPServer, H2Mixin):
 
     async def read_data(self) -> None:
         while True:
-            data = await self.stream.receive_some(MAX_RECV)
+            try:
+                with trio.fail_after(self.config.keep_alive_timeout):
+                    data = await self.stream.receive_some(MAX_RECV)
+            except trio.TooSlowError:
+                if len(self.streams) == 0:
+                    raise
+                else:
+                    continue  # Keep waiting
             if data == b"":
                 return
 

@@ -69,6 +69,7 @@ class MockConnection:
 
             for event in events:
                 if isinstance(event, h2.events.ConnectionTerminated):
+                    yield event
                     return
                 elif isinstance(event, h2.events.DataReceived):
                     self.connection.acknowledge_received_data(
@@ -159,6 +160,39 @@ async def test_server_sends_chunked(nursery: trio._core._run.Nursery) -> None:
         elif isinstance(event, h2.events.StreamEnded):
             await connection.close()
     assert response_data == b"chunked data"
+
+
+@pytest.mark.trio
+async def test_initial_keep_alive_timeout() -> None:
+    client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream.socket = MockSocket()
+    config = Config()
+    config.keep_alive_timeout = 0.01
+    server = H2Server(EchoFramework, config, server_stream)
+    with trio.fail_after(2 * config.keep_alive_timeout):
+        await server.handle_connection()
+    # Only way to confirm closure is to invoke an error
+    with pytest.raises(trio.BrokenResourceError):
+        await client_stream.send_all(b"Rubbish")
+
+
+@pytest.mark.trio
+async def test_post_response_keep_alive_timeout(nursery: trio._core._run.Nursery) -> None:
+    config = Config()
+    config.keep_alive_timeout = 0.01
+    connection = MockConnection(config=config)
+    nursery.start_soon(connection.server.handle_connection)
+    stream_id = await connection.send_request(
+        BASIC_HEADERS + [(":method", "GET"), (":path", "/1")], {}
+    )
+    await connection.end_stream(stream_id)
+    async for event in connection.get_events():
+        if isinstance(event, h2.events.StreamEnded):
+            break  # Request ended
+    with trio.move_on_after(2 * config.keep_alive_timeout):
+        pass
+    events = [event async for event in connection.get_events()]
+    assert isinstance(events[-1], h2.events.ConnectionTerminated)
 
 
 @pytest.mark.trio
