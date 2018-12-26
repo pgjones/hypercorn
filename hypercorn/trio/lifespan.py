@@ -25,16 +25,21 @@ class Lifespan:
         scope = {"type": "lifespan"}
         try:
             asgi_instance = self.app(scope)
-            await asgi_instance(self.asgi_receive, self.asgi_send)
         except Exception:
             self.supported = False
             if self.config.error_logger is not None:
                 self.config.error_logger.warning(
                     "ASGI Framework Lifespan error, continuing without Lifespan support"
                 )
-
-        await self.app_send_channel.aclose()
-        await self.app_receive_channel.aclose()
+        else:
+            try:
+                await asgi_instance(self.asgi_receive, self.asgi_send)
+            except Exception:
+                if self.config.error_logger is not None:
+                    self.config.error_logger.exception("Error in ASGI Framework")
+        finally:
+            await self.app_send_channel.aclose()
+            await self.app_receive_channel.aclose()
 
     async def wait_for_startup(self) -> None:
         if not self.supported:

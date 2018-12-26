@@ -22,15 +22,20 @@ class Lifespan:
         scope = {"type": "lifespan"}
         try:
             asgi_instance = self.app(scope)
-            await asgi_instance(self.asgi_receive, self.asgi_send)
-        except asyncio.CancelledError:
-            pass
         except Exception:
             self.supported = False
             if self.config.error_logger is not None:
                 self.config.error_logger.warning(
                     "ASGI Framework Lifespan error, continuing without Lifespan support"
                 )
+        else:
+            try:
+                await asgi_instance(self.asgi_receive, self.asgi_send)
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                if self.config.error_logger is not None:
+                    self.config.error_logger.exception("Error in ASGI Framework")
 
     async def wait_for_startup(self) -> None:
         if not self.supported:
