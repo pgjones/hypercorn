@@ -1,3 +1,11 @@
+0.4.4 2018-12-28
+----------------
+
+* Bugfix ensure on timeout the connection is closed.
+* Bugfix ensure Trio h2 connections timeout when idle.
+* Bugfix flow window updates to connection window.
+* Bugfix ensure ASGI framework errors are logged.
+
 0.4.3 2018-12-16
 ----------------
 
