@@ -74,6 +74,8 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
     async def read_messages(self) -> None:
         while True:
             data = await self.stream.receive_some(MAX_RECV)
+            if data == b"":
+                data = None  # wsproto expects None rather than b"" for EOF
             self.connection.receive_bytes(data)
             for event in self.connection.events():
                 if isinstance(event, wsproto.events.DataReceived):

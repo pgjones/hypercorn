@@ -54,7 +54,11 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         if error is not None:
             self.app_queue.put_nowait({"type": "websocket.disconnect"})
 
-    def data_received(self, data: bytes) -> None:
+    def eof_received(self) -> bool:
+        self.data_received(None)
+        return True
+
+    def data_received(self, data: Optional[bytes]) -> None:
         self.connection.receive_bytes(data)
         self.handle_events()
 
