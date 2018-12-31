@@ -46,6 +46,7 @@ class Config:
     shutdown_timeout = 60 * SECONDS
     unix_domain: Optional[str] = None
     use_reloader = False
+    verify_mode: Optional[ssl.VerifyMode] = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
     worker_class = "asyncio"
     workers = 1
@@ -107,6 +108,8 @@ class Config:
         context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
         if self.ca_certs is not None:
             context.load_verify_locations(self.ca_certs)
+        if self.verify_mode is not None:
+            context.verify_mode = self.verify_mode
 
         return context
 
