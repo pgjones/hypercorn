@@ -1,3 +1,9 @@
+0.4.5 2019-01-01
+----------------
+
+* Bugfix EOF handling for websocket connections.
+* Bugfix Introduce a random delay between worker starts on Windows.
+
 0.4.4 2018-12-28
 ----------------
 
