@@ -1,4 +1,7 @@
+import platform
+import random
 import signal
+import time
 from multiprocessing import Event, Process
 from typing import Any
 
@@ -56,6 +59,8 @@ def run_multiple(config: Config, worker_func: WorkerFunc) -> None:
         process.daemon = True
         process.start()
         processes.append(process)
+        if platform.system() == "Windows":
+            time.sleep(0.1 * random.random())
 
     def shutdown(*args: Any) -> None:
         shutdown_event.set()
