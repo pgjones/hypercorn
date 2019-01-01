@@ -5,7 +5,8 @@ import os
 import ssl
 import sys
 import types
-from ssl import SSLContext
+import warnings
+from ssl import SSLContext, VerifyMode  # type: ignore
 from typing import Any, AnyStr, Dict, Mapping, Optional, Type, Union
 
 import pytoml
@@ -46,10 +47,16 @@ class Config:
     shutdown_timeout = 60 * SECONDS
     unix_domain: Optional[str] = None
     use_reloader = False
-    verify_mode: Optional[ssl.VerifyMode] = None
+    verify_mode: Optional[VerifyMode] = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
     worker_class = "asyncio"
     workers = 1
+
+    def set_cert_reqs(self, value: int) -> None:
+        warnings.warn("Please use verify_mode instead", Warning)
+        self.verify_mode = VerifyMode(value)
+
+    cert_reqs = property(None, set_cert_reqs)
 
     @property
     def port(self) -> int:

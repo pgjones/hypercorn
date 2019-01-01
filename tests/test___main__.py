@@ -59,3 +59,14 @@ def test_main_cli_override(
         if not inspect.ismethod(value) and not name.startswith("_") and name != config_key:
             assert getattr(raw_config, name) == getattr(config, name)
     assert getattr(config, config_key) == set_value
+
+
+def test_verify_mode_conversion(monkeypatch: MonkeyPatch) -> None:
+    run_multiple = Mock()
+    monkeypatch.setattr(hypercorn.__main__, "run", run_multiple)
+
+    with pytest.raises(SystemExit):
+        hypercorn.__main__.main(["--verify-mode", "CERT_UNKNOWN", "asgi:App"])
+
+    hypercorn.__main__.main(["--verify-mode", "CERT_REQUIRED", "asgi:App"])
+    run_multiple.assert_called()

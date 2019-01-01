@@ -1,4 +1,5 @@
 import argparse
+import ssl
 import sys
 import warnings
 from typing import List, Optional
@@ -48,6 +49,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     )
     parser.add_argument("--ca-certs", help="Path to the SSL CA certificate file", default=sentinel)
     parser.add_argument("--certfile", help="Path to the SSL certificate file", default=sentinel)
+    parser.add_argument("--cert-reqs", help="See verify mode argument", type=int, default=sentinel)
     parser.add_argument("--ciphers", help="Ciphers to use for the SSL setup", default=sentinel)
     parser.add_argument(
         "-c",
@@ -101,6 +103,19 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         action="store_true",
         default=sentinel,
     )
+
+    def _convert_verify_mode(value: str) -> ssl.VerifyMode:  # type: ignore
+        try:
+            return ssl.VerifyMode[value]  # type: ignore
+        except KeyError:
+            raise argparse.ArgumentTypeError("Not a valid verify mode")
+
+    parser.add_argument(
+        "--verify-mode",
+        help="SSL verify mode for peer's certificate, see ssl.VerifyMode enum for possible values.",
+        type=_convert_verify_mode,
+        default=sentinel,
+    )
     parser.add_argument(
         "-w",
         "--workers",
@@ -123,6 +138,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.ca_certs = args.ca_certs
     if args.certfile is not sentinel:
         config.certfile = args.certfile
+    if args.cert_reqs is not sentinel:
+        config.cert_reqs = args.cert_reqs
     if args.ciphers is not sentinel:
         config.ciphers = args.ciphers
     if args.debug is not sentinel:
