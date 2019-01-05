@@ -6,7 +6,7 @@ import ssl
 import sys
 import types
 import warnings
-from ssl import SSLContext, VerifyMode  # type: ignore
+from ssl import SSLContext, VerifyFlags, VerifyMode  # type: ignore
 from typing import Any, AnyStr, Dict, Mapping, Optional, Type, Union
 
 import pytoml
@@ -47,6 +47,7 @@ class Config:
     shutdown_timeout = 60 * SECONDS
     unix_domain: Optional[str] = None
     use_reloader = False
+    verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
     worker_class = "asyncio"
@@ -117,6 +118,8 @@ class Config:
             context.load_verify_locations(self.ca_certs)
         if self.verify_mode is not None:
             context.verify_mode = self.verify_mode
+        if self.verify_flags is not None:
+            context.verify_flags = self.verify_flags
 
         return context
 
