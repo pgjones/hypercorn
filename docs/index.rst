@@ -8,7 +8,8 @@ server based on the sans-io hyper, `h11
 <https://github.com/python-hyper/hyper-h2>`_, and `wsproto
 <https://github.com/python-hyper/wsproto>`_ libraries and inspired by
 Gunicorn. Hypercorn supports HTTP/1, HTTP/2, and websockets and the
-ASGI 2 specification.
+ASGI 2 specification. Hypercorn can utilise asyncio, uvloop, or trio
+worker types.
 
 Hypercorn was initially part of `Quart
 <https://gitlab.com/pgjones/quart>`_ before being separated out into a
@@ -36,6 +37,7 @@ How-To Guides
 .. toctree::
    :maxdepth: 1
 
+   api_usage.rst
    logging.rst
 
 Discussion Points
@@ -48,6 +50,7 @@ Discussion Points
    design_choices.rst
    dos_mitigations.rst
    http2.rst
+   workers.rst
 
 Reference
 ---------

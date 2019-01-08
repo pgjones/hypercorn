@@ -103,41 +103,44 @@ async def _windows_signal_support() -> None:
 
 
 def run_single(
-    app: Type[ASGIFramework],
-    config: Config,
-    *,
-    loop: asyncio.AbstractEventLoop,
-    sock: Optional[socket] = None,
-    shutdown_event: Optional[EventType] = None,
+    app: Type[ASGIFramework], config: Config, *, loop: asyncio.AbstractEventLoop
 ) -> None:
     """Create a server to run the app on given the options.
+
+    This has been deprecated in favour of serve from
+    hypercorn.asyncio it will be removed in 0.6.0.
 
     Arguments:
         app: The ASGI Framework to run.
         config: The configuration that defines the server.
         loop: Asyncio loop to create the server in, if None, take default one.
+
     """
+    warnings.warn("See `serve` from hypercorn.asyncio", DeprecationWarning)
     if loop is None:
         warnings.warn("Event loop is not specified, this can cause unexpected errors")
         loop = asyncio.get_event_loop()
+    loop.run_until_complete(worker_serve(app, config))
 
-    loop.set_debug(config.debug)
 
+async def worker_serve(
+    app: Type[ASGIFramework],
+    config: Config,
+    *,
+    sock: Optional[socket] = None,
+    shutdown_event: Optional[EventType] = None,
+) -> None:
     lifespan = Lifespan(app, config)
     lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
 
-    loop.run_until_complete(lifespan.wait_for_startup())
+    await lifespan.wait_for_startup()
 
     ssl_context = config.create_ssl_context()
 
     if sock is None:
         sock = create_socket(config)
 
-    create_server = loop.create_server(
-        lambda: Server(app, loop, config), backlog=config.backlog, ssl=ssl_context, sock=sock
-    )
-    server = loop.run_until_complete(create_server)
-
+    loop = asyncio.get_event_loop()
     tasks = []
     if platform.system() == "Windows":
         tasks.append(loop.create_task(_windows_signal_support()))
@@ -152,31 +155,33 @@ def run_single(
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
 
+    server = await loop.create_server(
+        lambda: Server(app, loop, config), backlog=config.backlog, ssl=ssl_context, sock=sock
+    )
+
     reload_ = False
     try:
         if tasks:
             gathered_tasks = asyncio.gather(*tasks)
-            loop.run_until_complete(gathered_tasks)
+            await gathered_tasks
         else:
-            loop.run_forever()
+            await loop.create_future()  # Serve forever (copies std lib)
     except MustReloadException:
         reload_ = True
     except (Shutdown, KeyboardInterrupt):
         pass
     finally:
         server.close()
-        loop.run_until_complete(server.wait_closed())
-        _cancel_all_other_tasks(loop, lifespan_task)
+        await server.wait_closed()
         if tasks:
             # Retrieve the Gathered Tasks Cancelled Exception, to
             # prevent a warning that this hasn't been done.
             gathered_tasks.exception()
 
-        loop.run_until_complete(lifespan.wait_for_shutdown())
+        await lifespan.wait_for_shutdown()
         lifespan_task.cancel()
-        loop.run_until_complete(lifespan_task)
-        loop.run_until_complete(loop.shutdown_asyncgens())
-        loop.close()
+        await lifespan_task
+        await loop.shutdown_asyncgens()
 
     if reload_:
         # Restart this process (only safe for dev/debug)
@@ -186,11 +191,13 @@ def run_single(
 def asyncio_worker(
     config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
+    app = load_application(config.application_path)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
-    app = load_application(config.application_path)
-    run_single(app, config, loop=loop, sock=sock, shutdown_event=shutdown_event)
+    loop.set_debug(config.debug)
+    loop.run_until_complete(worker_serve(app, config, sock=sock, shutdown_event=shutdown_event))
+    _cancel_all_tasks(loop)
+    loop.close()
 
 
 def uvloop_worker(
@@ -203,18 +210,18 @@ def uvloop_worker(
     else:
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
+    app = load_application(config.application_path)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    loop.set_debug(config.debug)
+    loop.run_until_complete(worker_serve(app, config, sock=sock, shutdown_event=shutdown_event))
+    _cancel_all_tasks(loop)
+    loop.close()
 
-    app = load_application(config.application_path)
-    run_single(app, config, loop=loop, sock=sock, shutdown_event=shutdown_event)
 
-
-def _cancel_all_other_tasks(
-    loop: asyncio.AbstractEventLoop, protected_task: asyncio.Future
-) -> None:
+def _cancel_all_tasks(loop: asyncio.AbstractEventLoop) -> None:
     # With Python 3.7 switch to asyncio.all_tasks(loop)
-    tasks = [task for task in asyncio.Task.all_tasks(loop) if task != protected_task]
+    tasks = [task for task in asyncio.Task.all_tasks(loop)]
     for task in tasks:
         task.cancel()
     loop.run_until_complete(asyncio.gather(*tasks, loop=loop, return_exceptions=True))

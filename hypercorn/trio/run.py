@@ -43,10 +43,13 @@ async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.ab
         await protocol.handle_connection()
 
 
-async def run_single(
-    config: Config, *, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+async def worker_serve(
+    app: Type[ASGIFramework],
+    config: Config,
+    *,
+    sock: Optional[socket] = None,
+    shutdown_event: Optional[EventType] = None,
 ) -> None:
-    app = load_application(config.application_path)
     lifespan = Lifespan(app, config)
     reload_ = False
 
@@ -94,4 +97,5 @@ def trio_worker(
 ) -> None:
     if sock is not None:
         sock.listen(config.backlog)
-    trio.run(partial(run_single, config, sock=sock, shutdown_event=shutdown_event))
+    app = load_application(config.application_path)
+    trio.run(partial(worker_serve, app, config, sock=sock, shutdown_event=shutdown_event))
