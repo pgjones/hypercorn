@@ -7,7 +7,7 @@ from typing import Any
 
 from .config import Config
 from .typing import WorkerFunc
-from .utils import create_socket, write_pid_file
+from .utils import write_pid_file
 
 
 def run(config: Config) -> None:
@@ -40,7 +40,7 @@ def run_multiple(config: Config, worker_func: WorkerFunc) -> None:
     if config.use_reloader:
         raise RuntimeError("Reloader can only be used with a single worker")
 
-    sock = create_socket(config)
+    sockets = config.create_sockets()
 
     processes = []
 
@@ -54,7 +54,7 @@ def run_multiple(config: Config, worker_func: WorkerFunc) -> None:
     for _ in range(config.workers):
         process = Process(
             target=worker_func,
-            kwargs={"config": config, "shutdown_event": shutdown_event, "sock": sock},
+            kwargs={"config": config, "shutdown_event": shutdown_event, "sockets": sockets},
         )
         process.daemon = True
         process.start()
@@ -74,4 +74,5 @@ def run_multiple(config: Config, worker_func: WorkerFunc) -> None:
     for process in processes:
         process.terminate()
 
-    sock.close()
+    for sock in sockets:
+        sock.close()

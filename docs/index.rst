@@ -38,6 +38,7 @@ How-To Guides
    :maxdepth: 1
 
    api_usage.rst
+   binds.rst
    logging.rst
 
 Discussion Points

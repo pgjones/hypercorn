@@ -3,20 +3,13 @@ import sys
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import trio
 from ..asgi.run import WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import (
-    check_shutdown,
-    create_socket,
-    load_application,
-    MustReloadException,
-    observe_changes,
-    Shutdown,
-)
+from ..utils import check_shutdown, load_application, MustReloadException, observe_changes, Shutdown
 from .h2 import H2Server
 from .h11 import H11Server
 from .lifespan import Lifespan
@@ -47,7 +40,7 @@ async def worker_serve(
     app: Type[ASGIFramework],
     config: Config,
     *,
-    sock: Optional[socket] = None,
+    sockets: Optional[List[socket]] = None,
     shutdown_event: Optional[EventType] = None,
 ) -> None:
     lifespan = Lifespan(app, config)
@@ -65,10 +58,13 @@ async def worker_serve(
                 if shutdown_event is not None:
                     nursery.start_soon(check_shutdown, shutdown_event, trio.sleep)
 
-                if sock is None:
-                    sock = create_socket(config)
-                    sock.listen(config.backlog)
-                listeners = [trio.SocketListener(trio.socket.from_stdlib_socket(sock))]
+                if sockets is None:
+                    sockets = config.create_sockets()
+                    for sock in sockets:
+                        sock.listen(config.backlog)
+                listeners = [
+                    trio.SocketListener(trio.socket.from_stdlib_socket(sock)) for sock in sockets
+                ]
                 if config.ssl_enabled:
                     listeners = [
                         trio.ssl.SSLListener(
@@ -93,9 +89,12 @@ async def worker_serve(
 
 
 def trio_worker(
-    config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+    config: Config,
+    sockets: Optional[List[socket]] = None,
+    shutdown_event: Optional[EventType] = None,
 ) -> None:
-    if sock is not None:
-        sock.listen(config.backlog)
+    if sockets is not None:
+        for sock in sockets:
+            sock.listen(config.backlog)
     app = load_application(config.application_path)
-    trio.run(partial(worker_serve, app, config, sock=sock, shutdown_event=shutdown_event))
+    trio.run(partial(worker_serve, app, config, sockets=sockets, shutdown_event=shutdown_event))

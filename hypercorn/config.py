@@ -2,12 +2,14 @@ import importlib
 import importlib.util
 import logging
 import os
+import socket
 import ssl
+import stat
 import sys
 import types
 import warnings
 from ssl import SSLContext, VerifyFlags, VerifyMode  # type: ignore
-from typing import Any, AnyStr, Dict, Mapping, Optional, Type, Union
+from typing import Any, AnyStr, Dict, List, Mapping, Optional, Type, Union
 
 import pytoml
 
@@ -22,30 +24,27 @@ class Config:
 
     _access_log_target: Optional[str] = None
     _error_log_target: Optional[str] = None
-    _port = 5000
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_logger: Optional[logging.Logger] = None
     application_path: str
     backlog = 100
+    bind = ["127.0.0.1:8000"]
     ca_certs: Optional[str] = None
     certfile: Optional[str] = None
     ciphers: str = "ECDHE+AESGCM"
     debug = False
     error_logger: Optional[logging.Logger] = None
-    file_descriptor: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2 ** 16
     h2_max_inbound_frame_size = 2 ** 14 * OCTETS
-    host = "127.0.0.1"
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
     pid_path: Optional[str] = None
     root_path = ""
     startup_timeout = 60 * SECONDS
     shutdown_timeout = 60 * SECONDS
-    unix_domain: Optional[str] = None
     use_reloader = False
     verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None
@@ -59,13 +58,43 @@ class Config:
 
     cert_reqs = property(None, set_cert_reqs)
 
-    @property
-    def port(self) -> int:
-        return self._port
+    def _set_host(self, value: str) -> None:
+        # Remove in 0.6.0
+        warnings.warn("host is deprecated, please use bind instead", DeprecationWarning)
+        if self.bind:
+            host, port = self.bind[0].rsplit(":")
+        else:
+            port = "8000"
+        host = value
+        self.bind = [f"{host}:{port}"]
 
-    @port.setter
-    def port(self, value: Union[str, int]) -> None:
-        self._port = int(value)
+    host = property(None, _set_host)
+
+    def _set_port(self, value: int) -> None:
+        # Remove in 0.6.0
+        warnings.warn("port is deprecated, please use bind instead", DeprecationWarning)
+        if self.bind:
+            host, port = self.bind[0].rsplit(":")
+        else:
+            host = "127.0.0.1"
+        port = str(value)
+        self.bind = [f"{host}:{port}"]
+
+    port = property(None, _set_port)
+
+    def _set_file_descriptor(self, value: int) -> None:
+        # Remove in 0.6.0
+        warnings.warn("file_descriptor is deprecated, please use bind instead", DeprecationWarning)
+        self.bind = [f"fd://{value}"]
+
+    file_descriptor = property(None, _set_file_descriptor)
+
+    def _set_unix_domain(self, value: str) -> None:
+        # Remove in 0.6.0
+        warnings.warn("unix_domain is deprecated, please use bind instead", DeprecationWarning)
+        self.bind = [f"unix:{value}"]
+
+    unix_domain = property(None, _set_unix_domain)
 
     @property
     def access_log_target(self) -> Optional[str]:
@@ -127,16 +156,46 @@ class Config:
     def ssl_enabled(self) -> bool:
         return self.certfile is not None and self.keyfile is not None
 
-    def update_bind(self, bind: str) -> None:
-        if bind.startswith("unix:"):
-            self.unix_domain = bind[5:]
-        elif bind.startswith("fd://"):
-            self.file_descriptor = int(bind[5:])
-        else:
+    def create_sockets(self) -> List[socket.socket]:
+        sockets: List[socket.socket] = []
+        for bind in self.bind:
+            binding: Any = None
+            if bind.startswith("unix:"):
+                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                binding = bind[5:]
+                try:
+                    if stat.S_ISSOCK(os.stat(binding).st_mode):
+                        os.remove(binding)
+                except FileNotFoundError:
+                    pass
+            elif bind.startswith("fd://"):
+                sock = socket.fromfd(int(bind[5:]), socket.AF_UNIX, socket.SOCK_STREAM)
+            else:
+                try:
+                    value = bind.rsplit(":", 1)
+                    host, port = value[0], int(value[1])
+                except (ValueError, IndexError):
+                    host, port = bind, 8000
+                if self.workers > 1:
+                    try:
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RESUSEPORT, 1)  # type: ignore
+                    except AttributeError:
+                        pass
+                sock = socket.socket(
+                    socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM
+                )
+                binding = (host, port)
+
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if binding is not None:
+                sock.bind(binding)
+            sock.setblocking(False)
             try:
-                self.host, self.port = bind.rsplit(":", 1)  # type: ignore
-            except ValueError:
-                self.host = bind
+                sock.set_inheritable(True)  # type: ignore
+            except AttributeError:
+                pass
+            sockets.append(sock)
+        return sockets
 
     @classmethod
     def from_mapping(
@@ -164,8 +223,10 @@ class Config:
         mappings.update(kwargs)
         config = cls()
         for key, value in mappings.items():
-            if hasattr(config, key):
+            try:
                 setattr(config, key, value)
+            except AttributeError:
+                pass
 
         return config
 

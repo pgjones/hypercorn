@@ -6,19 +6,12 @@ import sys
 import warnings
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import Any, Optional, Type
+from typing import Any, List, Optional, Type
 
 from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import (
-    check_shutdown,
-    create_socket,
-    load_application,
-    MustReloadException,
-    observe_changes,
-    Shutdown,
-)
+from ..utils import check_shutdown, load_application, MustReloadException, observe_changes, Shutdown
 from .base import HTTPServer
 from .h2 import H2Server
 from .h11 import H11Server
@@ -127,7 +120,7 @@ async def worker_serve(
     app: Type[ASGIFramework],
     config: Config,
     *,
-    sock: Optional[socket] = None,
+    sockets: Optional[List[socket]] = None,
     shutdown_event: Optional[EventType] = None,
 ) -> None:
     lifespan = Lifespan(app, config)
@@ -137,8 +130,8 @@ async def worker_serve(
 
     ssl_context = config.create_ssl_context()
 
-    if sock is None:
-        sock = create_socket(config)
+    if sockets is None:
+        sockets = config.create_sockets()
 
     loop = asyncio.get_event_loop()
     tasks = []
@@ -155,9 +148,12 @@ async def worker_serve(
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
 
-    server = await loop.create_server(
-        lambda: Server(app, loop, config), backlog=config.backlog, ssl=ssl_context, sock=sock
-    )
+    servers = [
+        await loop.create_server(
+            lambda: Server(app, loop, config), backlog=config.backlog, ssl=ssl_context, sock=sock
+        )
+        for sock in sockets
+    ]
 
     reload_ = False
     try:
@@ -171,8 +167,9 @@ async def worker_serve(
     except (Shutdown, KeyboardInterrupt):
         pass
     finally:
-        server.close()
-        await server.wait_closed()
+        for server in servers:
+            server.close()
+            await server.wait_closed()
         if tasks:
             # Retrieve the Gathered Tasks Cancelled Exception, to
             # prevent a warning that this hasn't been done.
@@ -189,19 +186,25 @@ async def worker_serve(
 
 
 def asyncio_worker(
-    config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+    config: Config,
+    sockets: Optional[List[socket]] = None,
+    shutdown_event: Optional[EventType] = None,
 ) -> None:
     app = load_application(config.application_path)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.set_debug(config.debug)
-    loop.run_until_complete(worker_serve(app, config, sock=sock, shutdown_event=shutdown_event))
+    loop.run_until_complete(
+        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event)
+    )
     _cancel_all_tasks(loop)
     loop.close()
 
 
 def uvloop_worker(
-    config: Config, sock: Optional[socket] = None, shutdown_event: Optional[EventType] = None
+    config: Config,
+    sockets: Optional[List[socket]] = None,
+    shutdown_event: Optional[EventType] = None,
 ) -> None:
     try:
         import uvloop
@@ -214,7 +217,9 @@ def uvloop_worker(
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.set_debug(config.debug)
-    loop.run_until_complete(worker_serve(app, config, sock=sock, shutdown_event=shutdown_event))
+    loop.run_until_complete(
+        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event)
+    )
     _cancel_all_tasks(loop)
     loop.close()
 
