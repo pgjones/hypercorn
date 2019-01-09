@@ -40,4 +40,4 @@ and tested by
 
 .. code-block:: sh
 
-    curl localhost:5000
+    curl localhost:8000
