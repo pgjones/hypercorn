@@ -1,12 +1,19 @@
 import warnings
 from typing import Type
 
+import trio
+
 from .run import worker_serve
 from ..config import Config
 from ..typing import ASGIFramework
 
 
-async def serve(app: Type[ASGIFramework], config: Config) -> None:
+async def serve(
+    app: Type[ASGIFramework],
+    config: Config,
+    *,
+    task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
+) -> None:
     """Serve an ASGI framework app given the config.
 
     This allows for a programmatic way to serve an ASGI framework, it
@@ -28,4 +35,5 @@ async def serve(app: Type[ASGIFramework], config: Config) -> None:
     if config.worker_class != "asyncio":
         warnings.warn("The config `worker_class` has no affect when using serve", Warning)
 
+    task_status.started()
     await worker_serve(app, config)
