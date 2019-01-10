@@ -69,7 +69,7 @@ class H11Mixin:
             ),
         )
 
-    def maybe_upgrade_request(self, event: h11.Request) -> None:
+    def raise_if_upgrade(self, event: h11.Request) -> None:
         upgrade_value = ""
         connection_value = ""
         has_body = False
@@ -95,11 +95,6 @@ class H11Mixin:
         # responds in HTTP/1.1. Use a preflight OPTIONS request to
         # initiate the upgrade if really required (or just use h2).
         elif upgrade_value.lower() == "h2c" and not has_body:
-            self.asend(
-                h11.InformationalResponse(
-                    status_code=101, headers=[(b"upgrade", b"h2c")] + self.response_headers()
-                )
-            )
             raise H2CProtocolRequired(event)
 
     async def handle_request(self, request: h11.Request) -> None:

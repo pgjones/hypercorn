@@ -4,6 +4,7 @@ from typing import Optional, Type
 import h11
 
 from ..asgi.h11 import ASGIH11State, H11Mixin
+from ..asgi.run import H2CProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
 from .base import HTTPServer
@@ -60,7 +61,16 @@ class H11Server(HTTPServer, H11Mixin):
             else:
                 if isinstance(event, h11.Request):
                     self.stop_keep_alive_timeout()
-                    self.maybe_upgrade_request(event)  # Raises on upgrade
+                    try:
+                        self.raise_if_upgrade(event)
+                    except H2CProtocolRequired as error:
+                        self.send(
+                            h11.InformationalResponse(
+                                status_code=101,
+                                headers=[(b"upgrade", b"h2c")] + self.response_headers(),
+                            )
+                        )
+                        raise error
                     self.task = self.loop.create_task(self.handle_request(event))
                     self.task.add_done_callback(self.recycle_or_close)
                 elif isinstance(event, h11.EndOfMessage):

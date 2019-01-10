@@ -4,7 +4,7 @@ import h11
 
 import trio
 from ..asgi.h11 import ASGIH11State, H11Mixin
-from ..asgi.run import WrongProtocolError
+from ..asgi.run import H2CProtocolRequired, WrongProtocolError
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
 from .base import HTTPServer
@@ -36,7 +36,7 @@ class H11Server(HTTPServer, H11Mixin):
             while True:
                 with trio.fail_after(self.config.keep_alive_timeout):
                     request = await self.read_request()
-                self.maybe_upgrade_request(request)
+                self.raise_if_upgrade(request)
 
                 async with trio.open_nursery() as nursery:
                     nursery.start_soon(self.handle_request, request)
@@ -48,6 +48,13 @@ class H11Server(HTTPServer, H11Mixin):
             await self.aclose()
         except (trio.TooSlowError, MustCloseError):
             await self.aclose()
+        except H2CProtocolRequired as error:
+            await self.asend(
+                h11.InformationalResponse(
+                    status_code=101, headers=[(b"upgrade", b"h2c")] + self.response_headers()
+                )
+            )
+            raise error
         except WrongProtocolError:
             raise  # Do not close the connection
 
