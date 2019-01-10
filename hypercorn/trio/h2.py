@@ -46,6 +46,7 @@ class H2Server(HTTPServer, H2Mixin):
         stream: trio.abc.Stream,
         *,
         upgrade_request: Optional[h11.Request] = None,
+        received_data: Optional[bytes] = None,
     ) -> None:
         super().__init__(stream, "h2")
         self.app = app
@@ -55,6 +56,7 @@ class H2Server(HTTPServer, H2Mixin):
         self.flow_control: Dict[int, trio.Event] = {}
         self.send_lock = trio.Lock()
         self.upgrade_request = upgrade_request
+        self.received_data = received_data
 
         self.connection = h2.connection.H2Connection(
             config=h2.config.H2Configuration(client_side=False, header_encoding=None)
@@ -71,6 +73,8 @@ class H2Server(HTTPServer, H2Mixin):
     async def initiate(self) -> None:
         if self.upgrade_request is None:
             self.connection.initiate_connection()
+            if self.received_data:
+                await self.process_data(self.received_data)
         else:
             settings = ""
             headers = []
@@ -132,29 +136,31 @@ class H2Server(HTTPServer, H2Mixin):
                     continue  # Keep waiting
             if data == b"":
                 return
+            await self.process_data(data)
 
-            try:
-                events = self.connection.receive_data(data)
-            except h2.exceptions.ProtocolError:
-                raise MustCloseError()
-            else:
-                for event in events:
-                    if isinstance(event, h2.events.RequestReceived):
-                        await self.create_stream(event)
-                    elif isinstance(event, h2.events.DataReceived):
-                        await self.streams[event.stream_id].append(event.data)
-                        self.connection.acknowledge_received_data(
-                            event.flow_controlled_length, event.stream_id
-                        )
-                    elif isinstance(event, h2.events.StreamReset):
-                        await self.streams[event.stream_id].close()
-                    elif isinstance(event, h2.events.StreamEnded):
-                        await self.streams[event.stream_id].complete()
-                    elif isinstance(event, h2.events.WindowUpdated):
-                        self.window_updated(event.stream_id)
-                    elif isinstance(event, h2.events.ConnectionTerminated):
-                        raise MustCloseError()
-                await self.send()
+    async def process_data(self, data: bytes) -> None:
+        try:
+            events = self.connection.receive_data(data)
+        except h2.exceptions.ProtocolError:
+            raise MustCloseError()
+        else:
+            for event in events:
+                if isinstance(event, h2.events.RequestReceived):
+                    await self.create_stream(event)
+                elif isinstance(event, h2.events.DataReceived):
+                    await self.streams[event.stream_id].append(event.data)
+                    self.connection.acknowledge_received_data(
+                        event.flow_controlled_length, event.stream_id
+                    )
+                elif isinstance(event, h2.events.StreamReset):
+                    await self.streams[event.stream_id].close()
+                elif isinstance(event, h2.events.StreamEnded):
+                    await self.streams[event.stream_id].complete()
+                elif isinstance(event, h2.events.WindowUpdated):
+                    self.window_updated(event.stream_id)
+                elif isinstance(event, h2.events.ConnectionTerminated):
+                    raise MustCloseError()
+            await self.send()
 
     async def asend(self, event: H2Event) -> None:
         connection_state = self.connection.state_machine.state

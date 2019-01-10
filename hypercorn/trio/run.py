@@ -6,7 +6,7 @@ from socket import socket
 from typing import List, Optional, Type
 
 import trio
-from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
+from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import check_shutdown, load_application, MustReloadException, observe_changes, Shutdown
@@ -36,6 +36,9 @@ async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.ab
         await protocol.handle_connection()
     except H2CProtocolRequired as error:
         protocol = H2Server(app, config, stream, upgrade_request=error.request)
+        await protocol.handle_connection()
+    except H2ProtocolAssumed as error:
+        protocol = H2Server(app, config, stream, received_data=error.data)
         await protocol.handle_connection()
 
 

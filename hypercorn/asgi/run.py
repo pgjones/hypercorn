@@ -12,3 +12,8 @@ class WebsocketProtocolRequired(WrongProtocolError):
 
 class H2CProtocolRequired(WrongProtocolError):
     pass
+
+
+class H2ProtocolAssumed(WrongProtocolError):
+    def __init__(self, data: bytes) -> None:
+        self.data = data

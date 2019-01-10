@@ -36,7 +36,7 @@ class H11Server(HTTPServer, H11Mixin):
             while True:
                 with trio.fail_after(self.config.keep_alive_timeout):
                     request = await self.read_request()
-                self.raise_if_upgrade(request)
+                self.raise_if_upgrade(request, self.connection.trailing_data[0])
 
                 async with trio.open_nursery() as nursery:
                     nursery.start_soon(self.handle_request, request)

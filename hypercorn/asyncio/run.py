@@ -8,7 +8,7 @@ from multiprocessing.synchronize import Event as EventType
 from socket import socket
 from typing import Any, List, Optional, Type
 
-from ..asgi.run import H2CProtocolRequired, WebsocketProtocolRequired
+from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import check_shutdown, load_application, MustReloadException, observe_changes, Shutdown
@@ -72,6 +72,10 @@ class Server(asyncio.Protocol):
                 self.config,
                 self._server.transport,
                 upgrade_request=error.request,
+            )
+        except H2ProtocolAssumed as error:
+            self._server = H2Server(
+                self.app, self.loop, self.config, self._server.transport, received_data=error.data
             )
 
     def eof_received(self) -> bool:

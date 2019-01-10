@@ -1,5 +1,6 @@
 import asyncio
 
+import h2
 import h11
 import pytest
 
@@ -70,3 +71,19 @@ async def test_h2c_upgrade(event_loop: asyncio.AbstractEventLoop) -> None:
             assert value == b"h2c"
             has_h2c = True
     assert has_h2c
+
+
+@pytest.mark.asyncio
+async def test_h2_prior_knowledge(event_loop: asyncio.AbstractEventLoop) -> None:
+    client = h2.connection.H2Connection()
+    client.initiate_connection()
+    client.ping(b"12345678")
+    server = Server(EchoFramework, event_loop, Config())
+    transport = MockTransport()
+    server.connection_made(transport)  # type: ignore
+    server.data_received(client.data_to_send())
+    await transport.updated.wait()
+    events = client.receive_data(transport.data)
+    client.close_connection()
+    server.data_received(client.data_to_send())
+    assert isinstance(events[-1], h2.events.PingAcknowledged)

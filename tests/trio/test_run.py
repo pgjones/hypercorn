@@ -1,3 +1,4 @@
+import h2
 import h11
 import pytest
 
@@ -55,3 +56,19 @@ async def test_h2c_upgrade() -> None:
             assert value == b"h2c"
             has_h2c = True
     assert has_h2c
+
+
+@pytest.mark.trio
+async def test_h2_prior_knowledge() -> None:
+    client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream.socket = MockSocket()
+    async with trio.open_nursery() as nursery:
+        nursery.start_soon(serve_stream, EchoFramework, Config(), server_stream)
+        client = h2.connection.H2Connection()
+        client.initiate_connection()
+        client.ping(b"12345678")
+        await client_stream.send_all(client.data_to_send())
+        events = client.receive_data(await client_stream.receive_some(2 ** 16))
+        client.close_connection()
+        await client_stream.send_all(client.data_to_send())
+    assert isinstance(events[-1], h2.events.PingAcknowledged)

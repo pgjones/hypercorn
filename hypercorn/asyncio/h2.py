@@ -41,6 +41,7 @@ class H2Server(HTTPServer, H2Mixin):
         transport: asyncio.BaseTransport,
         *,
         upgrade_request: Optional[h11.Request] = None,
+        received_data: Optional[bytes] = None,
     ) -> None:
         super().__init__(loop, config, transport, "h2")
         self.app = app
@@ -61,6 +62,8 @@ class H2Server(HTTPServer, H2Mixin):
 
         if upgrade_request is None:
             self.connection.initiate_connection()
+            if received_data:
+                self.data_received(received_data)
         else:
             settings = ""
             headers = []

@@ -62,7 +62,7 @@ class H11Server(HTTPServer, H11Mixin):
                 if isinstance(event, h11.Request):
                     self.stop_keep_alive_timeout()
                     try:
-                        self.raise_if_upgrade(event)
+                        self.raise_if_upgrade(event, self.connection.trailing_data[0])
                     except H2CProtocolRequired as error:
                         self.send(
                             h11.InformationalResponse(

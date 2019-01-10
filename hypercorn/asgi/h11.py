@@ -11,7 +11,7 @@ from ..config import Config
 from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
-from .run import H2CProtocolRequired, WebsocketProtocolRequired
+from .run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
 
 
 class ASGIH11State(Enum):
@@ -69,7 +69,7 @@ class H11Mixin:
             ),
         )
 
-    def raise_if_upgrade(self, event: h11.Request) -> None:
+    def raise_if_upgrade(self, event: h11.Request, trailing_data: bytes) -> None:
         upgrade_value = ""
         connection_value = ""
         has_body = False
@@ -96,6 +96,8 @@ class H11Mixin:
         # initiate the upgrade if really required (or just use h2).
         elif upgrade_value.lower() == "h2c" and not has_body:
             raise H2CProtocolRequired(event)
+        elif event.method == b"PRI" and event.target == b"*" and event.http_version == b"2.0":
+            raise H2ProtocolAssumed(b"PRI * HTTP/2.0\r\n\r\n" + trailing_data)
 
     async def handle_request(self, request: h11.Request) -> None:
         path, _, query_string = request.target.partition(b"?")
