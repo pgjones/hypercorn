@@ -27,6 +27,7 @@ class Config:
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_logger: Optional[logging.Logger] = None
+    alpn_protocols = ["h2", "http/1.1"]
     application_path: str
     backlog = 100
     bind = ["127.0.0.1:8000"]
@@ -136,9 +137,9 @@ class Config:
             ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         )  # RFC 7540 Section 9.2: MUST be TLS >=1.2
         context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
-        context.set_alpn_protocols(["h2", "http/1.1"])
+        context.set_alpn_protocols(self.alpn_protocols)
         try:
-            context.set_npn_protocols(["h2", "http/1.1"])
+            context.set_npn_protocols(self.alpn_protocols)
         except NotImplementedError:
             pass  # NPN is not necessarily available
 
