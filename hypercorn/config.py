@@ -177,14 +177,14 @@ class Config:
                     host, port = value[0], int(value[1])
                 except (ValueError, IndexError):
                     host, port = bind, 8000
+                sock = socket.socket(
+                    socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM
+                )
                 if self.workers > 1:
                     try:
                         sock.setsockopt(socket.SOL_SOCKET, socket.SO_RESUSEPORT, 1)  # type: ignore
                     except AttributeError:
                         pass
-                sock = socket.socket(
-                    socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM
-                )
                 binding = (host, port)
 
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
