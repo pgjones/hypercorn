@@ -6,7 +6,7 @@ import sys
 import warnings
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import Any, List, Optional, Type
+from typing import Any, Coroutine, List, Optional, Type
 
 from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
 from ..config import Config
@@ -141,13 +141,26 @@ async def worker_serve(
     tasks = []
     if platform.system() == "Windows":
         tasks.append(loop.create_task(_windows_signal_support()))
+    else:
+        signal_event = asyncio.Event()
+
+        def _signal_handler(*_: Any) -> None:
+            signal_event.set()
+
+        try:
+            loop.add_signal_handler(signal.SIGINT, _signal_handler)
+            loop.add_signal_handler(signal.SIGTERM, _signal_handler)
+        except AttributeError:
+            pass
+
+        async def _check_signal() -> None:
+            await signal_event.wait()
+            raise Shutdown()
+
+        tasks.append(loop.create_task(_check_signal()))
 
     if shutdown_event is not None:
         tasks.append(loop.create_task(check_shutdown(shutdown_event, asyncio.sleep)))
-
-    for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
-        if hasattr(signal, signal_name):
-            signal.signal(getattr(signal, signal_name), _raise_shutdown)
 
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
@@ -161,11 +174,8 @@ async def worker_serve(
 
     reload_ = False
     try:
-        if tasks:
-            gathered_tasks = asyncio.gather(*tasks)
-            await gathered_tasks
-        else:
-            await loop.create_future()  # Serve forever (copies std lib)
+        gathered_tasks = asyncio.gather(*tasks)
+        await gathered_tasks
     except MustReloadException:
         reload_ = True
     except (Shutdown, KeyboardInterrupt):
@@ -174,15 +184,13 @@ async def worker_serve(
         for server in servers:
             server.close()
             await server.wait_closed()
-        if tasks:
-            # Retrieve the Gathered Tasks Cancelled Exception, to
-            # prevent a warning that this hasn't been done.
-            gathered_tasks.exception()
+        # Retrieve the Gathered Tasks Cancelled Exception, to
+        # prevent a warning that this hasn't been done.
+        gathered_tasks.exception()
 
         await lifespan.wait_for_shutdown()
         lifespan_task.cancel()
         await lifespan_task
-        await loop.shutdown_asyncgens()
 
     if reload_:
         # Restart this process (only safe for dev/debug)
@@ -195,14 +203,11 @@ def asyncio_worker(
     shutdown_event: Optional[EventType] = None,
 ) -> None:
     app = load_application(config.application_path)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.set_debug(config.debug)
-    loop.run_until_complete(
-        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event)
+    # With Python 3.7 switch to asyncio.run
+    _run(
+        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event),
+        debug=config.debug,
     )
-    _cancel_all_tasks(loop)
-    loop.close()
 
 
 def uvloop_worker(
@@ -218,19 +223,33 @@ def uvloop_worker(
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     app = load_application(config.application_path)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.set_debug(config.debug)
-    loop.run_until_complete(
-        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event)
+    # With Python 3.7 use asyncio.run
+    _run(
+        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event),
+        debug=config.debug,
     )
-    _cancel_all_tasks(loop)
-    loop.close()
+
+
+def _run(main: Coroutine, *, debug: bool = False) -> None:
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        loop.set_debug(debug)
+        loop.run_until_complete(main)
+    finally:
+        try:
+            _cancel_all_tasks(loop)
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
 
 
 def _cancel_all_tasks(loop: asyncio.AbstractEventLoop) -> None:
-    # With Python 3.7 switch to asyncio.all_tasks(loop)
-    tasks = [task for task in asyncio.Task.all_tasks(loop)]
+    tasks = [task for task in asyncio.Task.all_tasks(loop) if not task.done()]
+    if not tasks:
+        return
+
     for task in tasks:
         task.cancel()
     loop.run_until_complete(asyncio.gather(*tasks, loop=loop, return_exceptions=True))

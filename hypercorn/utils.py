@@ -12,8 +12,8 @@ from wsgiref.handlers import format_date_time
 from .typing import ASGIFramework
 
 
-class Shutdown(SystemExit):
-    code = 1
+class Shutdown(Exception):
+    pass
 
 
 class MustReloadException(Exception):
