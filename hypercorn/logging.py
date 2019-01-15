@@ -2,19 +2,22 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 
 class AccessLogger:
-    def __init__(self, target: Optional[str], log_format: str) -> None:
+    def __init__(self, log_format: str, target: Union[logging.Logger, str, None]) -> None:
         self.logger: Optional[logging.Logger] = None
         self.log_format = log_format
-        if target is not None:
+        if isinstance(target, logging.Logger):
+            self.logger = target
+        elif target is not None:
             self.logger = logging.getLogger("hypercorn.access")
+            self.logger.handlers = []
             if target == "-":
                 self.logger.addHandler(logging.StreamHandler(sys.stdout))
             else:
-                self.logger.addHandler(logging.FileHandler(self.target))
+                self.logger.addHandler(logging.FileHandler(target))
             self.logger.setLevel(logging.INFO)
 
     def access(self, request: dict, response: dict, request_time: float) -> None:

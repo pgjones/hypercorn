@@ -1,9 +1,37 @@
+import logging
 import os
 import time
+from typing import Optional, Type, Union
 
 import pytest
 
-from hypercorn.logging import AccessLogAtoms
+from hypercorn.logging import AccessLogAtoms, AccessLogger
+
+
+@pytest.mark.parametrize(
+    "target, expected_name, expected_handler_type",
+    [
+        ("-", "hypercorn.access", logging.StreamHandler),
+        ("/tmp/path", "hypercorn.access", logging.FileHandler),
+        (logging.getLogger("test_special"), "test_special", None),
+        (None, None, None),
+    ],
+)
+def test_access_logger_init(
+    target: Union[logging.Logger, str, None],
+    expected_name: Optional[str],
+    expected_handler_type: Optional[Type[logging.Handler]],
+) -> None:
+    access_logger = AccessLogger("%h", target)
+    assert access_logger.log_format == "%h"
+    if expected_name is None:
+        assert access_logger.logger is None
+    else:
+        assert access_logger.logger.name == expected_name
+        if expected_handler_type is None:
+            assert access_logger.handlers == []
+        else:
+            assert isinstance(access_logger.handlers[0], expected_handler_type)
 
 
 @pytest.fixture(name="request_scope")

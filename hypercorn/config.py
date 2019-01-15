@@ -104,9 +104,13 @@ class Config:
     def access_logger(self) -> AccessLogger:
         if self._access_logger is None:
             self._access_logger = self.access_logger_class(
-                self.access_log_target, self.access_log_format
+                self.access_log_format, self.access_log_target
             )
         return self._access_logger
+
+    @access_logger.setter
+    def access_logger(self, value: logging.Logger) -> None:
+        self._access_logger = self.access_logger_class(self.access_log_format, value)
 
     @property
     def error_log_target(self) -> Optional[str]:
