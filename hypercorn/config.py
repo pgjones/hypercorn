@@ -62,7 +62,15 @@ class Config:
 
     cert_reqs = property(None, set_cert_reqs)
 
-    def _set_host(self, value: str) -> None:
+    @property
+    def host(self) -> str:
+        # Remove in 0.6.0
+        warnings.warn("host is deprecated, please use bind instead", DeprecationWarning)
+        host, _ = self.bind[0].rsplit(":")
+        return host
+
+    @host.setter
+    def host(self, value: str) -> None:
         # Remove in 0.6.0
         warnings.warn("host is deprecated, please use bind instead", DeprecationWarning)
         if self.bind:
@@ -72,9 +80,15 @@ class Config:
         host = value
         self.bind = [f"{host}:{port}"]
 
-    host = property(None, _set_host)
+    @property
+    def port(self) -> int:
+        # Remove in 0.6.0
+        warnings.warn("port is deprecated, please use bind instead", DeprecationWarning)
+        _, port = self.bind[0].rsplit(":")
+        return int(port)
 
-    def _set_port(self, value: int) -> None:
+    @port.setter
+    def port(self, value: int) -> None:
         # Remove in 0.6.0
         warnings.warn("port is deprecated, please use bind instead", DeprecationWarning)
         if self.bind:
@@ -83,8 +97,6 @@ class Config:
             host = "127.0.0.1"
         port = str(value)
         self.bind = [f"{host}:{port}"]
-
-    port = property(None, _set_port)
 
     def _set_file_descriptor(self, value: int) -> None:
         # Remove in 0.6.0
