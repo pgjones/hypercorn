@@ -8,7 +8,6 @@ from urllib.parse import unquote
 import h11
 
 from ..config import Config
-from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
 from .run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
@@ -134,11 +133,7 @@ class H11Mixin:
             await self.asend(h11.EndOfMessage())
             self.response = {"status": 500, "headers": []}
 
-        if self.config.access_logger is not None:
-            self.config.access_logger.info(
-                self.config.access_log_format,
-                AccessLogAtoms(self.scope, self.response, time() - start_time),
-            )
+        self.config.access_logger.access(self.scope, self.response, time() - start_time)
 
     async def asgi_send(self, message: dict) -> None:
         """Called by the ASGI instance to send a message."""

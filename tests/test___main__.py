@@ -56,7 +56,11 @@ def test_main_cli_override(
     config = run_multiple.call_args_list[0][0][0]
 
     for name, value in inspect.getmembers(raw_config):
-        if not inspect.ismethod(value) and not name.startswith("_") and name != config_key:
+        if (
+            not inspect.ismethod(value)
+            and not name.startswith("_")
+            and name not in {"access_logger", config_key}
+        ):
             assert getattr(raw_config, name) == getattr(config, name)
     assert getattr(config, config_key) == set_value
 

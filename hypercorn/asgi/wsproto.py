@@ -10,7 +10,6 @@ import h11
 import wsproto
 
 from ..config import Config
-from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
 
@@ -154,11 +153,7 @@ class WebsocketMixin:
             await self.send_http_error(500)
             self.state = ASGIWebsocketState.HTTPCLOSED
 
-        if self.config.access_logger is not None:
-            self.config.access_logger.info(
-                self.config.access_log_format,
-                AccessLogAtoms(self.scope, self.response, time() - start_time),
-            )
+        self.config.access_logger.access(self.scope, self.response, time() - start_time)
 
     async def asgi_send(
         self, request_event: wsproto.events.ConnectionRequested, message: dict

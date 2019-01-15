@@ -1,5 +1,31 @@
+import logging
 import os
+import sys
 import time
+from typing import Any, Optional
+
+
+class AccessLogger:
+    def __init__(self, target: Optional[str], log_format: str) -> None:
+        self.logger: Optional[logging.Logger] = None
+        self.log_format = log_format
+        if target is not None:
+            self.logger = logging.getLogger("hypercorn.access")
+            if target == "-":
+                self.logger.addHandler(logging.StreamHandler(sys.stdout))
+            else:
+                self.logger.addHandler(logging.FileHandler(self.target))
+            self.logger.setLevel(logging.INFO)
+
+    def access(self, request: dict, response: dict, request_time: float) -> None:
+        if self.logger is not None:
+            self.logger.info(self.log_format, AccessLogAtoms(request, response, request_time))
+
+    def __getattr__(self, name: str) -> Any:
+        if self.logger is None:
+            return lambda *_: None
+        else:
+            return getattr(self.logger, name)
 
 
 class AccessLogAtoms(dict):

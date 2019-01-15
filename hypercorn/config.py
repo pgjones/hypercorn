@@ -13,6 +13,8 @@ from typing import Any, AnyStr, Dict, List, Mapping, Optional, Type, Union
 
 import pytoml
 
+from .logging import AccessLogger
+
 BYTES = 1
 OCTETS = 1
 SECONDS = 1.0
@@ -22,11 +24,12 @@ FilePath = Union[AnyStr, os.PathLike]
 
 class Config:
 
-    _access_log_target: Optional[str] = None
+    _access_logger: Optional[AccessLogger] = None
     _error_log_target: Optional[str] = None
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
-    access_logger: Optional[logging.Logger] = None
+    access_log_target: Optional[str] = None
+    access_logger_class = AccessLogger
     alpn_protocols = ["h2", "http/1.1"]
     application_path: str
     backlog = 100
@@ -98,19 +101,12 @@ class Config:
     unix_domain = property(None, _set_unix_domain)
 
     @property
-    def access_log_target(self) -> Optional[str]:
-        return self._access_log_target
-
-    @access_log_target.setter
-    def access_log_target(self, value: Optional[str]) -> None:
-        self._access_log_target = value
-        if self.access_log_target is not None:
-            self.access_logger = logging.getLogger("hypercorn.access")
-            if self.access_log_target == "-":
-                self.access_logger.addHandler(logging.StreamHandler(sys.stdout))
-            else:
-                self.access_logger.addHandler(logging.FileHandler(self.access_log_target))
-            self.access_logger.setLevel(logging.INFO)
+    def access_logger(self) -> AccessLogger:
+        if self._access_logger is None:
+            self._access_logger = self.access_logger_class(
+                self.access_log_target, self.access_log_format
+            )
+        return self._access_logger
 
     @property
     def error_log_target(self) -> Optional[str]:

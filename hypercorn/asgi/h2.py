@@ -12,7 +12,6 @@ import h2.events
 import h2.exceptions
 
 from ..config import Config
-from ..logging import AccessLogAtoms
 from ..typing import ASGIFramework
 from ..utils import suppress_body
 
@@ -140,11 +139,7 @@ class H2Mixin:
             await self.asend(EndStream(stream_id))
             stream.response = {"status": 500, "headers": []}
 
-        if self.config.access_logger is not None:
-            self.config.access_logger.info(
-                self.config.access_log_format,
-                AccessLogAtoms(stream.scope, stream.response, time() - start_time),
-            )
+        self.config.access_logger.access(stream.scope, stream.response, time() - start_time)
 
     async def asgi_receive(self, stream_id: int) -> dict:
         """Called by the ASGI instance to receive a message."""
