@@ -61,6 +61,8 @@ class MockWebsocket(WebsocketMixin):
         self.client = ("127.0.0.1", 5000)
         self.config = Config()
         self.server = ("remote", 5000)
+        self.scope = {"method": "GET"}
+        self.start_time = 0.0
         self.state = ASGIWebsocketState.HANDSHAKE
 
         self.sent_events: List[Union[H11SendableEvent, WsprotoEvent]] = []
@@ -127,7 +129,6 @@ async def test_asgi_send() -> None:
 @pytest.mark.asyncio
 async def test_asgi_send_http() -> None:
     server = MockWebsocket()
-    server.scope = {"method": "GET"}
     await server.asgi_send(
         None,
         {
@@ -157,6 +158,8 @@ async def test_asgi_send_http() -> None:
 )
 async def test_asgi_send_invalid_message(data_bytes: Any, data_text: Any) -> None:
     server = WebsocketMixin()
+    server.config = Config()
+    server.start_time = 0.0
     server.state = ASGIWebsocketState.CONNECTED
     with pytest.raises((TypeError, ValueError)):
         await server.asgi_send(
@@ -198,6 +201,8 @@ async def test_asgi_send_invalid_message_given_state(
 )
 async def test_asgi_send_invalid_http_message(status: Any, headers: Any, body: Any) -> None:
     server = WebsocketMixin()
+    server.config = Config()
+    server.start_time = 0.0
     server.state = ASGIWebsocketState.HANDSHAKE
     server.scope = {"method": "GET"}
     with pytest.raises((TypeError, ValueError)):

@@ -85,6 +85,7 @@ class WebsocketMixin:
     config: Config
     response: Optional[dict]
     server: Tuple[str, int]
+    start_time: float
     state: ASGIWebsocketState
 
     @property
@@ -126,12 +127,14 @@ class WebsocketMixin:
         await self.handle_asgi_app(event)
 
     async def send_http_error(self, status: int) -> None:
-        self.response = {"status": status, "headers": []}
         await self.asend(h11.Response(status_code=status, headers=self.response_headers()))
         await self.asend(h11.EndOfMessage())
+        self.config.access_logger.access(
+            self.scope, {"status": status, "headers": []}, time() - self.start_time
+        )
 
     async def handle_asgi_app(self, event: wsproto.events.ConnectionRequested) -> None:
-        start_time = time()
+        self.start_time = time()
         await self.asgi_put({"type": "websocket.connect"})
         try:
             asgi_instance = self.app(self.scope)
@@ -153,8 +156,6 @@ class WebsocketMixin:
             await self.send_http_error(500)
             self.state = ASGIWebsocketState.HTTPCLOSED
 
-        self.config.access_logger.access(self.scope, self.response, time() - start_time)
-
     async def asgi_send(
         self, request_event: wsproto.events.ConnectionRequested, message: dict
     ) -> None:
@@ -162,12 +163,15 @@ class WebsocketMixin:
         if message["type"] == "websocket.accept" and self.state == ASGIWebsocketState.HANDSHAKE:
             await self.asend(AcceptConnection(request_event))
             self.state = ASGIWebsocketState.CONNECTED
-            self.response = {"status": 101, "headers": []}
+            self.config.access_logger.access(
+                self.scope, {"status": 101, "headers": []}, time() - self.start_time
+            )
         elif (
             message["type"] == "websocket.http.response.start"
             and self.state == ASGIWebsocketState.HANDSHAKE
         ):
             self.response = message
+            self.config.access_logger.access(self.scope, self.response, time() - self.start_time)
         elif message["type"] == "websocket.http.response.body" and self.state in {
             ASGIWebsocketState.HANDSHAKE,
             ASGIWebsocketState.RESPONSE,
