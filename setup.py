@@ -20,7 +20,7 @@ INSTALL_REQUIRES = [
     'h2',
     'pytoml',
     'typing_extensions',
-    'wsproto >= 0.12.0',
+    'wsproto >= 0.13.0',
 ]
 
 setup(

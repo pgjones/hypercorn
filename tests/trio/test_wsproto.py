@@ -3,7 +3,8 @@ from typing import AnyStr, List, Type
 import h11
 import pytest
 import trio
-import wsproto
+from wsproto import ConnectionType, WSConnection
+from wsproto.events import AcceptConnection, CloseConnection, Message, Request
 
 from hypercorn.config import Config
 from hypercorn.trio.wsproto import WebsocketServer
@@ -17,7 +18,7 @@ class MockHTTPConnection:
         server_stream.socket = MockSocket()
         self.client = h11.Connection(h11.CLIENT)
         self.server = WebsocketServer(framework, Config(), server_stream)
-        self.server.connection.receive_bytes(
+        self.server.connection.receive_data(
             self.client.send(
                 h11.Request(
                     method="GET",
@@ -51,24 +52,22 @@ class MockWebsocketConnection:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.server = WebsocketServer(framework, Config(), server_stream)
-        self.connection = wsproto.connection.WSConnection(
-            wsproto.connection.CLIENT, host="hypercorn.com", resource=path
+        self.connection = WSConnection(ConnectionType.CLIENT)
+        self.server.connection.receive_data(
+            self.connection.send(Request(target=path, host="hypercorn"))
         )
-        self.server.connection.receive_bytes(self.connection.bytes_to_send())
 
     async def send(self, data: AnyStr) -> None:
-        self.connection.send_data(data)
-        await self.client_stream.send_all(self.connection.bytes_to_send())
+        await self.client_stream.send_all(self.connection.send(Message(data=data)))
         await trio.sleep(0)  # Allow the server to respond
 
-    async def receive(self) -> List[wsproto.events.DataReceived]:
+    async def receive(self) -> List[Message]:
         data = await self.client_stream.receive_some(2 ** 16)
-        self.connection.receive_bytes(data)
+        self.connection.receive_data(data)
         return [event for event in self.connection.events()]
 
     async def close(self) -> None:
-        self.connection.close()
-        await self.client_stream.send_all(self.connection.bytes_to_send())
+        await self.client_stream.send_all(self.connection.send(CloseConnection(code=1000)))
 
 
 @pytest.mark.trio
@@ -77,7 +76,7 @@ async def test_websocket_server() -> None:
     async with trio.open_nursery() as nursery:
         nursery.start_soon(connection.server.handle_connection)
         events = await connection.receive()
-        assert isinstance(events[0], wsproto.events.ConnectionEstablished)
+        assert isinstance(events[0], AcceptConnection)
         await connection.send("data")
         events = await connection.receive()
         assert events[0].data == "data"
@@ -100,5 +99,5 @@ async def test_bad_framework_websocket() -> None:
     with trio.move_on_after(0.2):  # Temporary HACK, Fix close timeout issue
         await connection.server.handle_connection()
     *_, close = await connection.receive()
-    assert isinstance(close, wsproto.events.ConnectionClosed)
+    assert isinstance(close, CloseConnection)
     assert close.code == 1000

@@ -3,8 +3,8 @@ from typing import AnyStr, List, Type
 
 import h11
 import pytest
-import wsproto.connection
-import wsproto.events
+from wsproto import ConnectionType, WSConnection
+from wsproto.events import AcceptConnection, CloseConnection, Message, Request
 
 from hypercorn.asyncio.wsproto import WebsocketServer
 from hypercorn.config import Config
@@ -67,32 +67,28 @@ class MockWebsocketConnection:
         self.server = WebsocketServer(  # type: ignore
             framework, event_loop, Config(), self.transport
         )
-        self.connection = wsproto.connection.WSConnection(
-            wsproto.connection.CLIENT, host="hypercorn.com", resource=path
-        )
-        self.server.data_received(self.connection.bytes_to_send())
+        self.connection = WSConnection(ConnectionType.CLIENT)
+        self.server.data_received(self.connection.send(Request(target=path, host="hypercorn")))
 
     async def send(self, data: AnyStr) -> None:
-        self.connection.send_data(data)
-        self.server.data_received(self.connection.bytes_to_send())
+        self.server.data_received(self.connection.send(Message(data=data)))
         await asyncio.sleep(0)  # Allow the server to respond
 
-    async def receive(self) -> List[wsproto.events.DataReceived]:
+    async def receive(self) -> List[Message]:
         await self.transport.updated.wait()
-        self.connection.receive_bytes(self.transport.data)
+        self.connection.receive_data(self.transport.data)
         self.transport.clear()
         return [event for event in self.connection.events()]
 
     def close(self) -> None:
-        self.connection.close()
-        self.server.data_received(self.connection.bytes_to_send())
+        self.server.data_received(self.connection.send(CloseConnection(code=1000)))
 
 
 @pytest.mark.asyncio
 async def test_websocket_server(event_loop: asyncio.AbstractEventLoop) -> None:
     connection = MockWebsocketConnection("/ws", event_loop)
     events = await connection.receive()
-    assert isinstance(events[0], wsproto.events.ConnectionEstablished)
+    assert isinstance(events[0], AcceptConnection)
     await connection.send("data")
     events = await connection.receive()
     assert events[0].data == "data"
@@ -115,5 +111,5 @@ async def test_bad_framework_websocket(event_loop: asyncio.AbstractEventLoop) ->
     connection = MockWebsocketConnection("/accept", event_loop, framework=BadFramework)
     await asyncio.sleep(0)  # Yield to allow the server to process
     *_, close = await connection.receive()
-    assert isinstance(close, wsproto.events.ConnectionClosed)
+    assert isinstance(close, CloseConnection)
     assert close.code == 1000
