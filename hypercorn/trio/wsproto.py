@@ -1,9 +1,9 @@
 from typing import Optional, Type, Union
 
 import h11
+import trio
 import wsproto
 
-import trio
 from ..asgi.wsproto import (
     AcceptConnection,
     ASGIWebsocketState,

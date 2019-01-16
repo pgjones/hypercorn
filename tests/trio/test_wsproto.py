@@ -2,9 +2,9 @@ from typing import AnyStr, List, Type
 
 import h11
 import pytest
+import trio
 import wsproto
 
-import trio
 from hypercorn.config import Config
 from hypercorn.trio.wsproto import WebsocketServer
 from hypercorn.typing import ASGIFramework

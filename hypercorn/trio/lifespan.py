@@ -1,6 +1,7 @@
 from typing import Type
 
 import trio
+
 from ..config import Config
 from ..typing import ASGIFramework
 

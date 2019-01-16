@@ -1,8 +1,8 @@
 from typing import Optional, Type
 
 import h11
-
 import trio
+
 from ..asgi.h11 import ASGIH11State, H11Mixin
 from ..asgi.run import H2CProtocolRequired, WrongProtocolError
 from ..config import Config

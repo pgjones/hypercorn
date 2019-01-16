@@ -3,9 +3,9 @@ from typing import Type, Union
 
 import h11
 import pytest
-
 import trio
 import trio.testing
+
 from hypercorn.config import Config
 from hypercorn.trio.h11 import H11Server
 from hypercorn.typing import ASGIFramework

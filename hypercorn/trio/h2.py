@@ -6,8 +6,8 @@ import h2.connection
 import h2.events
 import h2.exceptions
 import h11
-
 import trio
+
 from ..asgi.h2 import Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, ServerPush
 from ..config import Config
 from ..typing import ASGIFramework

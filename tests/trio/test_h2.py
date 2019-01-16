@@ -4,8 +4,8 @@ from typing import AsyncGenerator, Optional, Type
 import h2
 import h11
 import pytest
-
 import trio
+
 from hypercorn.config import Config
 from hypercorn.trio.h2 import H2Server
 from hypercorn.typing import ASGIFramework

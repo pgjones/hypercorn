@@ -1,8 +1,8 @@
 import h2
 import h11
 import pytest
-
 import trio
+
 from hypercorn.config import Config
 from hypercorn.trio.run import serve_stream
 from ..helpers import EchoFramework, MockSocket
