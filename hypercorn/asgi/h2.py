@@ -1,41 +1,41 @@
 import asyncio
-from enum import auto, Enum
-from functools import partial
 from itertools import chain
 from time import time
-from typing import Dict, Iterable, List, Optional, Tuple, Type
+from typing import Callable, Iterable, List, Tuple, Type
 from urllib.parse import unquote
 
 import h2.config
 import h2.connection
 import h2.events
 import h2.exceptions
+import wsproto.connection
+import wsproto.events
+import wsproto.extensions
+import wsproto.frame_protocol
+from wsproto.handshake import handshake_extensions
+from wsproto.utilities import split_comma_header  # Specifically to match wsproto expectations
 
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import suppress_body
-
-
-class ASGIH2State(Enum):
-    # The ASGI Spec is clear that a response should not start till the
-    # framework has sent at least one body message hence why this
-    # state tracking is required.
-    REQUEST = auto()
-    RESPONSE = auto()
-    CLOSED = auto()
-
-
-class UnexpectedMessage(Exception):
-    def __init__(self, state: ASGIH2State, message_type: str) -> None:
-        super().__init__(f"Unexpected message type, {message_type} given the state {state}")
+from .utils import ASGIHTTPState, ASGIWebsocketState, UnexpectedMessage
 
 
 class H2Event:
-    def __init__(self, stream_id: int) -> None:
-        self.stream_id = stream_id
+    def __repr__(self) -> str:
+        kwarg_str = ", ".join(
+            f"{name}={value}" for name, value in self.__dict__.items() if name[0] != "_"
+        )
+        return f"{self.__class__.__name__}({kwarg_str})"
 
     def __eq__(self, other: object) -> bool:
         return self.__class__ == other.__class__ and self.__dict__ == other.__dict__
+
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+
+    # This is an unhashable type.
+    __hash__ = None
 
 
 class EndStream(H2Event):
@@ -43,54 +43,42 @@ class EndStream(H2Event):
 
 
 class Response(H2Event):
-    def __init__(self, stream_id: int, headers: Iterable[Tuple[bytes, bytes]]) -> None:
-        super().__init__(stream_id)
+    def __init__(self, headers: Iterable[Tuple[bytes, bytes]]) -> None:
+        super().__init__()
         self.headers = headers
 
 
 class Data(H2Event):
-    def __init__(self, stream_id: int, data: bytes) -> None:
-        super().__init__(stream_id)
+    def __init__(self, data: bytes) -> None:
+        super().__init__()
         self.data = data
 
 
 class ServerPush(H2Event):
-    def __init__(self, stream_id: int, path: str, headers: Iterable[Tuple[bytes, bytes]]) -> None:
-        super().__init__(stream_id)
+    def __init__(self, path: str, headers: Iterable[Tuple[bytes, bytes]]) -> None:
+        super().__init__()
         self.path = path
         self.headers = headers
 
 
-class H2StreamBase:
-    def __init__(self) -> None:
-        self.response: Optional[dict] = None
-        self.scope: Optional[dict] = None
-        self.start_time = time()
-        self.state = ASGIH2State.REQUEST
-
-    async def get(self) -> dict:
-        pass
-
-
-class H2Mixin:
+class H2HTTPStreamMixin:
     app: Type[ASGIFramework]
-    client: Tuple[str, int]
+    asend: Callable
     config: Config
-    connection: h2.connection.H2Connection
-    server: Tuple[str, int]
-    streams: Dict[int, H2StreamBase]
+    response: dict
+    state: ASGIHTTPState
 
-    @property
-    def scheme(self) -> str:
+    async def asgi_receive(self) -> dict:
+        """Called by the ASGI instance to receive a message."""
         pass
 
-    def response_headers(self) -> List[Tuple[bytes, bytes]]:
-        pass
-
-    async def asend(self, event: H2Event) -> None:
-        pass
-
-    async def handle_request(self, event: h2.events.RequestReceived) -> None:
+    async def handle_request(
+        self,
+        event: h2.events.RequestReceived,
+        scheme: str,
+        client: Tuple[str, int],
+        server: Tuple[str, int],
+    ) -> None:
         headers = []
         for name, value in event.headers:
             if name == b":method":
@@ -99,32 +87,27 @@ class H2Mixin:
                 raw_path = value
             headers.append((name, value))
         path, _, query_string = raw_path.partition(b"?")
-        scope = {
+        self.scope = {
             "type": "http",
             "http_version": "2",
             "asgi": {"version": "2.0"},
             "method": method,
-            "scheme": self.scheme,
+            "scheme": scheme,
             "path": unquote(path.decode("ascii")),
             "query_string": query_string,
             "root_path": self.config.root_path,
             "headers": headers,
-            "client": self.client,
-            "server": self.server,
+            "client": client,
+            "server": server,
             "extensions": {"http.response.push": {}},
         }
-        stream_id = event.stream_id
-        self.streams[stream_id].scope = scope
-        await self.handle_asgi_app(stream_id)
+        await self.handle_asgi_app()
 
-    async def handle_asgi_app(self, stream_id: int) -> None:
+    async def handle_asgi_app(self) -> None:
         start_time = time()
-        stream = self.streams[stream_id]
         try:
-            asgi_instance = self.app(stream.scope)
-            await asgi_instance(
-                partial(self.asgi_receive, stream_id), partial(self.asgi_send, stream_id)
-            )
+            asgi_instance = self.app(self.scope)
+            await asgi_instance(self.asgi_receive, self.asgi_send)
         except asyncio.CancelledError:
             pass
         except Exception:
@@ -133,50 +116,199 @@ class H2Mixin:
 
         # If the application hasn't sent a response, it has errored -
         # send a 500 for it.
-        if self.streams[stream_id].state == ASGIH2State.REQUEST:
-            headers = [(b":status", b"500")] + self.response_headers()
-            await self.asend(Response(stream_id, headers))
-            await self.asend(EndStream(stream_id))
-            stream.response = {"status": 500, "headers": []}
+        if self.state == ASGIHTTPState.REQUEST:
+            headers = [(b":status", b"500")]
+            await self.asend(Response(headers))
+            await self.asend(EndStream())
+            self.response = {"status": 500, "headers": []}
 
-        self.config.access_logger.access(stream.scope, stream.response, time() - start_time)
+        self.config.access_logger.access(self.scope, self.response, time() - start_time)
 
-    async def asgi_receive(self, stream_id: int) -> dict:
-        """Called by the ASGI instance to receive a message."""
-        return await self.streams[stream_id].get()
-
-    async def asgi_send(self, stream_id: int, message: dict) -> None:
-        """Called by the ASGI instance to send a message."""
-        stream = self.streams[stream_id]
-        if message["type"] == "http.response.start" and stream.state == ASGIH2State.REQUEST:
-            stream.response = message
+    async def asgi_send(self, message: dict) -> None:
+        if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
+            self.response = message
         elif message["type"] == "http.response.push":
             if not isinstance(message["path"], str):
                 raise TypeError(f"{message['path']} should be a str")
             headers = [(bytes(key), bytes(value)) for key, value in message["headers"]]
-            await self.asend(ServerPush(stream_id, message["path"], headers))
-        elif message["type"] == "http.response.body" and stream.state in {
-            ASGIH2State.REQUEST,
-            ASGIH2State.RESPONSE,
+            await self.asend(ServerPush(message["path"], headers))
+        elif message["type"] == "http.response.body" and self.state in {
+            ASGIHTTPState.REQUEST,
+            ASGIHTTPState.RESPONSE,
         }:
-            if stream.state == ASGIH2State.REQUEST:
+            if self.state == ASGIHTTPState.REQUEST:
                 headers = [
                     (bytes(key).strip(), bytes(value).strip())
                     for key, value in chain(
-                        [(b":status", b"%d" % stream.response["status"])],
-                        stream.response["headers"],
-                        self.response_headers(),
+                        [(b":status", b"%d" % self.response["status"])], self.response["headers"]
                     )
                 ]
-                await self.asend(Response(stream_id, headers))
-                stream.state = ASGIH2State.RESPONSE
+                await self.asend(Response(headers))
+                self.state = ASGIHTTPState.RESPONSE
             if (
-                not suppress_body(stream.scope["method"], stream.response["status"])
+                not suppress_body(self.scope["method"], self.response["status"])
                 and message.get("body", b"") != b""
             ):
-                await self.asend(Data(stream_id, bytes(message.get("body", b""))))
+                await self.asend(Data(bytes(message.get("body", b""))))
             if not message.get("more_body", False):
-                if stream.state != ASGIH2State.CLOSED:
-                    await self.asend(EndStream(stream_id))
+                if self.state != ASGIHTTPState.CLOSED:
+                    await self.asend(EndStream())
         else:
-            raise UnexpectedMessage(stream.state, message["type"])
+            raise UnexpectedMessage(self.state, message["type"])
+
+
+class H2WebsocketStreamMixin:
+    app: Type[ASGIFramework]
+    asend: Callable
+    config: Config
+    connection: wsproto.connection.Connection
+    response: dict
+    state: ASGIWebsocketState
+
+    async def asgi_put(self, message: dict) -> None:
+        """Called by the ASGI server to put a message to the ASGI instance.
+
+        See asgi_receive as the get to this put.
+        """
+        pass
+
+    async def asgi_receive(self) -> dict:
+        """Called by the ASGI instance to receive a message."""
+        pass
+
+    async def handle_request(
+        self,
+        event: h2.events.RequestReceived,
+        scheme: str,
+        client: Tuple[str, int],
+        server: Tuple[str, int],
+    ) -> None:
+        headers = []
+        for name, value in event.headers:
+            if name == b":path":
+                raw_path = value
+            headers.append((name, value))
+        path, _, query_string = raw_path.partition(b"?")
+        self.scope = {
+            "type": "websocket",
+            "asgi": {"version": "2.0"},
+            # RFC 8441 (HTTP/2) Says use http or https, ASGI says ws or wss
+            "scheme": "wss" if scheme == "https" else "ws",
+            "http_version": "2",
+            "path": unquote(path.decode("ascii")),
+            "query_string": query_string,
+            "root_path": self.config.root_path,
+            "headers": headers,
+            "client": client,
+            "server": server,
+            "subprotocols": [],
+            "extensions": {"websocket.http.response": {}},
+        }
+        self.state = ASGIWebsocketState.HANDSHAKE
+        await self.handle_asgi_app()
+
+    async def send_http_error(self, status: int) -> None:
+        headers = [(b":status", b"%d" % status)]
+        await self.asend(Response(headers=headers))
+        await self.asend(EndStream())
+        self.config.access_logger.access(
+            self.scope, {"status": status, "headers": []}, time() - self.start_time
+        )
+
+    async def handle_asgi_app(self) -> None:
+        self.start_time = time()
+        await self.asgi_put({"type": "websocket.connect"})
+        try:
+            asgi_instance = self.app(self.scope)
+            await asgi_instance(self.asgi_receive, self.asgi_send)
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            if self.config.error_logger is not None:
+                self.config.error_logger.exception("Error in ASGI Framework")
+
+            if self.state == ASGIWebsocketState.CONNECTED:
+                await self.asend(
+                    Data(
+                        self.connection.send(
+                            wsproto.events.CloseConnection(
+                                code=wsproto.frame_protocol.CloseReason.ABNORMAL_CLOSURE
+                            )
+                        )
+                    )
+                )
+                self.state = ASGIWebsocketState.CLOSED
+
+        # If the application hasn't accepted the connection (or sent a
+        # response) send a 500 for it. Otherwise if the connection
+        # hasn't been closed then close it.
+        if self.state == ASGIWebsocketState.HANDSHAKE:
+            await self.send_http_error(500)
+            self.state = ASGIWebsocketState.HTTPCLOSED
+
+    async def asgi_send(self, message: dict) -> None:
+        if message["type"] == "websocket.accept" and self.state == ASGIWebsocketState.HANDSHAKE:
+            self.state = ASGIWebsocketState.CONNECTED
+            extensions: List[str] = []
+            for name, value in self.scope["headers"]:
+                if name == b"sec-websocket-extensions":
+                    extensions = split_comma_header(value)
+            supported_extensions = [wsproto.extensions.PerMessageDeflate()]
+            accepts = handshake_extensions(extensions, supported_extensions)
+            headers = [(b":status", b"200")]
+            if accepts:
+                headers.append((b"sec-websocket-extensions", accepts))
+            await self.asend(Response(headers))
+            self.connection = wsproto.connection.Connection(
+                wsproto.connection.ConnectionType.SERVER, supported_extensions
+            )
+            self.config.access_logger.access(
+                self.scope, {"status": 200, "headers": []}, time() - self.start_time
+            )
+        elif (
+            message["type"] == "websocket.http.response.start"
+            and self.state == ASGIWebsocketState.HANDSHAKE
+        ):
+            self.response = message
+            self.config.access_logger.access(self.scope, self.response, time() - self.start_time)
+        elif message["type"] == "websocket.http.response.body" and self.state in {
+            ASGIWebsocketState.HANDSHAKE,
+            ASGIWebsocketState.RESPONSE,
+        }:
+            await self._asgi_send_rejection(message)
+        elif message["type"] == "websocket.send" and self.state == ASGIWebsocketState.CONNECTED:
+            event: wsproto.events.Event
+            if message.get("bytes") is not None:
+                event = wsproto.events.BytesMessage(data=bytes(message["bytes"]))
+            elif not isinstance(message["text"], str):
+                raise TypeError(f"{message['text']} should be a str")
+            else:
+                event = wsproto.events.TextMessage(data=message["text"])
+            await self.asend(Data(self.connection.send(event)))
+        elif message["type"] == "websocket.close" and self.state == ASGIWebsocketState.HANDSHAKE:
+            await self.send_http_error(403)
+            self.state = ASGIWebsocketState.HTTPCLOSED
+        elif message["type"] == "websocket.close":
+            data = self.connection.send(wsproto.events.CloseConnection(code=int(message["code"])))
+            await self.asend(Data(data))
+            self.state = ASGIWebsocketState.CLOSED
+        else:
+            raise UnexpectedMessage(self.state, message["type"])
+
+    async def _asgi_send_rejection(self, message: dict) -> None:
+        body_suppressed = suppress_body("GET", self.response["status"])
+        if self.state == ASGIWebsocketState.HANDSHAKE:
+            headers = [
+                (bytes(key).strip(), bytes(value).strip())
+                for key, value in chain(
+                    [(b":status", b"%d" % self.response["status"])], self.response["headers"]
+                )
+            ]
+            await self.asend(Response(headers))
+            self.state = ASGIWebsocketState.RESPONSE
+        if not body_suppressed and message.get("body", b"") != b"":
+            await self.asend(Data(bytes(message.get("body", b""))))
+        if not message.get("more_body", False):
+            await self.asgi_put({"type": "websocket.disconnect"})
+            await self.asend(EndStream())
+            self.state = ASGIWebsocketState.HTTPCLOSED

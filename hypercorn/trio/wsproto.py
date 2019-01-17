@@ -7,7 +7,8 @@ from wsproto.connection import ConnectionState
 from wsproto.events import CloseConnection, Event, Message, Ping, Request
 from wsproto.frame_protocol import CloseReason
 
-from ..asgi.wsproto import ASGIWebsocketState, FrameTooLarge, WebsocketBuffer, WebsocketMixin
+from ..asgi.utils import ASGIWebsocketState, FrameTooLarge, WebsocketBuffer
+from ..asgi.wsproto import WebsocketMixin
 from ..config import Config
 from ..typing import ASGIFramework
 from .base import HTTPServer

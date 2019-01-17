@@ -1,7 +1,8 @@
 import socket
 from multiprocessing.synchronize import Event as EventType
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional, Tuple, Union
 
+import h2.events
 import h11
 from typing_extensions import Protocol  # Till PEP 544 is accepted
 
@@ -19,4 +20,54 @@ class ASGIFramework(Protocol):
         ...
 
     async def __call__(self, receive: Callable, send: Callable) -> None:
+        ...
+
+
+class H2SyncStream(Protocol):
+    scope: dict
+
+    def data_received(self, data: bytes) -> None:
+        ...
+
+    def ended(self) -> None:
+        ...
+
+    def reset(self) -> None:
+        ...
+
+    def close(self) -> None:
+        ...
+
+    async def handle_request(
+        self,
+        event: h2.events.RequestReceived,
+        scheme: str,
+        client: Tuple[str, int],
+        server: Tuple[str, int],
+    ) -> None:
+        ...
+
+
+class H2AsyncStream(Protocol):
+    scope: dict
+
+    async def data_received(self, data: bytes) -> None:
+        ...
+
+    async def ended(self) -> None:
+        ...
+
+    async def reset(self) -> None:
+        ...
+
+    async def close(self) -> None:
+        ...
+
+    async def handle_request(
+        self,
+        event: h2.events.RequestReceived,
+        scheme: str,
+        client: Tuple[str, int],
+        server: Tuple[str, int],
+    ) -> None:
         ...

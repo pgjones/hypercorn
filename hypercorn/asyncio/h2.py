@@ -1,38 +1,110 @@
 import asyncio
+from functools import partial
 from itertools import chain
-from typing import Dict, Iterable, List, Optional, Tuple, Type
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type
 
 import h2.config
 import h2.connection
 import h2.events
 import h2.exceptions
 import h11
+import wsproto
+import wsproto.connection
+import wsproto.events
 
-from ..asgi.h2 import Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, ServerPush
+from ..asgi.h2 import (
+    Data,
+    EndStream,
+    H2Event,
+    H2HTTPStreamMixin,
+    H2WebsocketStreamMixin,
+    Response,
+    ServerPush,
+)
+from ..asgi.utils import ASGIHTTPState, ASGIWebsocketState
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, H2SyncStream
 from .base import HTTPServer
 
 
-class Stream(H2StreamBase):
-    def __init__(self) -> None:
-        super().__init__()
-        self.app_queue: asyncio.Queue = asyncio.Queue()
+class H2HTTPStream(H2HTTPStreamMixin):
+    """A HTTP Stream."""
 
-    def append(self, data: bytes) -> None:
-        self.app_queue.put_nowait({"type": "http.request", "body": data, "more_body": True})
+    def __init__(self, app: Type[ASGIFramework], config: Config, asend: Callable) -> None:
+        self.app = app
+        self.config = config
+        self.response: Optional[dict] = None
+        self.scope: Optional[dict] = None
+        self.state = ASGIHTTPState.REQUEST
 
-    def complete(self) -> None:
-        self.app_queue.put_nowait({"type": "http.request", "body": b"", "more_body": False})
+        self.asend = asend  # type: ignore
+        self.to_app: asyncio.Queue = asyncio.Queue()
+
+    def data_received(self, data: bytes) -> None:
+        self.to_app.put_nowait({"type": "http.request", "body": data, "more_body": True})
+
+    def ended(self) -> None:
+        self.to_app.put_nowait({"type": "http.request", "body": b"", "more_body": False})
+
+    def reset(self) -> None:
+        self.to_app.put_nowait({"type": "http.disconnect"})
 
     def close(self) -> None:
-        self.app_queue.put_nowait({"type": "http.disconnect"})
+        self.to_app.put_nowait({"type": "http.disconnect"})
 
-    async def get(self) -> dict:
-        return await self.app_queue.get()
+    async def asgi_receive(self) -> dict:
+        return await self.to_app.get()
 
 
-class H2Server(HTTPServer, H2Mixin):
+class H2WebsocketStream(H2WebsocketStreamMixin):
+    """A Websocket Stream."""
+
+    def __init__(
+        self, app: Type[ASGIFramework], config: Config, asend: Callable, send: Callable
+    ) -> None:
+        self.app = app
+        self.config = config
+        self.response: Optional[dict] = None
+        self.scope: Optional[dict] = None
+        self.state = ASGIWebsocketState.CONNECTED
+        self.connection: Optional[wsproto.connection.Connection] = None
+
+        self.asend = asend  # type: ignore
+        self.send = send
+        self.to_app: asyncio.Queue = asyncio.Queue()
+
+    def data_received(self, data: bytes) -> None:
+        self.connection.receive_data(data)
+        for event in self.connection.events():
+            if isinstance(event, wsproto.events.TextMessage):
+                self.to_app.put_nowait({"type": "websocket.receive", "text": event.data})
+            elif isinstance(event, wsproto.events.BytesMessage):
+                self.to_app.put_nowait({"type": "websocket.receive", "bytes": event.data})
+            elif isinstance(event, wsproto.events.Ping):
+                self.send(Data(self.connection.send(event.response())))
+            elif isinstance(event, wsproto.events.CloseConnection):
+                if self.connection.state == wsproto.connection.ConnectionState.REMOTE_CLOSING:
+                    self.send(Data(self.connection.send(event.response())))
+                self.to_app.put_nowait({"type": "websocket.disconnect"})
+                break
+
+    def ended(self) -> None:
+        self.to_app.put_nowait({"type": "websocket.disconnect"})
+
+    def reset(self) -> None:
+        self.to_app.put_nowait({"type": "websocket.disconnect"})
+
+    def close(self) -> None:
+        self.to_app.put_nowait({"type": "websocket.disconnect"})
+
+    async def asgi_put(self, message: dict) -> None:
+        await self.to_app.put(message)
+
+    async def asgi_receive(self) -> dict:
+        return await self.to_app.get()
+
+
+class H2Server(HTTPServer):
     def __init__(
         self,
         app: Type[ASGIFramework],
@@ -45,7 +117,7 @@ class H2Server(HTTPServer, H2Mixin):
     ) -> None:
         super().__init__(loop, config, transport, "h2")
         self.app = app
-        self.streams: Dict[int, Stream] = {}  # type: ignore
+        self.streams: Dict[int, H2SyncStream] = {}  # type: ignore
         self.flow_control: Dict[int, asyncio.Event] = {}
 
         self.connection = h2.connection.H2Connection(
@@ -57,6 +129,7 @@ class H2Server(HTTPServer, H2Mixin):
             initial_values={
                 h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: config.h2_max_concurrent_streams,
                 h2.settings.SettingCodes.MAX_HEADER_LIST_SIZE: config.h2_max_header_list_size,
+                h2.settings.SettingCodes.ENABLE_CONNECT_PROTOCOL: 1,
             },
         )
 
@@ -80,7 +153,7 @@ class H2Server(HTTPServer, H2Mixin):
             event.stream_id = 1
             event.headers = headers
             self.create_stream(event, complete=True)
-        self.send()
+        self.flush()
 
     def connection_lost(self, error: Optional[Exception]) -> None:
         if error is not None:
@@ -94,7 +167,7 @@ class H2Server(HTTPServer, H2Mixin):
         try:
             events = self.connection.receive_data(data)
         except h2.exceptions.ProtocolError:
-            self.send()
+            self.flush()
             self.close()
         else:
             self.handle_events(events)
@@ -105,13 +178,29 @@ class H2Server(HTTPServer, H2Mixin):
         super().close()
 
     def create_stream(self, event: h2.events.RequestReceived, *, complete: bool = False) -> None:
-        self.streams[event.stream_id] = Stream()
+        method: str
+        for name, value in event.headers:
+            if name == b":method":
+                method = value.decode("ascii").upper()
+        if method == "CONNECT":
+            self.streams[event.stream_id] = H2WebsocketStream(
+                self.app,
+                self.config,
+                partial(self.asend, event.stream_id),
+                partial(self.send, event.stream_id),
+            )
+        else:
+            self.streams[event.stream_id] = H2HTTPStream(
+                self.app, self.config, partial(self.asend, event.stream_id)
+            )
         if complete:
-            self.streams[event.stream_id].complete()
+            self.streams[event.stream_id].ended()
         self.loop.create_task(self.handle_request(event))
 
     async def handle_request(self, event: h2.events.RequestReceived) -> None:
-        await super().handle_request(event)
+        await self.streams[event.stream_id].handle_request(
+            event, self.scheme, self.client, self.server
+        )
         self.streams[event.stream_id].close()
         del self.streams[event.stream_id]
         if len(self.streams) == 0:
@@ -123,44 +212,60 @@ class H2Server(HTTPServer, H2Mixin):
                 self.stop_keep_alive_timeout()
                 self.create_stream(event)
             elif isinstance(event, h2.events.DataReceived):
-                self.streams[event.stream_id].append(event.data)
+                self.streams[event.stream_id].data_received(event.data)
                 self.connection.acknowledge_received_data(
                     event.flow_controlled_length, event.stream_id
                 )
             elif isinstance(event, h2.events.StreamReset):
-                self.streams[event.stream_id].close()
+                self.streams[event.stream_id].reset()
             elif isinstance(event, h2.events.StreamEnded):
-                self.streams[event.stream_id].complete()
+                self.streams[event.stream_id].ended()
             elif isinstance(event, h2.events.WindowUpdated):
                 self.window_updated(event.stream_id)
             elif isinstance(event, h2.events.ConnectionTerminated):
                 self.close()
                 return
-        self.send()
+        self.flush()
 
-    def send(self) -> None:
+    def flush(self) -> None:
         data = self.connection.data_to_send()
         if data != b"":
             self.write(data)
 
-    async def asend(self, event: H2Event) -> None:
+    def send(self, stream_id: int, event: H2Event) -> None:
+        # Solely for websocket stream WSPing and WSClose data to be
+        # sent, need to find a better way.
         connection_state = self.connection.state_machine.state
-        stream_state = self.connection.streams[event.stream_id].state_machine.state
+        stream_state = self.connection.streams[stream_id].state_machine.state
+        if (
+            connection_state == h2.connection.ConnectionState.CLOSED
+            or stream_state == h2.stream.StreamState.CLOSED
+        ):
+            return
+        if isinstance(event, Data):
+            self.connection.send_data(stream_id, event.data)
+            self.flush()
+
+    async def asend(self, stream_id: int, event: H2Event) -> None:
+        connection_state = self.connection.state_machine.state
+        stream_state = self.connection.streams[stream_id].state_machine.state
         if (
             connection_state == h2.connection.ConnectionState.CLOSED
             or stream_state == h2.stream.StreamState.CLOSED
         ):
             return
         if isinstance(event, Response):
-            self.connection.send_headers(event.stream_id, event.headers)
-            self.send()
+            self.connection.send_headers(
+                stream_id, event.headers + self.response_headers()  # type: ignore
+            )
+            self.flush()
         elif isinstance(event, EndStream):
-            self.connection.end_stream(event.stream_id)
-            self.send()
+            self.connection.end_stream(stream_id)
+            self.flush()
         elif isinstance(event, Data):
-            await self.send_data(event.stream_id, event.data)
+            await self.send_data(stream_id, event.data)
         elif isinstance(event, ServerPush):
-            self.server_push(event.stream_id, event.path, event.headers)
+            self.server_push(stream_id, event.path, event.headers)
 
     async def send_data(self, stream_id: int, data: bytes) -> None:
         while True:
@@ -173,7 +278,7 @@ class H2Server(HTTPServer, H2Mixin):
                 continue
             self.connection.send_data(stream_id, data[:chunk_size])
             await self.drain()
-            self.send()
+            self.flush()
             data = data[chunk_size:]
             if not data:
                 break
@@ -238,5 +343,5 @@ class H2Server(HTTPServer, H2Mixin):
 
     def handle_timeout(self) -> None:
         self.connection.close_connection()
-        self.send()
+        self.flush()
         super().handle_timeout()

@@ -1,5 +1,4 @@
 import asyncio
-from enum import auto, Enum
 from itertools import chain
 from time import time
 from typing import List, Optional, Tuple, Type
@@ -11,20 +10,7 @@ from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
 from .run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
-
-
-class ASGIH11State(Enum):
-    # The ASGI Spec is clear that a response should not start till the
-    # framework has sent at least one body message hence why this
-    # state tracking is required.
-    REQUEST = auto()
-    RESPONSE = auto()
-    CLOSED = auto()
-
-
-class UnexpectedMessage(Exception):
-    def __init__(self, state: ASGIH11State, message_type: str) -> None:
-        super().__init__(f"Unexpected message type, {message_type} given the state {state}")
+from .utils import ASGIHTTPState, UnexpectedMessage
 
 
 class H11Mixin:
@@ -37,7 +23,7 @@ class H11Mixin:
     config: Config
     response: Optional[dict]
     server: Tuple[str, int]
-    state: ASGIH11State
+    state: ASGIHTTPState
 
     @property
     def scheme(self) -> str:
@@ -128,7 +114,7 @@ class H11Mixin:
 
         # If the application hasn't sent a response, it has errored -
         # send a 500 for it.
-        if self.state == ASGIH11State.REQUEST:
+        if self.state == ASGIHTTPState.REQUEST:
             await self.asend(self.error_response(500))
             await self.asend(h11.EndOfMessage())
             self.response = {"status": 500, "headers": []}
@@ -137,13 +123,13 @@ class H11Mixin:
 
     async def asgi_send(self, message: dict) -> None:
         """Called by the ASGI instance to send a message."""
-        if message["type"] == "http.response.start" and self.state == ASGIH11State.REQUEST:
+        if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
             self.response = message
         elif message["type"] == "http.response.body" and self.state in {
-            ASGIH11State.REQUEST,
-            ASGIH11State.RESPONSE,
+            ASGIHTTPState.REQUEST,
+            ASGIHTTPState.RESPONSE,
         }:
-            if self.state == ASGIH11State.REQUEST:
+            if self.state == ASGIHTTPState.REQUEST:
                 headers = chain(
                     (
                         (bytes(key).strip(), bytes(value).strip())
@@ -154,7 +140,7 @@ class H11Mixin:
                 await self.asend(
                     h11.Response(status_code=int(self.response["status"]), headers=headers)
                 )
-                self.state = ASGIH11State.RESPONSE
+                self.state = ASGIHTTPState.RESPONSE
 
             if (
                 not suppress_body(self.scope["method"], int(self.response["status"]))
@@ -163,9 +149,9 @@ class H11Mixin:
                 await self.asend(h11.Data(data=bytes(message["body"])))
 
             if not message.get("more_body", False):
-                if self.state != ASGIH11State.CLOSED:
+                if self.state != ASGIHTTPState.CLOSED:
                     await self.asend(h11.EndOfMessage())
                     await self.asgi_put({"type": "http.disconnect"})
-                    self.state = ASGIH11State.CLOSED
+                    self.state = ASGIHTTPState.CLOSED
         else:
             raise UnexpectedMessage(self.state, message["type"])

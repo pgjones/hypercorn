@@ -17,7 +17,7 @@ with open(os.path.join(PROJECT_ROOT, 'README.rst')) as file_:
 
 INSTALL_REQUIRES = [
     'h11',
-    'h2',
+    'h2 >= 3.1.0',
     'pytoml',
     'typing_extensions',
     'wsproto >= 0.13.0',

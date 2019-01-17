@@ -1,5 +1,6 @@
+from functools import partial
 from itertools import chain
-from typing import Dict, Iterable, Optional, Tuple, Type
+from typing import Callable, Dict, Iterable, Optional, Tuple, Type
 
 import h2.config
 import h2.connection
@@ -7,10 +8,21 @@ import h2.events
 import h2.exceptions
 import h11
 import trio
+import wsproto.connection
+import wsproto.events
 
-from ..asgi.h2 import Data, EndStream, H2Event, H2Mixin, H2StreamBase, Response, ServerPush
+from ..asgi.h2 import (
+    Data,
+    EndStream,
+    H2Event,
+    H2HTTPStreamMixin,
+    H2WebsocketStreamMixin,
+    Response,
+    ServerPush,
+)
+from ..asgi.utils import ASGIHTTPState, ASGIWebsocketState
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, H2AsyncStream
 from .base import HTTPServer
 
 MAX_RECV = 2 ** 16
@@ -20,25 +32,81 @@ class MustCloseError(Exception):
     pass
 
 
-class Stream(H2StreamBase):
-    def __init__(self) -> None:
-        super().__init__()
+class H2HTTPStream(H2HTTPStreamMixin):
+    """A HTTP Stream."""
+
+    def __init__(self, app: Type[ASGIFramework], config: Config, asend: Callable) -> None:
+        self.app = app
+        self.config = config
+        self.response: Optional[dict] = None
+        self.scope: Optional[dict] = None
+        self.state = ASGIHTTPState.REQUEST
+
+        self.asend = asend  # type: ignore
         self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
 
-    async def append(self, data: bytes) -> None:
+    async def data_received(self, data: bytes) -> None:
         await self.app_send_channel.send({"type": "http.request", "body": data, "more_body": True})
 
-    async def complete(self) -> None:
+    async def ended(self) -> None:
         await self.app_send_channel.send({"type": "http.request", "body": b"", "more_body": False})
+
+    async def reset(self) -> None:
+        await self.app_send_channel.send({"type": "http.disconnect"})
 
     async def close(self) -> None:
         await self.app_send_channel.send({"type": "http.disconnect"})
 
-    async def get(self) -> dict:
+    async def asgi_receive(self) -> dict:
         return await self.app_receive_channel.receive()
 
 
-class H2Server(HTTPServer, H2Mixin):
+class H2WebsocketStream(H2WebsocketStreamMixin):
+    """A Websocket Stream."""
+
+    def __init__(self, app: Type[ASGIFramework], config: Config, asend: Callable) -> None:
+        self.app = app
+        self.config = config
+        self.response: Optional[dict] = None
+        self.scope: Optional[dict] = None
+        self.state = ASGIWebsocketState.CONNECTED
+        self.connection: Optional[wsproto.connection.Connection] = None
+
+        self.asend = asend  # type: ignore
+        self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
+
+    async def data_received(self, data: bytes) -> None:
+        self.connection.receive_data(data)
+        for event in self.connection.events():
+            if isinstance(event, wsproto.events.TextMessage):
+                await self.app_send_channel.send({"type": "websocket.receive", "text": event.data})
+            elif isinstance(event, wsproto.events.BytesMessage):
+                await self.app_send_channel.send({"type": "websocket.receive", "bytes": event.data})
+            elif isinstance(event, wsproto.events.Ping):
+                await self.asend(Data(self.connection.send(event.response())))
+            elif isinstance(event, wsproto.events.CloseConnection):
+                if self.connection.state == wsproto.connection.ConnectionState.REMOTE_CLOSING:
+                    await self.asend(Data(self.connection.send(event.response())))
+                await self.app_send_channel.send({"type": "websocket.disconnect"})
+                break
+
+    async def ended(self) -> None:
+        await self.app_send_channel.send({"type": "websocket.disconnect"})
+
+    async def reset(self) -> None:
+        await self.app_send_channel.send({"type": "websocket.disconnect"})
+
+    async def close(self) -> None:
+        await self.app_send_channel.send({"type": "websocket.disconnect"})
+
+    async def asgi_put(self, message: dict) -> None:
+        await self.app_send_channel.send(message)
+
+    async def asgi_receive(self) -> dict:
+        return await self.app_receive_channel.receive()
+
+
+class H2Server(HTTPServer):
     def __init__(
         self,
         app: Type[ASGIFramework],
@@ -52,7 +120,7 @@ class H2Server(HTTPServer, H2Mixin):
         self.app = app
         self.config = config
 
-        self.streams: Dict[int, Stream] = {}  # type: ignore
+        self.streams: Dict[int, H2AsyncStream] = {}  # type: ignore
         self.flow_control: Dict[int, trio.Event] = {}
         self.send_lock = trio.Lock()
         self.upgrade_request = upgrade_request
@@ -67,6 +135,7 @@ class H2Server(HTTPServer, H2Mixin):
             initial_values={
                 h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: config.h2_max_concurrent_streams,
                 h2.settings.SettingCodes.MAX_HEADER_LIST_SIZE: config.h2_max_header_list_size,
+                h2.settings.SettingCodes.ENABLE_CONNECT_PROTOCOL: 1,
             },
         )
 
@@ -96,13 +165,26 @@ class H2Server(HTTPServer, H2Mixin):
     async def create_stream(
         self, event: h2.events.RequestReceived, *, complete: bool = False
     ) -> None:
-        self.streams[event.stream_id] = Stream()
+        method: str
+        for name, value in event.headers:
+            if name == b":method":
+                method = value.decode("ascii").upper()
+        if method == "CONNECT":
+            self.streams[event.stream_id] = H2WebsocketStream(
+                self.app, self.config, partial(self.asend, event.stream_id)
+            )
+        else:
+            self.streams[event.stream_id] = H2HTTPStream(
+                self.app, self.config, partial(self.asend, event.stream_id)
+            )
         if complete:
-            await self.streams[event.stream_id].complete()
+            await self.streams[event.stream_id].ended()
         self.nursery.start_soon(self.handle_request, event)
 
     async def handle_request(self, event: h2.events.RequestReceived) -> None:
-        await super().handle_request(event)
+        await self.streams[event.stream_id].handle_request(
+            event, self.scheme, self.client, self.server
+        )
         await self.streams[event.stream_id].close()
         del self.streams[event.stream_id]
 
@@ -148,38 +230,40 @@ class H2Server(HTTPServer, H2Mixin):
                 if isinstance(event, h2.events.RequestReceived):
                     await self.create_stream(event)
                 elif isinstance(event, h2.events.DataReceived):
-                    await self.streams[event.stream_id].append(event.data)
+                    await self.streams[event.stream_id].data_received(event.data)
                     self.connection.acknowledge_received_data(
                         event.flow_controlled_length, event.stream_id
                     )
                 elif isinstance(event, h2.events.StreamReset):
-                    await self.streams[event.stream_id].close()
+                    await self.streams[event.stream_id].reset()
                 elif isinstance(event, h2.events.StreamEnded):
-                    await self.streams[event.stream_id].complete()
+                    await self.streams[event.stream_id].ended()
                 elif isinstance(event, h2.events.WindowUpdated):
                     self.window_updated(event.stream_id)
                 elif isinstance(event, h2.events.ConnectionTerminated):
                     raise MustCloseError()
             await self.send()
 
-    async def asend(self, event: H2Event) -> None:
+    async def asend(self, stream_id: int, event: H2Event) -> None:
         connection_state = self.connection.state_machine.state
-        stream_state = self.connection.streams[event.stream_id].state_machine.state
+        stream_state = self.connection.streams[stream_id].state_machine.state
         if (
             connection_state == h2.connection.ConnectionState.CLOSED
             or stream_state == h2.stream.StreamState.CLOSED
         ):
             return
         if isinstance(event, Response):
-            self.connection.send_headers(event.stream_id, event.headers)
+            self.connection.send_headers(
+                stream_id, event.headers + self.response_headers()  # type: ignore
+            )
             await self.send()
         elif isinstance(event, EndStream):
-            self.connection.end_stream(event.stream_id)
+            self.connection.end_stream(stream_id)
             await self.send()
         elif isinstance(event, Data):
-            await self.send_data(event.stream_id, event.data)
+            await self.send_data(stream_id, event.data)
         elif isinstance(event, ServerPush):
-            await self.server_push(event.stream_id, event.path, event.headers)
+            await self.server_push(stream_id, event.path, event.headers)
 
     async def send_data(self, stream_id: int, data: bytes) -> None:
         while True:

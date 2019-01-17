@@ -3,8 +3,9 @@ from typing import Optional, Type
 import h11
 import trio
 
-from ..asgi.h11 import ASGIH11State, H11Mixin
+from ..asgi.h11 import H11Mixin
 from ..asgi.run import H2CProtocolRequired, WrongProtocolError
+from ..asgi.utils import ASGIHTTPState
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
 from .base import HTTPServer
@@ -26,7 +27,7 @@ class H11Server(HTTPServer, H11Mixin):
         )
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
-        self.state = ASGIH11State.REQUEST
+        self.state = ASGIHTTPState.REQUEST
         self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
 
     async def handle_connection(self) -> None:
@@ -104,7 +105,7 @@ class H11Server(HTTPServer, H11Mixin):
             self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
             self.response = None
             self.scope = None
-            self.state = ASGIH11State.REQUEST
+            self.state = ASGIHTTPState.REQUEST
 
     async def asend(self, event: H11SendableEvent) -> None:
         data = self.connection.send(event)
