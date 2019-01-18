@@ -2,6 +2,7 @@ import asyncio
 import os
 import platform
 import signal
+import ssl
 import sys
 import warnings
 from multiprocessing.synchronize import Event as EventType
@@ -235,6 +236,7 @@ def _run(main: Coroutine, *, debug: bool = False) -> None:
     try:
         asyncio.set_event_loop(loop)
         loop.set_debug(debug)
+        loop.set_exception_handler(_exception_handler)
         loop.run_until_complete(main)
     finally:
         try:
@@ -263,3 +265,11 @@ def _cancel_all_tasks(loop: asyncio.AbstractEventLoop) -> None:
                     "task": task,
                 }
             )
+
+
+def _exception_handler(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+    exception = context.get("exception")
+    if isinstance(exception, ssl.SSLError):
+        pass  # Handshake failure
+    else:
+        loop.default_exception_handler(context)

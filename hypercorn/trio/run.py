@@ -19,7 +19,10 @@ from .wsproto import WebsocketServer
 
 async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.abc.Stream) -> None:
     if config.ssl_enabled:
-        await stream.do_handshake()
+        try:
+            await stream.do_handshake()
+        except trio.BrokenResourceError:
+            return  # Handshake failed
         selected_protocol = stream.selected_alpn_protocol()
     else:
         selected_protocol = "http/1.1"
