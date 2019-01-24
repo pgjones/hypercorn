@@ -35,6 +35,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
         self.connection = WSConnection(ConnectionType.SERVER)
         self.response: Optional[dict] = None
         self.scope: Optional[dict] = None
+        self.send_lock = trio.Lock()
         self.state = ASGIWebsocketState.HANDSHAKE
 
         self.buffer = WebsocketBuffer(self.config.websocket_max_message_size)
@@ -92,7 +93,8 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
                     raise MustCloseError()
 
     async def asend(self, event: Event) -> None:
-        await self.stream.send_all(self.connection.send(event))
+        async with self.send_lock:
+            await self.stream.send_all(self.connection.send(event))
 
     async def asgi_put(self, message: dict) -> None:
         await self.app_send_channel.send(message)
