@@ -1,3 +1,30 @@
+0.5.0 2019-01-24
+----------------
+
+* Add flag to control SSL verify mode (--verify-mode).
+* Allow the SSL Verify Flags to be specified in the config.
+* Add an official API for using Hypercorn programmatically::
+
+    async def serve(app: Type[ASGIFramework], config: Config) -> None:
+
+    asyncio.run(serve(app, config))
+    trio.run(serve, app, config)
+
+* Add the ability to bind to multiple sockets::
+
+    hypercorn --bind '0.0.0.0:5000' --bind '[::]:5000' ...
+
+* Bugfix default port is now 8000 not 5000,
+* Bugfix ensure that h2c upgrade requests work.
+* Support requests that assume HTTP/2.
+* Allow the ALPN protocols to be configured.
+* Allow the access logger class to be customised.
+* Change websocket access logging to be after the handshake.
+* Bugfix ensure there is no race condition in lifespan startup.
+* Bugfix don't crash or log on SSL handshake failures.
+* Initial working h2 Websocket support RFC 8441.
+* Bugfix support reloading on Windows machines.
+
 0.4.6 2019-01-01
 ----------------
 
