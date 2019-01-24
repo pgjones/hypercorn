@@ -70,10 +70,14 @@ async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
             filename = getattr(module, "__file__", None)
             if filename is None:
                 continue
-            mtime = Path(filename).stat().st_mtime
-            if mtime > last_updates.get(module, mtime):
-                raise MustReloadException()
-            last_updates[module] = mtime
+            try:
+                mtime = Path(filename).stat().st_mtime
+            except FileNotFoundError:
+                continue
+            else:
+                if mtime > last_updates.get(module, mtime):
+                    raise MustReloadException()
+                last_updates[module] = mtime
         await sleep(1)
 
 
