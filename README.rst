@@ -12,9 +12,9 @@ server based on the sans-io hyper, `h11
 <https://github.com/python-hyper/h11>`_, `h2
 <https://github.com/python-hyper/hyper-h2>`_, and `wsproto
 <https://github.com/python-hyper/wsproto>`_ libraries and inspired by
-Gunicorn. Hypercorn supports HTTP/1, HTTP/2, and websockets and the
-ASGI 2 specification. Hypercorn can utilise asyncio, uvloop, or trio
-worker types.
+Gunicorn. Hypercorn supports HTTP/1, HTTP/2, and WebSockets (over
+HTTP/1 and HTTP/2) and the ASGI 2 specification. Hypercorn can utilise
+asyncio, uvloop, or trio worker types.
 
 Hypercorn was initially part of `Quart
 <https://gitlab.com/pgjones/quart>`_ before being separated out into a
