@@ -1,9 +1,7 @@
 import asyncio
-import os
 import platform
 import signal
 import ssl
-import sys
 import warnings
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
@@ -12,7 +10,14 @@ from typing import Any, Coroutine, List, Optional, Type
 from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import check_shutdown, load_application, MustReloadException, observe_changes, Shutdown
+from ..utils import (
+    check_shutdown,
+    load_application,
+    MustReloadException,
+    observe_changes,
+    restart,
+    Shutdown,
+)
 from .base import HTTPServer
 from .h2 import H2Server
 from .h11 import H11Server
@@ -194,8 +199,7 @@ async def worker_serve(
         await lifespan_task
 
     if reload_:
-        # Restart this process (only safe for dev/debug)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        restart()
 
 
 def asyncio_worker(

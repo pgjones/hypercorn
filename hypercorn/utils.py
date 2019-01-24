@@ -1,4 +1,5 @@
 import os
+import platform
 import socket
 import sys
 from importlib import import_module
@@ -79,6 +80,14 @@ async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
                     raise MustReloadException()
                 last_updates[module] = mtime
         await sleep(1)
+
+
+def restart() -> None:
+    # Restart this process (only safe for dev/debug)
+    if platform.system() == "Windows":
+        os.execv(sys.argv[0], sys.argv[1:])
+    else:
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 async def check_shutdown(
