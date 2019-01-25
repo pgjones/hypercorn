@@ -57,6 +57,7 @@ async def worker_serve(
     *,
     sockets: Optional[List[socket]] = None,
     shutdown_event: Optional[EventType] = None,
+    task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
 ) -> None:
     lifespan = Lifespan(app, config)
     reload_ = False
@@ -88,6 +89,7 @@ async def worker_serve(
                         for tcp_listener in listeners
                     ]
 
+                task_status.started()
                 await trio.serve_listeners(partial(serve_stream, app, config), listeners)
 
         except MustReloadException:

@@ -35,5 +35,4 @@ async def serve(
     if config.worker_class != "asyncio":
         warnings.warn("The config `worker_class` has no affect when using serve", Warning)
 
-    task_status.started()
-    await worker_serve(app, config)
+    await worker_serve(app, config, task_status=task_status)
