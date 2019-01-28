@@ -96,9 +96,7 @@ class H11Server(HTTPServer, H11Mixin):
                     break
 
     async def recycle_or_close(self) -> None:
-        if self.connection.our_state in {h11.ERROR, h11.MUST_CLOSE}:
-            raise MustCloseError()
-        elif self.connection.our_state is h11.DONE:
+        if self.connection.our_state is h11.DONE:
             await self.app_send_channel.aclose()
             await self.app_receive_channel.aclose()
             self.connection.start_next_cycle()
@@ -106,6 +104,8 @@ class H11Server(HTTPServer, H11Mixin):
             self.response = None
             self.scope = None
             self.state = ASGIHTTPState.REQUEST
+        else:
+            raise MustCloseError()
 
     async def asend(self, event: H11SendableEvent) -> None:
         data = self.connection.send(event)

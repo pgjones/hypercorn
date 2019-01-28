@@ -100,9 +100,7 @@ class H11Server(HTTPServer, H11Mixin):
         await self.drain()
 
     def recycle_or_close(self, future: asyncio.Future) -> None:
-        if self.connection.our_state in {h11.ERROR, h11.MUST_CLOSE}:
-            self.close()
-        elif self.connection.our_state is h11.DONE:
+        if self.connection.our_state is h11.DONE:
             self.connection.start_next_cycle()
             self.app_queue = asyncio.Queue(loop=self.loop)
             self.response = None
@@ -110,6 +108,8 @@ class H11Server(HTTPServer, H11Mixin):
             self.state = ASGIHTTPState.REQUEST
             self.start_keep_alive_timeout()
             self.handle_events()
+        else:  # Either reached a good close state, or has errored
+            self.close()
 
     async def asgi_put(self, message: dict) -> None:
         await self.app_queue.put(message)
