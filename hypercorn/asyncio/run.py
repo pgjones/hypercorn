@@ -150,7 +150,7 @@ async def worker_serve(
     else:
         signal_event = asyncio.Event()
 
-        def _signal_handler(*_: Any) -> None:
+        def _signal_handler(*_: Any) -> None:  # noqa: N803
             signal_event.set()
 
         try:
