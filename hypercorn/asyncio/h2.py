@@ -201,6 +201,9 @@ class H2Server(HTTPServer):
         await self.streams[event.stream_id].handle_request(
             event, self.scheme, self.client, self.server
         )
+        if not self.connection.streams[event.stream_id].closed:
+            # There has been an error preventing closing
+            self.connection.reset_stream(event.stream_id)
         self.streams[event.stream_id].close()
         del self.streams[event.stream_id]
         if len(self.streams) == 0:
