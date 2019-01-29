@@ -1,3 +1,10 @@
+0.5.1 2019-01-29
+----------------
+
+* Bugfix mark the task started after the server starts.
+* Bugfix ensure h11 connections are closed.
+* Bugfix ensure h2 streams are closed/reset.
+
 0.5.0 2019-01-24
 ----------------
 
