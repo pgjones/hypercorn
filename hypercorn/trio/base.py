@@ -10,7 +10,7 @@ class HTTPServer:
         self.stream = stream
         self.protocol = protocol
 
-        self._is_ssl = isinstance(self.stream, trio.ssl.SSLStream)
+        self._is_ssl = isinstance(self.stream, trio.SSLStream)
         if self._is_ssl:
             socket = self.stream.transport_stream.socket
         else:
