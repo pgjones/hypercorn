@@ -1,3 +1,8 @@
+0.5.2 2019-02-03
+----------------
+
+* Bugfix ensure stream is not closed when reseting.
+
 0.5.1 2019-01-29
 ----------------
 
