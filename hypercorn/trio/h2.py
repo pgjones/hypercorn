@@ -187,6 +187,7 @@ class H2Server(HTTPServer):
         )
         if (
             self.connection.state_machine.state is not h2.connection.ConnectionState.CLOSED
+            and event.stream_id in self.connection.streams
             and not self.connection.streams[event.stream_id].closed
         ):
             # The connection is not closed and there has been an error
