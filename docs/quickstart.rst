@@ -14,6 +14,8 @@ A very simple ASGI app that simply returns a response containing
     class App():
 
         def __init__(self, scope):
+            if self.scope["type"] != "http":
+                raise Exception("Only the HTTP protocol is supported")
             self.scope = scope
 
         async def __call__(self, receive, send):
