@@ -89,6 +89,7 @@ class WebsocketServer(HTTPServer, WebsocketMixin):
             self.close()
 
     async def asend(self, event: Event) -> None:
+        await self.drain()
         self.write(self.connection.send(event))
 
     async def asgi_put(self, message: dict) -> None:
