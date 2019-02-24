@@ -110,3 +110,18 @@ abruptly.
 
 The default value for ``websocket_max_message_size`` is 16 MB, which
 is chosen as it is the limit discussed in the Flask documentation.
+
+Slow SSL handshake
+------------------
+
+This attack is of the first type and aims to exhaust the server's
+connections by failing to complete (or potentially even start) the SSL
+handshake. A poorly configured server would simply wait indefinetly
+for the SSL handshake to complete.
+
+To mitigate this Hypercorn has a ssl handshake timeout that will close
+connections that take longer to complete the ssl handshake. It can be
+configured via the configuration ``ssl_handshake_timeout`` setting.
+
+The default value for ``ssl_handshake_timeout`` is 60 seconds, which
+is chosen as it is the limit used in NGINX.

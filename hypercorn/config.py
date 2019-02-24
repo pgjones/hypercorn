@@ -47,8 +47,9 @@ class Config:
     keyfile: Optional[str] = None
     pid_path: Optional[str] = None
     root_path = ""
-    startup_timeout = 60 * SECONDS
     shutdown_timeout = 60 * SECONDS
+    ssl_handshake_timeout = 60 * SECONDS
+    startup_timeout = 60 * SECONDS
     use_reloader = False
     verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None

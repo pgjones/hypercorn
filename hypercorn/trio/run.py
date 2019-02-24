@@ -25,8 +25,9 @@ from .wsproto import WebsocketServer
 async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.abc.Stream) -> None:
     if config.ssl_enabled:
         try:
-            await stream.do_handshake()
-        except trio.BrokenResourceError:
+            with trio.fail_after(config.ssl_handshake_timeout):
+                await stream.do_handshake()
+        except (trio.BrokenResourceError, trio.TooSlowError):
             return  # Handshake failed
         selected_protocol = stream.selected_alpn_protocol()
     else:
