@@ -132,7 +132,7 @@ class H11Mixin:
             if self.state == ASGIHTTPState.REQUEST:
                 headers = chain(
                     (
-                        (bytes(key).strip(), bytes(value).strip())
+                        (bytes(key).lower().strip(), bytes(value).strip())
                         for key, value in self.response["headers"]
                     ),
                     self.response_headers(),
