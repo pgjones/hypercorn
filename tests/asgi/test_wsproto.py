@@ -94,7 +94,7 @@ async def test_asgi_send_http() -> None:
     assert server.sent_events == [
         RejectConnection(
             status_code=200,
-            headers=[(b"X-Header", b"Value"), (b"server", b"hypercorn")],
+            headers=[(b"x-header", b"Value"), (b"server", b"hypercorn")],
             has_body=True,
         ),
         RejectData(data=b"a", body_finished=False),

@@ -1,5 +1,4 @@
 import asyncio
-from itertools import chain
 from time import time
 from typing import List, Optional, Tuple, Type, Union
 from urllib.parse import unquote
@@ -105,7 +104,14 @@ class WebsocketMixin:
     async def asgi_send(self, message: dict) -> None:
         """Called by the ASGI instance to send a message."""
         if message["type"] == "websocket.accept" and self.state == ASGIWebsocketState.HANDSHAKE:
-            await self.asend(AcceptConnection(extensions=[PerMessageDeflate()]))
+            headers = self._build_and_validate_headers(message.get("headers", []))
+            await self.asend(
+                AcceptConnection(
+                    extensions=[PerMessageDeflate()],
+                    extra_headers=headers,
+                    subprotocol=message.get("subprotocol"),
+                )
+            )
             self.state = ASGIWebsocketState.CONNECTED
             self.config.access_logger.access(
                 self.scope, {"status": 101, "headers": []}, time() - self.start_time
@@ -141,13 +147,7 @@ class WebsocketMixin:
     async def _asgi_send_rejection(self, message: dict) -> None:
         body_suppressed = suppress_body("GET", self.response["status"])
         if self.state == ASGIWebsocketState.HANDSHAKE:
-            headers = chain(
-                [
-                    (bytes(key).strip(), bytes(value).strip())
-                    for key, value in self.response["headers"]
-                ],
-                self.response_headers(),
-            )
+            headers = self._build_and_validate_headers(self.response["headers"])
             await self.asend(
                 RejectConnection(
                     status_code=int(self.response["status"]),
@@ -166,3 +166,16 @@ class WebsocketMixin:
         if not message.get("more_body", False):
             await self.asgi_put({"type": "websocket.disconnect"})
             self.state = ASGIWebsocketState.HTTPCLOSED
+
+    def _build_and_validate_headers(
+        self, headers: List[Tuple[bytes, bytes]]
+    ) -> List[Tuple[bytes, bytes]]:
+        built_headers = []
+        for key, value in headers:
+            name = bytes(key).lower().strip()
+            if name == b"sec-websocket-protocol":
+                raise Exception("Invalid header, use the subprotocol option instead")
+            built_headers.append((name, bytes(value).strip()))
+
+        built_headers.extend(self.response_headers())
+        return built_headers
