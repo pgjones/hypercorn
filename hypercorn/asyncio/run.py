@@ -149,13 +149,17 @@ async def worker_serve(
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
 
+    ssl_handshake_timeout = None
+    if config.ssl_enabled:
+        ssl_handshake_timeout = config.ssl_handshake_timeout
+
     servers = [
         await loop.create_server(  # type: ignore
             lambda: Server(app, loop, config),
             backlog=config.backlog,
             ssl=ssl_context,
             sock=sock,
-            ssl_handshake_timeout=config.ssl_handshake_timeout,
+            ssl_handshake_timeout=ssl_handshake_timeout,
         )
         for sock in sockets
     ]
