@@ -18,48 +18,45 @@ pages:
   only:
   - master
 
-h2spec:
-  image: python:3.7
-  script:
-  - python setup.py install
-  - cd compliance/h2spec && nohup hypercorn --keyfile key.pem --certfile cert.pem server:App &
-  - wget https://github.com/summerwind/h2spec/releases/download/v2.2.0/h2spec_linux_amd64.tar.gz
-  - tar -xvf h2spec_linux_amd64.tar.gz
-  - sleep 10
-  - ./h2spec -tk -h 127.0.0.1 -p 8000
-
-h2spec-trio:
+.h2spec-script: &h2spec-script
   image: python:3.7
   script:
   - python3 -m pip install trio .
-  - cd compliance/h2spec && nohup hypercorn --keyfile key.pem --certfile cert.pem -k trio server:App &
+  - cd compliance/h2spec && nohup hypercorn --keyfile key.pem --certfile cert.pem -k $WORKER_CLASS server:App &
   - wget https://github.com/summerwind/h2spec/releases/download/v2.2.0/h2spec_linux_amd64.tar.gz
   - tar -xvf h2spec_linux_amd64.tar.gz
   - sleep 10
   - ./h2spec -tk -h 127.0.0.1 -p 8000 -o 10
 
-.autobahn:
-  image: python:2.7.15-alpine3.9
+h2spec:
+  <<: *h2spec-script
+  variables:
+    WORKER_CLASS: "asyncio"
+
+h2spec-trio:
+  <<: *h2spec-script
+  variables:
+    WORKER_CLASS: "trio"
+
+.autobahn-script: &autobahn-script
+  image: python:2.7.14-alpine3.6
   script:
-  - apk --update add build-base libressl libressl-dev ca-certificates libffi-dev python3
+  - apk --update add build-base libressl libressl-dev ca-certificates libffi-dev python3 python3-dev
   - pip install cryptography==2.3.1 autobahntestsuite
-  - python3 setup.py install
-  - cd compliance/autobahn && nohup hypercorn server:App &
+  - python3 -m pip install trio .
+  - cd compliance/autobahn && nohup hypercorn -k $WORKER_CLASS server:App &
   - while ! netstat -l -t | grep -q 8000; do sleep 1; done
   - cd compliance/autobahn && wstest -m fuzzingclient && python summarise.py
   artifacts:
     paths:
     - compliance/autobahn/reports/servers/
 
+.autobahn:
+  <<: *autobahn-script
+  variables:
+    WORKER_CLASS: "asyncio"
+
 .autobahn-trio:
-  image: python:2.7.15-alpine3.9
-  script:
-  - apk --update add build-base libressl libressl-dev ca-certificates libffi-dev python3 python3-dev
-  - pip install cryptography==2.3.1 autobahntestsuite
-  - python3 -m pip install trio .
-  - cd compliance/autobahn && nohup hypercorn -k trio server:App &
-  - while ! netstat -l -t | grep -q 8000; do sleep 1; done
-  - cd compliance/autobahn && wstest -m fuzzingclient && python summarise.py
-  artifacts:
-    paths:
-    - compliance/autobahn/reports/servers/
+  <<: *autobahn-script
+  variables:
+    WORKER_CLASS: "trio"
