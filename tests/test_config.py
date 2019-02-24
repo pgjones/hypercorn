@@ -14,8 +14,8 @@ h11_max_incomplete_size = 4
 
 
 def _check_standard_config(config: Config) -> None:
-    assert config.access_log_format == "bob"
-    assert config.h11_max_incomplete_size == 4
+    assert config.access_log_format == access_log_format
+    assert config.h11_max_incomplete_size == h11_max_incomplete_size
     assert config.bind == ["127.0.0.1:5555"]
 
 

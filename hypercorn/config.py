@@ -26,6 +26,7 @@ class Config:
 
     _access_logger: Optional[AccessLogger] = None
     _error_log_target: Optional[str] = None
+    _bind = ["127.0.0.1:8000"]
 
     access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     access_log_target: Optional[str] = None
@@ -33,7 +34,6 @@ class Config:
     alpn_protocols = ["h2", "http/1.1"]
     application_path: str
     backlog = 100
-    bind = ["127.0.0.1:8000"]
     ca_certs: Optional[str] = None
     certfile: Optional[str] = None
     ciphers: str = "ECDHE+AESGCM"
@@ -63,56 +63,6 @@ class Config:
     cert_reqs = property(None, set_cert_reqs)
 
     @property
-    def host(self) -> str:
-        # Remove in 0.6.0
-        warnings.warn("host is deprecated, please use bind instead", DeprecationWarning)
-        host, _ = self.bind[0].rsplit(":")
-        return host
-
-    @host.setter
-    def host(self, value: str) -> None:
-        # Remove in 0.6.0
-        warnings.warn("host is deprecated, please use bind instead", DeprecationWarning)
-        if self.bind:
-            host, port = self.bind[0].rsplit(":")
-        else:
-            port = "8000"
-        host = value
-        self.bind = [f"{host}:{port}"]
-
-    @property
-    def port(self) -> int:
-        # Remove in 0.6.0
-        warnings.warn("port is deprecated, please use bind instead", DeprecationWarning)
-        _, port = self.bind[0].rsplit(":")
-        return int(port)
-
-    @port.setter
-    def port(self, value: int) -> None:
-        # Remove in 0.6.0
-        warnings.warn("port is deprecated, please use bind instead", DeprecationWarning)
-        if self.bind:
-            host, port = self.bind[0].rsplit(":")
-        else:
-            host = "127.0.0.1"
-        port = str(value)
-        self.bind = [f"{host}:{port}"]
-
-    def _set_file_descriptor(self, value: int) -> None:
-        # Remove in 0.6.0
-        warnings.warn("file_descriptor is deprecated, please use bind instead", DeprecationWarning)
-        self.bind = [f"fd://{value}"]
-
-    file_descriptor = property(None, _set_file_descriptor)
-
-    def _set_unix_domain(self, value: str) -> None:
-        # Remove in 0.6.0
-        warnings.warn("unix_domain is deprecated, please use bind instead", DeprecationWarning)
-        self.bind = [f"unix:{value}"]
-
-    unix_domain = property(None, _set_unix_domain)
-
-    @property
     def access_logger(self) -> AccessLogger:
         if self._access_logger is None:
             self._access_logger = self.access_logger_class(
@@ -138,6 +88,17 @@ class Config:
             else:
                 self.error_logger.addHandler(logging.FileHandler(self.error_log_target))
             self.error_logger.setLevel(logging.INFO)
+
+    @property
+    def bind(self) -> List[str]:
+        return self._bind
+
+    @bind.setter
+    def bind(self, value: Union[List[str], str]) -> None:
+        if isinstance(value, str):
+            self._bind = [value]
+        else:
+            self._bind = value
 
     def create_ssl_context(self) -> Optional[SSLContext]:
         if not self.ssl_enabled:

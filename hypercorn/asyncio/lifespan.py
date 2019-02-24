@@ -43,8 +43,6 @@ class Lifespan:
     async def wait_for_startup(self) -> None:
         await self._support_checked.wait()
         if not self.supported:
-            if hasattr(self.app, "startup"):  # Compatibility with Quart 0.6.X
-                await self.app.startup()  # type: ignore
             return
 
         await self.app_queue.put({"type": "lifespan.startup"})
@@ -53,8 +51,6 @@ class Lifespan:
     async def wait_for_shutdown(self) -> None:
         await self._support_checked.wait()
         if not self.supported:
-            if hasattr(self.app, "cleanup"):  # Compatibility with Quart 0.6.X
-                await self.app.cleanup()  # type: ignore
             return
 
         await self.app_queue.put({"type": "lifespan.shutdown"})

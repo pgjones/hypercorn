@@ -2,7 +2,6 @@ import asyncio
 import platform
 import signal
 import ssl
-import warnings
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
 from typing import Any, Coroutine, List, Optional, Type
@@ -103,27 +102,6 @@ async def _windows_signal_support() -> None:
     # Windows it is necessary for an IO event to happen periodically.
     while True:
         await asyncio.sleep(1)
-
-
-def run_single(
-    app: Type[ASGIFramework], config: Config, *, loop: asyncio.AbstractEventLoop
-) -> None:
-    """Create a server to run the app on given the options.
-
-    This has been deprecated in favour of serve from
-    hypercorn.asyncio it will be removed in 0.6.0.
-
-    Arguments:
-        app: The ASGI Framework to run.
-        config: The configuration that defines the server.
-        loop: Asyncio loop to create the server in, if None, take default one.
-
-    """
-    warnings.warn("See `serve` from hypercorn.asyncio", DeprecationWarning)
-    if loop is None:
-        warnings.warn("Event loop is not specified, this can cause unexpected errors")
-        loop = asyncio.get_event_loop()
-    loop.run_until_complete(worker_serve(app, config))
 
 
 async def worker_serve(
