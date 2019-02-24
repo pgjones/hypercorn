@@ -4,6 +4,7 @@ import trio
 
 from ..config import Config
 from ..typing import ASGIFramework
+from ..utils import LifespanTimeout
 
 
 class UnexpectedMessage(Exception):
@@ -47,16 +48,22 @@ class Lifespan:
             return
 
         await self.app_send_channel.send({"type": "lifespan.startup"})
-        with trio.fail_after(self.config.startup_timeout):
-            await self.startup.wait()
+        try:
+            with trio.fail_after(self.config.startup_timeout):
+                await self.startup.wait()
+        except trio.TooSlowError as error:
+            raise LifespanTimeout("startup") from error
 
     async def wait_for_shutdown(self) -> None:
         if not self.supported:
             return
 
         await self.app_send_channel.send({"type": "lifespan.shutdown"})
-        with trio.fail_after(self.config.shutdown_timeout):
-            await self.shutdown.wait()
+        try:
+            with trio.fail_after(self.config.shutdown_timeout):
+                await self.shutdown.wait()
+        except trio.TooSlowError as error:
+            raise LifespanTimeout("startup") from error
 
     async def asgi_receive(self) -> dict:
         return await self.app_receive_channel.receive()

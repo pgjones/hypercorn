@@ -3,6 +3,7 @@ from typing import Type
 
 from ..config import Config
 from ..typing import ASGIFramework
+from ..utils import LifespanTimeout
 
 
 class UnexpectedMessage(Exception):
@@ -46,7 +47,10 @@ class Lifespan:
             return
 
         await self.app_queue.put({"type": "lifespan.startup"})
-        await asyncio.wait_for(self.startup.wait(), timeout=self.config.startup_timeout)
+        try:
+            await asyncio.wait_for(self.startup.wait(), timeout=self.config.startup_timeout)
+        except asyncio.TimeoutError as error:
+            raise LifespanTimeout("startup") from error
 
     async def wait_for_shutdown(self) -> None:
         await self._support_checked.wait()
@@ -54,7 +58,10 @@ class Lifespan:
             return
 
         await self.app_queue.put({"type": "lifespan.shutdown"})
-        await asyncio.wait_for(self.shutdown.wait(), timeout=self.config.shutdown_timeout)
+        try:
+            await asyncio.wait_for(self.shutdown.wait(), timeout=self.config.shutdown_timeout)
+        except asyncio.TimeoutError as error:
+            raise LifespanTimeout("shutdown") from error
 
     async def asgi_receive(self) -> dict:
         return await self.app_queue.get()

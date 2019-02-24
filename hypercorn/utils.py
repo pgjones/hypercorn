@@ -25,6 +25,14 @@ class NoAppException(Exception):
     pass
 
 
+class LifespanTimeout(Exception):
+    def __init__(self, stage: str) -> None:
+        super().__init__(
+            f"Timeout whilst awaiting {stage}. Your application may not support the ASGI Lifespan "
+            f"protocol correctly, alternatively the {stage}_timeout configuration is incorrect."
+        )
+
+
 def suppress_body(method: str, status_code: int) -> bool:
     return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
 
