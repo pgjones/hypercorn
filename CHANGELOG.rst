@@ -1,3 +1,10 @@
+0.5.3 2019-02-24
+----------------
+
+* Bugfix reloading on both Windows and Linux.
+* Bugfix WebSocket unbounded memory usage.
+* Fixed import from deprecated trio.ssl.
+
 0.5.2 2019-02-03
 ----------------
 
