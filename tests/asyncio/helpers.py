@@ -39,3 +39,9 @@ class MockTransport:
     def clear(self) -> None:
         self.data = bytearray()
         self.updated.clear()
+
+    def pause_reading(self) -> None:
+        pass
+
+    def resume_reading(self) -> None:
+        pass

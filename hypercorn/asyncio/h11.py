@@ -82,11 +82,10 @@ class H11Server(HTTPServer, H11Mixin):
                     self.app_queue.put_nowait(
                         {"type": "http.request", "body": event.data, "more_body": True}
                     )
-                elif (
-                    isinstance(event, h11.ConnectionClosed)
-                    or event is h11.NEED_DATA
-                    or event is h11.PAUSED
-                ):
+                elif event is h11.PAUSED:
+                    self.transport.pause_reading()
+                    break
+                elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
                     break
 
     def send(self, event: H11SendableEvent) -> None:
@@ -102,6 +101,7 @@ class H11Server(HTTPServer, H11Mixin):
     def recycle_or_close(self, future: asyncio.Future) -> None:
         if self.connection.our_state is h11.DONE:
             self.connection.start_next_cycle()
+            self.transport.resume_reading()  # type: ignore
             self.app_queue = asyncio.Queue(loop=self.loop)
             self.response = None
             self.scope = None
