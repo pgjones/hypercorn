@@ -1,9 +1,3 @@
-import asyncio
-
-from hypercorn.config import Config
-from hypercorn import run_single
-
-
 class App:
 
     def __init__(self, scope):
@@ -27,9 +21,3 @@ class App:
             elif event['type'] == 'lifespan.shutdown':
                 await send({'type': 'lifespan.shutdown.complete'})
                 break
-
-
-if __name__ == '__main__':
-    config = Config()
-    config.error_log_target = '-'
-    run_single(App, config, loop=asyncio.get_event_loop())
