@@ -186,7 +186,6 @@ def asyncio_worker(
     shutdown_event: Optional[EventType] = None,
 ) -> None:
     app = load_application(config.application_path)
-    # With Python 3.7 switch to asyncio.run
     _run(
         worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event),
         debug=config.debug,
@@ -206,7 +205,6 @@ def uvloop_worker(
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     app = load_application(config.application_path)
-    # With Python 3.7 use asyncio.run
     _run(
         worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event),
         debug=config.debug,
@@ -230,7 +228,7 @@ def _run(main: Coroutine, *, debug: bool = False) -> None:
 
 
 def _cancel_all_tasks(loop: asyncio.AbstractEventLoop) -> None:
-    tasks = [task for task in asyncio.Task.all_tasks(loop) if not task.done()]
+    tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
     if not tasks:
         return
 
