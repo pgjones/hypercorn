@@ -58,7 +58,7 @@ class WebsocketMixin:
         headers.extend(event.extra_headers)
         self.scope = {
             "type": "websocket",
-            "asgi": {"version": "2.0"},
+            "asgi": {"spec_version": "2.1", "version": "2.0"},
             "http_version": "1.1",
             "scheme": self.scheme,
             "path": unquote(path),

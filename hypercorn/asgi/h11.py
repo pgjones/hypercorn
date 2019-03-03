@@ -89,7 +89,7 @@ class H11Mixin:
         self.scope = {
             "type": "http",
             "http_version": request.http_version.decode(),
-            "asgi": {"version": "2.0"},
+            "asgi": {"spec_version": "2.1", "version": "2.0"},
             "method": request.method.decode().upper(),
             "scheme": self.scheme,
             "path": unquote(path.decode("ascii")),

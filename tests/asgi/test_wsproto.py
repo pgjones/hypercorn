@@ -48,7 +48,7 @@ async def test_asgi_scope() -> None:
     scope = server.scope
     assert scope == {
         "type": "websocket",
-        "asgi": {"version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "2.0"},
         "http_version": "1.1",
         "scheme": "ws",
         "path": "/path",

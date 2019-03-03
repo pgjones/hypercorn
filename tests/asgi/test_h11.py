@@ -51,7 +51,7 @@ async def test_asgi_scope() -> None:
     assert scope == {
         "type": "http",
         "http_version": "1.1",
-        "asgi": {"version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "2.0"},
         "method": "GET",
         "scheme": "http",
         "path": "/path",

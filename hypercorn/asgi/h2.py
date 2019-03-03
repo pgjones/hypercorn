@@ -90,7 +90,7 @@ class H2HTTPStreamMixin:
         self.scope = {
             "type": "http",
             "http_version": "2",
-            "asgi": {"version": "2.0"},
+            "asgi": {"spec_version": "2.1", "version": "2.0"},
             "method": method,
             "scheme": scheme,
             "path": unquote(path.decode("ascii")),
@@ -191,7 +191,7 @@ class H2WebsocketStreamMixin:
         path, _, query_string = raw_path.partition(b"?")
         self.scope = {
             "type": "websocket",
-            "asgi": {"version": "2.0"},
+            "asgi": {"spec_version": "2.1", "version": "2.0"},
             # RFC 8441 (HTTP/2) Says use http or https, ASGI says ws or wss
             "scheme": "wss" if scheme == "https" else "ws",
             "http_version": "2",

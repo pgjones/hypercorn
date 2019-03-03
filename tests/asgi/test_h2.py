@@ -44,7 +44,7 @@ async def test_http_asgi_scope() -> None:
     assert scope == {
         "type": "http",
         "http_version": "2",
-        "asgi": {"version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "2.0"},
         "method": "GET",
         "scheme": "https",
         "path": "/path",
@@ -173,7 +173,7 @@ async def test_websocket_asgi_scope() -> None:
     scope = stream.scope
     assert scope == {
         "type": "websocket",
-        "asgi": {"version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "2.0"},
         "http_version": "2",
         "scheme": "wss",
         "path": "/path",
