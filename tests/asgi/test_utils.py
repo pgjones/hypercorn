@@ -1,7 +1,12 @@
 import pytest
 from wsproto.events import BytesMessage, TextMessage
 
-from hypercorn.asgi.utils import FrameTooLarge, WebsocketBuffer
+from hypercorn.asgi.utils import (
+    build_and_validate_headers,
+    FrameTooLarge,
+    raise_if_subprotocol_present,
+    WebsocketBuffer,
+)
 
 
 def test_buffer() -> None:
@@ -37,3 +42,13 @@ def test_buffer_mixed_types(data: list) -> None:
     buffer_.extend(data[0])
     with pytest.raises(TypeError):
         buffer_.extend(data[1])
+
+
+def test_build_and_validate_headers() -> None:
+    assert build_and_validate_headers([(b" Foo ", b" Bar ")]) == [(b"foo", b"Bar")]
+
+
+def test_raise_if_subprotocol_present() -> None:
+    with pytest.raises(Exception) as exc_info:
+        raise_if_subprotocol_present([(b"sec-websocket-protocol", b"foo")])
+    assert str(exc_info.value) == "Invalid header, use the subprotocol option instead"
