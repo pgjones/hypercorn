@@ -5,6 +5,10 @@ from typing import List, Optional, Type
 
 import trio
 
+from .h2 import H2Server
+from .h11 import H11Server
+from .lifespan import Lifespan
+from .wsproto import WebsocketServer
 from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
 from ..config import Config
 from ..typing import ASGIFramework
@@ -16,10 +20,6 @@ from ..utils import (
     restart,
     Shutdown,
 )
-from .h2 import H2Server
-from .h11 import H11Server
-from .lifespan import Lifespan
-from .wsproto import WebsocketServer
 
 
 async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.abc.Stream) -> None:
