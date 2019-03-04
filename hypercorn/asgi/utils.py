@@ -1,5 +1,5 @@
 from enum import auto, Enum
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from wsproto.events import Message, TextMessage
 
@@ -56,3 +56,15 @@ class WebsocketBuffer:
             "bytes": self.value if isinstance(self.value, bytes) else None,
             "text": self.value if isinstance(self.value, str) else None,
         }
+
+
+def build_and_validate_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
+    # Validates that the header name and value are bytes
+    return [(bytes(name).lower().strip(), bytes(value).strip()) for name, value in headers]
+
+
+def raise_if_subprotocol_present(headers: List[Tuple[bytes, bytes]]) -> None:
+    # The headers should be built and validated first.
+    for name, value in headers:
+        if name == b"sec-websocket-protocol":
+            raise Exception("Invalid header, use the subprotocol option instead")

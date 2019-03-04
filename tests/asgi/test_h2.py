@@ -75,7 +75,7 @@ async def test_http_asgi_send() -> None:
     await stream.asgi_send({"type": "http.response.body", "body": b"a", "more_body": True})
     await stream.asgi_send({"type": "http.response.body", "more_body": False})
     assert stream.sent_events == [
-        Response([(b":status", b"200"), (b"X-Header", b"Value")]),
+        Response([(b":status", b"200"), (b"x-header", b"Value")]),
         Data(b"a"),
         EndStream(),
     ]
@@ -224,7 +224,7 @@ async def test_websocket_asgi_send_http() -> None:
     )
     await stream.asgi_send({"type": "websocket.http.response.body", "more_body": False})
     assert stream.sent_events == [
-        Response(headers=[(b":status", b"200"), (b"X-Header", b"Value")]),
+        Response(headers=[(b":status", b"200"), (b"x-header", b"Value")]),
         Data(data=b"a"),
         EndStream(),
     ]

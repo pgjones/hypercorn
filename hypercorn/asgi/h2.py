@@ -1,5 +1,4 @@
 import asyncio
-from itertools import chain
 from time import time
 from typing import Callable, Iterable, List, Tuple, Type
 from urllib.parse import unquote
@@ -15,7 +14,13 @@ import wsproto.frame_protocol
 from wsproto.handshake import handshake_extensions
 from wsproto.utilities import split_comma_header  # Specifically to match wsproto expectations
 
-from .utils import ASGIHTTPState, ASGIWebsocketState, UnexpectedMessage
+from .utils import (
+    ASGIHTTPState,
+    ASGIWebsocketState,
+    build_and_validate_headers,
+    raise_if_subprotocol_present,
+    UnexpectedMessage,
+)
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import suppress_body
@@ -130,19 +135,15 @@ class H2HTTPStreamMixin:
         elif message["type"] == "http.response.push":
             if not isinstance(message["path"], str):
                 raise TypeError(f"{message['path']} should be a str")
-            headers = [(bytes(key), bytes(value)) for key, value in message["headers"]]
+            headers = build_and_validate_headers(message["headers"])
             await self.asend(ServerPush(message["path"], headers))
         elif message["type"] == "http.response.body" and self.state in {
             ASGIHTTPState.REQUEST,
             ASGIHTTPState.RESPONSE,
         }:
             if self.state == ASGIHTTPState.REQUEST:
-                headers = [
-                    (bytes(key).strip(), bytes(value).strip())
-                    for key, value in chain(
-                        [(b":status", b"%d" % self.response["status"])], self.response["headers"]
-                    )
-                ]
+                headers = [(b":status", b"%d" % self.response["status"])]
+                headers.extend(build_and_validate_headers(self.response["headers"]))
                 await self.asend(Response(headers))
                 self.state = ASGIHTTPState.RESPONSE
             if (
@@ -256,6 +257,10 @@ class H2WebsocketStreamMixin:
             supported_extensions = [wsproto.extensions.PerMessageDeflate()]
             accepts = handshake_extensions(extensions, supported_extensions)
             headers = [(b":status", b"200")]
+            headers.extend(build_and_validate_headers(message.get("headers", [])))
+            raise_if_subprotocol_present(headers)
+            if message.get("subprotocol") is not None:
+                headers.append((b"sec-websocket-protocol", message["subprotocol"].encode()))
             if accepts:
                 headers.append((b"sec-websocket-extensions", accepts))
             await self.asend(Response(headers))
@@ -298,12 +303,8 @@ class H2WebsocketStreamMixin:
     async def _asgi_send_rejection(self, message: dict) -> None:
         body_suppressed = suppress_body("GET", self.response["status"])
         if self.state == ASGIWebsocketState.HANDSHAKE:
-            headers = [
-                (bytes(key).strip(), bytes(value).strip())
-                for key, value in chain(
-                    [(b":status", b"%d" % self.response["status"])], self.response["headers"]
-                )
-            ]
+            headers = [(b":status", b"%d" % self.response["status"])]
+            headers.extend(build_and_validate_headers(self.response["headers"]))
             await self.asend(Response(headers))
             self.state = ASGIWebsocketState.RESPONSE
         if not body_suppressed and message.get("body", b"") != b"":
