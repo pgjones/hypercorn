@@ -3,12 +3,12 @@ from typing import Optional, Type
 
 import h11
 
+from .base import HTTPServer
 from ..asgi.h11 import H11Mixin
 from ..asgi.run import H2CProtocolRequired
 from ..asgi.utils import ASGIHTTPState
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
-from .base import HTTPServer
 
 
 class H11Server(HTTPServer, H11Mixin):

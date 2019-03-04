@@ -15,10 +15,10 @@ import wsproto.frame_protocol
 from wsproto.handshake import handshake_extensions
 from wsproto.utilities import split_comma_header  # Specifically to match wsproto expectations
 
+from .utils import ASGIHTTPState, ASGIWebsocketState, UnexpectedMessage
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import suppress_body
-from .utils import ASGIHTTPState, ASGIWebsocketState, UnexpectedMessage
 
 
 class H2Event:

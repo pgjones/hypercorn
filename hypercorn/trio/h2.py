@@ -11,6 +11,7 @@ import trio
 import wsproto.connection
 import wsproto.events
 
+from .base import HTTPServer
 from ..asgi.h2 import (
     Data,
     EndStream,
@@ -23,7 +24,6 @@ from ..asgi.h2 import (
 from ..asgi.utils import ASGIHTTPState, ASGIWebsocketState
 from ..config import Config
 from ..typing import ASGIFramework, H2AsyncStream
-from .base import HTTPServer
 
 MAX_RECV = 2 ** 16
 

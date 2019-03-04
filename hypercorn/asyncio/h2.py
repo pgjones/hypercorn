@@ -12,6 +12,7 @@ import wsproto
 import wsproto.connection
 import wsproto.events
 
+from .base import HTTPServer
 from ..asgi.h2 import (
     Data,
     EndStream,
@@ -24,7 +25,6 @@ from ..asgi.h2 import (
 from ..asgi.utils import ASGIHTTPState, ASGIWebsocketState
 from ..config import Config
 from ..typing import ASGIFramework, H2SyncStream
-from .base import HTTPServer
 
 
 class H2HTTPStream(H2HTTPStreamMixin):

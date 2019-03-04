@@ -6,11 +6,11 @@ from urllib.parse import unquote
 
 import h11
 
+from .run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
+from .utils import ASGIHTTPState, UnexpectedMessage
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
 from ..utils import suppress_body
-from .run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
-from .utils import ASGIHTTPState, UnexpectedMessage
 
 
 class H11Mixin:

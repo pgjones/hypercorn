@@ -16,10 +16,10 @@ from wsproto.events import (
 from wsproto.extensions import PerMessageDeflate
 from wsproto.frame_protocol import CloseReason
 
+from .utils import ASGIWebsocketState, UnexpectedMessage
 from ..config import Config
 from ..typing import ASGIFramework
 from ..utils import suppress_body
-from .utils import ASGIWebsocketState, UnexpectedMessage
 
 
 class WebsocketMixin:
