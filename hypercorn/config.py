@@ -107,9 +107,11 @@ class Config:
 
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.set_ciphers(self.ciphers)
-        context.options |= (
-            ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-        )  # RFC 7540 Section 9.2: MUST be TLS >=1.2
+        cipher_opts = 0
+        for attr in ["OP_NO_SSLv2", "OP_NO_SSLv3", "OP_NO_TLSv1", "OP_NO_TLSv1_1"]:
+            if hasattr(ssl, attr):  # To be future proof
+                cipher_opts |= getattr(ssl, attr)
+        context.options |= cipher_opts  # RFC 7540 Section 9.2: MUST be TLS >=1.2
         context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
         context.set_alpn_protocols(self.alpn_protocols)
         try:
