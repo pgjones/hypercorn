@@ -111,7 +111,7 @@ def restart() -> None:
         import_name = main_package
         if module != "__main__":
             import_name = f"{main_package}.{module}"
-        args.extend(["-m", import_name.lstrip(".")])
+        args[:0] = ["-m", import_name.lstrip(".")]
 
     os.execv(executable, [executable] + args)
 
