@@ -10,7 +10,7 @@ from hypercorn.asyncio.wsproto import WebsocketServer
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
 from .helpers import MockTransport
-from ..helpers import BadFramework, EchoFramework
+from ..helpers import bad_framework, echo_framework
 
 
 class MockHTTPConnection:
@@ -19,7 +19,7 @@ class MockHTTPConnection:
         path: str,
         event_loop: asyncio.AbstractEventLoop,
         *,
-        framework: ASGIFramework = EchoFramework,
+        framework: ASGIFramework = echo_framework,
     ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
@@ -61,7 +61,7 @@ class MockWebsocketConnection:
         path: str,
         event_loop: asyncio.AbstractEventLoop,
         *,
-        framework: ASGIFramework = EchoFramework,
+        framework: ASGIFramework = echo_framework,
     ) -> None:
         self.transport = MockTransport()
         self.server = WebsocketServer(  # type: ignore
@@ -98,7 +98,7 @@ async def test_websocket_server(event_loop: asyncio.AbstractEventLoop) -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework_http(path: str, event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockHTTPConnection(path, event_loop, framework=BadFramework)
+    connection = MockHTTPConnection(path, event_loop, framework=bad_framework)
     await asyncio.sleep(0)  # Yield to allow the server to process
     await connection.transport.closed.wait()
     response, *_ = connection.get_events()
@@ -108,7 +108,7 @@ async def test_bad_framework_http(path: str, event_loop: asyncio.AbstractEventLo
 
 @pytest.mark.asyncio
 async def test_bad_framework_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockWebsocketConnection("/accept", event_loop, framework=BadFramework)
+    connection = MockWebsocketConnection("/accept", event_loop, framework=bad_framework)
     await asyncio.sleep(0)  # Yield to allow the server to process
     *_, close = await connection.receive()
     assert isinstance(close, CloseConnection)

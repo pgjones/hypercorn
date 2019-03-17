@@ -11,7 +11,7 @@ from hypercorn.asyncio.h2 import H2Server
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
 from .helpers import MockTransport
-from ..helpers import ChunkedResponseFramework, EchoFramework, PushFramework
+from ..helpers import chunked_response_framework, echo_framework, push_framework
 
 BASIC_HEADERS = [(":authority", "hypercorn"), (":scheme", "https")]
 BASIC_DATA = "index"
@@ -24,7 +24,7 @@ class MockConnection:
         event_loop: asyncio.AbstractEventLoop,
         *,
         config: Config = Config(),
-        framework: ASGIFramework = EchoFramework,
+        framework: ASGIFramework = echo_framework,
         upgrade_request: Optional[h11.Request] = None,
     ) -> None:
         self.transport = MockTransport()
@@ -140,7 +140,7 @@ async def test_pipelining(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=ChunkedResponseFramework)
+    connection = MockConnection(event_loop, framework=chunked_response_framework)
     stream_id = connection.send_request(BASIC_HEADERS + [(":method", "GET"), (":path", "/")], {})
     await connection.end_stream(stream_id)
     response_data = b""
@@ -156,7 +156,7 @@ async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> No
 async def test_initial_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
     config = Config()
     config.keep_alive_timeout = 0.01
-    server = H2Server(EchoFramework, event_loop, config, Mock())
+    server = H2Server(echo_framework, event_loop, config, Mock())
     await asyncio.sleep(2 * config.keep_alive_timeout)
     server.transport.close.assert_called()  # type: ignore
 
@@ -211,7 +211,7 @@ async def test_h2_flow_control(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_h2_push(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=PushFramework)
+    connection = MockConnection(event_loop, framework=push_framework)
     stream_id = connection.send_request(BASIC_HEADERS + [(":method", "GET"), (":path", "/")], {})
     await connection.end_stream(stream_id)
     push_received = False

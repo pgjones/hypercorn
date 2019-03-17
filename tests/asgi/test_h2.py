@@ -13,12 +13,12 @@ from hypercorn.asgi.h2 import (
 )
 from hypercorn.asgi.utils import ASGIHTTPState, ASGIWebsocketState, UnexpectedMessage
 from hypercorn.config import Config
-from ..helpers import BadFramework, EmptyFramework
+from ..helpers import bad_framework, empty_framework
 
 
 class MockH2HTTPStream(H2HTTPStreamMixin):
     def __init__(self) -> None:
-        self.app = EmptyFramework  # type: ignore
+        self.app = empty_framework  # type: ignore
         self.config = Config()
         self.sent_events: list = []
         self.state = ASGIHTTPState.REQUEST
@@ -44,7 +44,7 @@ async def test_http_asgi_scope() -> None:
     assert scope == {
         "type": "http",
         "http_version": "2",
-        "asgi": {"spec_version": "2.1", "version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "3.0"},
         "method": "GET",
         "scheme": "https",
         "path": "/path",
@@ -131,7 +131,7 @@ async def test_http_asgi_send_invalid_server_push_message(path: str, headers: An
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_http_bad_framework(path: str) -> None:
     stream = MockH2HTTPStream()
-    stream.app = BadFramework  # type: ignore
+    stream.app = bad_framework  # type: ignore
     request = h2.events.RequestReceived()
     request.headers = [
         (b":method", b"GET"),
@@ -145,7 +145,7 @@ async def test_http_bad_framework(path: str) -> None:
 
 class MockH2WebsocketStream(H2WebsocketStreamMixin):
     def __init__(self) -> None:
-        self.app = EmptyFramework  # type: ignore
+        self.app = empty_framework  # type: ignore
         self.config = Config()
         self.scope = {"headers": []}
         self.sent_events: list = []
@@ -173,7 +173,7 @@ async def test_websocket_asgi_scope() -> None:
     scope = stream.scope
     assert scope == {
         "type": "websocket",
-        "asgi": {"spec_version": "2.1", "version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "3.0"},
         "http_version": "2",
         "scheme": "wss",
         "path": "/path",
@@ -195,7 +195,7 @@ async def test_websocket_asgi_scope() -> None:
 @pytest.mark.asyncio
 async def test_websocket_asgi_send() -> None:
     stream = MockH2WebsocketStream()
-    stream.app = BadFramework  # type: ignore
+    stream.app = bad_framework  # type: ignore
     await stream.asgi_send({"type": "websocket.accept"})
     await stream.asgi_send({"type": "websocket.send", "bytes": b"abc"})
     await stream.asgi_send({"type": "websocket.close", "code": 1000})
@@ -290,7 +290,7 @@ async def test_websocket_asgi_send_invalid_http_message(
 @pytest.mark.asyncio
 async def test_websocket_bad_framework() -> None:
     stream = MockH2WebsocketStream()
-    stream.app = BadFramework  # type: ignore
+    stream.app = bad_framework  # type: ignore
     request = h2.events.RequestReceived()
     request.headers = [
         (b":method", b"GET"),
@@ -311,7 +311,7 @@ async def test_websocket_bad_framework() -> None:
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework_http(path: str) -> None:
     stream = MockH2WebsocketStream()
-    stream.app = BadFramework  # type: ignore
+    stream.app = bad_framework  # type: ignore
     request = h2.events.RequestReceived()
     request.headers = [
         (b":method", b"GET"),

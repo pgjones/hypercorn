@@ -10,7 +10,7 @@ from hypercorn.asyncio.h11 import H11Server
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
 from .helpers import MockTransport
-from ..helpers import ChunkedResponseFramework, EchoFramework
+from ..helpers import chunked_response_framework, echo_framework
 
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 BASIC_DATA = "index"
@@ -18,7 +18,7 @@ BASIC_DATA = "index"
 
 class MockConnection:
     def __init__(
-        self, event_loop: asyncio.AbstractEventLoop, *, framework: ASGIFramework = EchoFramework
+        self, event_loop: asyncio.AbstractEventLoop, *, framework: ASGIFramework = echo_framework
     ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
@@ -120,7 +120,7 @@ async def test_client_sends_chunked(event_loop: asyncio.AbstractEventLoop,) -> N
 
 @pytest.mark.asyncio
 async def test_server_sends_chunked(event_loop: asyncio.AbstractEventLoop) -> None:
-    connection = MockConnection(event_loop, framework=ChunkedResponseFramework)
+    connection = MockConnection(event_loop, framework=chunked_response_framework)
     await connection.send(h11.Request(method="GET", target="/", headers=BASIC_HEADERS))
     await connection.send(h11.EndOfMessage())
     await connection.transport.closed.wait()
@@ -145,7 +145,7 @@ def test_max_incomplete_size() -> None:
 async def test_initial_keep_alive_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
     config = Config()
     config.keep_alive_timeout = 0.01
-    server = H11Server(EchoFramework, event_loop, config, Mock())
+    server = H11Server(echo_framework, event_loop, config, Mock())
     await asyncio.sleep(2 * config.keep_alive_timeout)
     server.transport.close.assert_called()  # type: ignore
 
@@ -155,7 +155,7 @@ async def test_post_response_keep_alive_timeout(event_loop: asyncio.AbstractEven
     config = Config()
     config.keep_alive_timeout = 0.01
     transport = MockTransport()
-    server = H11Server(EchoFramework, event_loop, config, transport)  # type: ignore
+    server = H11Server(echo_framework, event_loop, config, transport)  # type: ignore
     server.pause_writing()
     server.data_received(b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n")
     await asyncio.sleep(2 * config.keep_alive_timeout)

@@ -9,11 +9,11 @@ from wsproto.events import AcceptConnection, CloseConnection, Message, Request
 from hypercorn.config import Config
 from hypercorn.trio.wsproto import WebsocketServer
 from hypercorn.typing import ASGIFramework
-from ..helpers import BadFramework, EchoFramework, MockSocket
+from ..helpers import bad_framework, echo_framework, MockSocket
 
 
 class MockHTTPConnection:
-    def __init__(self, path: str, *, framework: ASGIFramework = EchoFramework) -> None:
+    def __init__(self, path: str, *, framework: ASGIFramework = echo_framework) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.client = h11.Connection(h11.CLIENT)
@@ -48,7 +48,7 @@ class MockHTTPConnection:
 
 
 class MockWebsocketConnection:
-    def __init__(self, path: str, *, framework: ASGIFramework = EchoFramework) -> None:
+    def __init__(self, path: str, *, framework: ASGIFramework = echo_framework) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.server = WebsocketServer(framework, Config(), server_stream)
@@ -86,7 +86,7 @@ async def test_websocket_server() -> None:
 @pytest.mark.trio
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework_http(path: str) -> None:
-    connection = MockHTTPConnection(path, framework=BadFramework)
+    connection = MockHTTPConnection(path, framework=bad_framework)
     await connection.server.handle_connection()
     response, *_ = await connection.get_events()
     assert isinstance(response, h11.Response)
@@ -95,7 +95,7 @@ async def test_bad_framework_http(path: str) -> None:
 
 @pytest.mark.trio
 async def test_bad_framework_websocket() -> None:
-    connection = MockWebsocketConnection("/accept", framework=BadFramework)
+    connection = MockWebsocketConnection("/accept", framework=bad_framework)
     with trio.move_on_after(0.2):  # Temporary HACK, Fix close timeout issue
         await connection.server.handle_connection()
     *_, close = await connection.receive()

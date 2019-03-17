@@ -9,7 +9,7 @@ import trio
 from hypercorn.config import Config
 from hypercorn.trio.h2 import H2Server
 from hypercorn.typing import ASGIFramework
-from ..helpers import ChunkedResponseFramework, EchoFramework, MockSocket, PushFramework
+from ..helpers import chunked_response_framework, echo_framework, MockSocket, push_framework
 
 BASIC_HEADERS = [(":authority", "hypercorn"), (":scheme", "https")]
 BASIC_DATA = "index"
@@ -21,7 +21,7 @@ class MockConnection:
         self,
         *,
         config: Config = Config(),
-        framework: ASGIFramework = EchoFramework,
+        framework: ASGIFramework = echo_framework,
         upgrade_request: Optional[h11.Request] = None,
     ) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
@@ -147,7 +147,7 @@ async def test_pipelining(nursery: trio._core._run.Nursery) -> None:
 
 @pytest.mark.trio
 async def test_server_sends_chunked(nursery: trio._core._run.Nursery) -> None:
-    connection = MockConnection(framework=ChunkedResponseFramework)
+    connection = MockConnection(framework=chunked_response_framework)
     nursery.start_soon(connection.server.handle_connection)
     stream_id = await connection.send_request(
         BASIC_HEADERS + [(":method", "GET"), (":path", "/")], {}
@@ -168,7 +168,7 @@ async def test_initial_keep_alive_timeout() -> None:
     server_stream.socket = MockSocket()
     config = Config()
     config.keep_alive_timeout = 0.01
-    server = H2Server(EchoFramework, config, server_stream)
+    server = H2Server(echo_framework, config, server_stream)
     with trio.fail_after(2 * config.keep_alive_timeout):
         await server.handle_connection()
     # Only way to confirm closure is to invoke an error
@@ -230,7 +230,7 @@ async def test_h2_flow_control(nursery: trio._core._run.Nursery) -> None:
 
 @pytest.mark.trio
 async def test_h2_push(nursery: trio._core._run.Nursery) -> None:
-    connection = MockConnection(framework=PushFramework)
+    connection = MockConnection(framework=push_framework)
     nursery.start_soon(connection.server.handle_connection)
     stream_id = await connection.send_request(
         BASIC_HEADERS + [(":method", "GET"), (":path", "/")], {}

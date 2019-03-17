@@ -7,12 +7,12 @@ from hypercorn.asgi.h11 import H11Mixin
 from hypercorn.asgi.utils import ASGIHTTPState, UnexpectedMessage
 from hypercorn.config import Config
 from hypercorn.typing import H11SendableEvent
-from ..helpers import BadFramework, EmptyFramework
+from ..helpers import bad_framework, empty_framework
 
 
 class MockH11(H11Mixin):
     def __init__(self) -> None:
-        self.app = EmptyFramework  # type: ignore
+        self.app = empty_framework  # type: ignore
         self.client = ("127.0.0.1", 5000)
         self.config = Config()
         self.server = ("remote", 5000)
@@ -51,7 +51,7 @@ async def test_asgi_scope() -> None:
     assert scope == {
         "type": "http",
         "http_version": "1.1",
-        "asgi": {"spec_version": "2.1", "version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "3.0"},
         "method": "GET",
         "scheme": "http",
         "path": "/path",
@@ -124,7 +124,7 @@ async def test_asgi_send_invalid_message(status: Any, headers: Any, body: Any) -
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework(path: str) -> None:
     server = MockH11()
-    server.app = BadFramework  # type: ignore
+    server.app = bad_framework  # type: ignore
     request = h11.Request(method="GET", target=path.encode(), headers=[(b"host", b"hypercorn")])
     await server.handle_request(request)
     assert server.sent_events == [

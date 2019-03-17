@@ -5,14 +5,14 @@ import trio
 
 from hypercorn.config import Config
 from hypercorn.trio.run import serve_stream
-from ..helpers import EchoFramework, MockSocket
+from ..helpers import echo_framework, MockSocket
 
 
 async def _make_upgrade_request(request: h11.Request) -> h11.InformationalResponse:
     client_stream, server_stream = trio.testing.memory_stream_pair()
     server_stream.socket = MockSocket()
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(serve_stream, EchoFramework, Config(), server_stream)
+        nursery.start_soon(serve_stream, echo_framework, Config(), server_stream)
         client = h11.Connection(h11.CLIENT)
         await client_stream.send_all(client.send(request))
         client.receive_data(await client_stream.receive_some(2 ** 16))
@@ -63,7 +63,7 @@ async def test_h2_prior_knowledge() -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
     server_stream.socket = MockSocket()
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(serve_stream, EchoFramework, Config(), server_stream)
+        nursery.start_soon(serve_stream, echo_framework, Config(), server_stream)
         client = h2.connection.H2Connection()
         client.initiate_connection()
         client.ping(b"12345678")

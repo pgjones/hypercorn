@@ -7,7 +7,7 @@ import pytest
 from hypercorn.asyncio.run import _cancel_all_tasks, Server
 from hypercorn.config import Config
 from .helpers import MockTransport
-from ..helpers import EchoFramework
+from ..helpers import echo_framework
 
 
 def test__cancel_all_tasks() -> None:
@@ -24,7 +24,7 @@ async def _make_upgrade_request(
     request: h11.Request, event_loop: asyncio.AbstractEventLoop
 ) -> h11.InformationalResponse:
     client = h11.Connection(h11.CLIENT)
-    server = Server(EchoFramework, event_loop, Config())
+    server = Server(echo_framework, event_loop, Config())
     transport = MockTransport()
     server.connection_made(transport)  # type: ignore
     server.data_received(client.send(request))
@@ -78,7 +78,7 @@ async def test_h2_prior_knowledge(event_loop: asyncio.AbstractEventLoop) -> None
     client = h2.connection.H2Connection()
     client.initiate_connection()
     client.ping(b"12345678")
-    server = Server(EchoFramework, event_loop, Config())
+    server = Server(echo_framework, event_loop, Config())
     transport = MockTransport()
     server.connection_made(transport)  # type: ignore
     server.data_received(client.data_to_send())

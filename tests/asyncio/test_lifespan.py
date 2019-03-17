@@ -1,25 +1,25 @@
 import asyncio
 from time import sleep
+from typing import Callable
 
 import pytest
 
 from hypercorn.asyncio.lifespan import Lifespan
 from hypercorn.config import Config
 from hypercorn.utils import LifespanFailure, LifespanTimeout
-from ..helpers import EmptyFramework
+from ..helpers import lifespan_failure, SlowLifespanFramework
 
 
-class NoLifespanApp:
-    def __init__(self, scope: dict) -> None:
-        sleep(0.1)  # Block purposefully
-        raise Exception()
+async def no_lifespan_app(scope: dict, receive: Callable, send: Callable) -> None:
+    sleep(0.1)  # Block purposefully
+    raise Exception()
 
 
 @pytest.mark.asyncio
 async def test_ensure_no_race_condition() -> None:
     config = Config()
     config.startup_timeout = 0.2
-    lifespan = Lifespan(NoLifespanApp, config)  # type: ignore
+    lifespan = Lifespan(no_lifespan_app, config)  # type: ignore
     asyncio.ensure_future(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()  # Raises if there is a race condition
 
@@ -28,7 +28,7 @@ async def test_ensure_no_race_condition() -> None:
 async def test_startup_timeout_error() -> None:
     config = Config()
     config.startup_timeout = 0.01
-    lifespan = Lifespan(EmptyFramework, config)  # type: ignore
+    lifespan = Lifespan(SlowLifespanFramework(0.02, asyncio.sleep), config)  # type: ignore
     asyncio.ensure_future(lifespan.handle_lifespan())
     with pytest.raises(LifespanTimeout) as exc_info:
         await lifespan.wait_for_startup()

@@ -9,14 +9,14 @@ import trio.testing
 from hypercorn.config import Config
 from hypercorn.trio.h11 import H11Server
 from hypercorn.typing import ASGIFramework
-from ..helpers import ChunkedResponseFramework, EchoFramework, MockSocket
+from ..helpers import chunked_response_framework, echo_framework, MockSocket
 
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 BASIC_DATA = "index"
 
 
 class MockConnection:
-    def __init__(self, *, framework: ASGIFramework = EchoFramework) -> None:
+    def __init__(self, *, framework: ASGIFramework = echo_framework) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.client = h11.Connection(h11.CLIENT)
@@ -116,7 +116,7 @@ async def test_client_sends_chunked() -> None:
 
 @pytest.mark.trio
 async def test_server_sends_chunked() -> None:
-    connection = MockConnection(framework=ChunkedResponseFramework)
+    connection = MockConnection(framework=chunked_response_framework)
     await connection.send(h11.Request(method="GET", target="/", headers=BASIC_HEADERS))
     await connection.send(h11.EndOfMessage())
     await connection.server.handle_connection()
@@ -133,7 +133,7 @@ async def test_max_incomplete_size() -> None:
     server_stream.socket = MockSocket()
     config = Config()
     config.h11_max_incomplete_size = 5
-    server = H11Server(EchoFramework, config, server_stream)
+    server = H11Server(echo_framework, config, server_stream)
     await client_stream.send_all(b"GET / HTTP/1.1\r\nHost: hypercorn\r\n")  # Longer than 5 bytes
     await server.handle_connection()
     data = await client_stream.receive_some(2 ** 16)
@@ -146,7 +146,7 @@ async def test_initial_keep_alive_timeout() -> None:
     server_stream.socket = MockSocket()
     config = Config()
     config.keep_alive_timeout = 0.01
-    server = H11Server(EchoFramework, config, server_stream)
+    server = H11Server(echo_framework, config, server_stream)
     with trio.fail_after(2 * config.keep_alive_timeout):
         await server.handle_connection()
     # Only way to confirm closure is to invoke an error
@@ -160,7 +160,7 @@ async def test_post_request_keep_alive_timeout() -> None:
     server_stream.socket = MockSocket()
     config = Config()
     config.keep_alive_timeout = 0.01
-    server = H11Server(EchoFramework, config, server_stream)
+    server = H11Server(echo_framework, config, server_stream)
     await client_stream.send_all(b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n")
     with trio.fail_after(2 * config.keep_alive_timeout):
         await server.handle_connection()

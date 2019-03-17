@@ -14,12 +14,12 @@ from wsproto.events import (
 from hypercorn.asgi.utils import ASGIWebsocketState, UnexpectedMessage
 from hypercorn.asgi.wsproto import WebsocketMixin
 from hypercorn.config import Config
-from ..helpers import BadFramework, EmptyFramework
+from ..helpers import bad_framework, empty_framework
 
 
 class MockWebsocket(WebsocketMixin):
     def __init__(self) -> None:
-        self.app = EmptyFramework  # type: ignore
+        self.app = empty_framework  # type: ignore
         self.client = ("127.0.0.1", 5000)
         self.config = Config()
         self.server = ("remote", 5000)
@@ -48,7 +48,7 @@ async def test_asgi_scope() -> None:
     scope = server.scope
     assert scope == {
         "type": "websocket",
-        "asgi": {"spec_version": "2.1", "version": "2.0"},
+        "asgi": {"spec_version": "2.1", "version": "3.0"},
         "http_version": "1.1",
         "scheme": "ws",
         "path": "/path",
@@ -65,7 +65,7 @@ async def test_asgi_scope() -> None:
 @pytest.mark.asyncio
 async def test_asgi_send() -> None:
     server = MockWebsocket()
-    server.app = BadFramework  # type: ignore
+    server.app = bad_framework  # type: ignore
     await server.asgi_send({"type": "websocket.accept"})
     await server.asgi_send({"type": "websocket.send", "bytes": b"abc"})
     await server.asgi_send({"type": "websocket.close", "code": 1000})
@@ -164,7 +164,7 @@ async def test_asgi_send_invalid_http_message(status: Any, headers: Any, body: A
 @pytest.mark.asyncio
 async def test_bad_framework() -> None:
     server = MockWebsocket()
-    server.app = BadFramework  # type: ignore
+    server.app = bad_framework  # type: ignore
     headers = [
         (b"sec-websocket-key", b"ZdCqRHQRNflNt6o7yU48Pg=="),
         (b"sec-websocket-version", b"13"),
@@ -181,7 +181,7 @@ async def test_bad_framework() -> None:
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework_http(path: str) -> None:
     server = MockWebsocket()
-    server.app = BadFramework  # type: ignore
+    server.app = bad_framework  # type: ignore
     headers = [
         (b"sec-websocket-key", b"ZdCqRHQRNflNt6o7yU48Pg=="),
         (b"sec-websocket-version", b"13"),
