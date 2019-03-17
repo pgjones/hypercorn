@@ -12,8 +12,8 @@ server based on the sans-io hyper, `h11
 <https://github.com/python-hyper/h11>`_, `h2
 <https://github.com/python-hyper/hyper-h2>`_, and `wsproto
 <https://github.com/python-hyper/wsproto>`_ libraries and inspired by
-Gunicorn. Hypercorn supports HTTP/1, HTTP/2, and WebSockets (over
-HTTP/1 and HTTP/2) and the ASGI 2 specification. Hypercorn can utilise
+Gunicorn. Hypercorn supports HTTP/1, HTTP/2, WebSockets (over HTTP/1
+and HTTP/2), ASGI/2, and ASGI/3 specifications. Hypercorn can utilise
 asyncio, uvloop, or trio worker types.
 
 Hypercorn was initially part of `Quart
@@ -32,7 +32,7 @@ Hypercorn can be installed via `pipenv
     $ pipenv install hypercorn
     $ pip install hypercorn
 
-and requires Python 3.6.1 or higher.
+and requires Python 3.7.0 or higher.
 
 With hypercorn installed ASGI frameworks (or apps) can be served via
 Hypercorn via the command line,
