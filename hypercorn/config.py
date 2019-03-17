@@ -8,6 +8,7 @@ import stat
 import sys
 import types
 import warnings
+from dataclasses import dataclass
 from ssl import SSLContext, VerifyFlags, VerifyMode  # type: ignore
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Type, Union
 
@@ -22,13 +23,20 @@ SECONDS = 1.0
 FilePath = Union[AnyStr, os.PathLike]
 
 
+@dataclass
+class Sockets:
+    secure_sockets: List[socket.socket]
+    insecure_sockets: List[socket.socket]
+
+
 class Config:
 
     _access_logger: Optional[AccessLogger] = None
     _error_log_target: Optional[str] = None
     _bind = ["127.0.0.1:8000"]
+    _insecure_bind: List[str] = []
 
-    access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
+    access_log_format = "%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s"
     access_log_target: Optional[str] = None
     access_logger_class = AccessLogger
     alpn_protocols = ["h2", "http/1.1"]
@@ -101,6 +109,17 @@ class Config:
         else:
             self._bind = value
 
+    @property
+    def insecure_bind(self) -> List[str]:
+        return self._insecure_bind
+
+    @insecure_bind.setter
+    def insecure_bind(self, value: Union[List[str], str]) -> None:
+        if isinstance(value, str):
+            self._insecure_bind = [value]
+        else:
+            self._insecure_bind = value
+
     def create_ssl_context(self) -> Optional[SSLContext]:
         if not self.ssl_enabled:
             return None
@@ -133,9 +152,18 @@ class Config:
     def ssl_enabled(self) -> bool:
         return self.certfile is not None and self.keyfile is not None
 
-    def create_sockets(self) -> List[socket.socket]:
+    def create_sockets(self) -> Sockets:
+        if self.ssl_enabled:
+            secure_sockets = self._create_sockets(self.bind)
+            insecure_sockets = self._create_sockets(self.insecure_bind)
+        else:
+            secure_sockets = []
+            insecure_sockets = self._create_sockets(self.bind)
+        return Sockets(secure_sockets, insecure_sockets)
+
+    def _create_sockets(self, binds: List[str]) -> List[socket.socket]:
         sockets: List[socket.socket] = []
-        for bind in self.bind:
+        for bind in binds:
             binding: Any = None
             if bind.startswith("unix:"):
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

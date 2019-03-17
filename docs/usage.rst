@@ -25,6 +25,7 @@ The following options exist with the given usage,
                         stdout
   --access-logformat ACCESS_LOGFORMAT
                         The log format for the access log, see help docs
+  --backlog BACKLOG     The maximum number of pending connections
   -b BINDS, --bind BINDS
                         The host/address to bind to. Should be either
                         host:port, host, unix:path or fd://num, e.g.
@@ -32,6 +33,8 @@ The following options exist with the given usage,
                         respectively.
   --ca-certs CA_CERTS   Path to the SSL CA certificate file
   --certfile CERTFILE   Path to the SSL certificate file
+  --cert-reqs CERT_REQS
+                        See verify mode argument
   --ciphers CIPHERS     Ciphers to use for the SSL setup
   -c CONFIG, --config CONFIG
                         Location of a TOML config file or when prefixed with
@@ -42,13 +45,24 @@ The following options exist with the given usage,
                         stderr
   -k WORKER_CLASS, --worker-class WORKER_CLASS
                         The type of worker to use. Options include asyncio,
-                        uvloop (pip install hypercorn[uvloop]).
+                        uvloop (pip install hypercorn[uvloop]), and trio (pip
+                        install hypercorn[trio]).
   --keep-alive KEEP_ALIVE
                         Seconds to keep inactive connections alive for
   --keyfile KEYFILE     Path to the SSL key file
+  --insecure-bind INSECURE_BINDS
+                        The host/address to bind to. SSL options will not
+                        apply to these binds. See *bind* for formatting
+                        options. Care must be taken! See HTTP -> HTTPS
+                        redirection docs.
   -p PID, --pid PID     Location to write the PID (Program ID) to.
   --reload              Enable automatic reloads on code changes
   --root-path ROOT_PATH
                         The setting for the ASGI root_path variable
+  --uvloop              Enable uvloop usage (Deprecated, use `--worker-class
+                        uvloop` instead)
+  --verify-mode VERIFY_MODE
+                        SSL verify mode for peer's certificate, see
+                        ssl.VerifyMode enum for possible values.
   -w WORKERS, --workers WORKERS
                         The number of workers to spawn and use

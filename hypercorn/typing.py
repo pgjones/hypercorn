@@ -1,16 +1,15 @@
-import socket
 from multiprocessing.synchronize import Event as EventType
-from typing import Awaitable, Callable, List, Optional, Tuple, Type, Union
+from typing import Awaitable, Callable, Optional, Tuple, Type, Union
 
 import h2.events
 import h11
 from typing_extensions import Protocol  # Till PEP 544 is accepted
 
-from .config import Config
+from .config import Config, Sockets
 
 H11SendableEvent = Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response]
 
-WorkerFunc = Callable[[Config, Optional[List[socket.socket]], Optional[EventType]], None]
+WorkerFunc = Callable[[Config, Optional[Sockets], Optional[EventType]], None]
 
 
 class ASGI2Protocol(Protocol):

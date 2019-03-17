@@ -57,6 +57,7 @@ class AccessLogAtoms(dict):
                 "t": time.strftime("[%d/%b/%Y:%H:%M:%S %z]"),
                 "r": f"{method} {request['path']} {protocol}",
                 "s": response["status"],
+                "S": request["scheme"],
                 "m": method,
                 "U": request["path"],
                 "q": request["query_string"].decode(),

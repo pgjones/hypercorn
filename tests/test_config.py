@@ -71,7 +71,7 @@ def test_create_sockets_ip(
     config = Config()
     config.bind = [bind]
     sockets = config.create_sockets()
-    sock = sockets[0]
+    sock = sockets.insecure_sockets[0]
     mock_socket.assert_called_with(expected_family, socket.SOCK_STREAM)
     sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # type: ignore
     sock.bind.assert_called_with(expected_binding)  # type: ignore
@@ -85,7 +85,7 @@ def test_create_sockets_unix(monkeypatch: MonkeyPatch) -> None:
     config = Config()
     config.bind = ["unix:/tmp/hypercorn.sock"]
     sockets = config.create_sockets()
-    sock = sockets[0]
+    sock = sockets.insecure_sockets[0]
     mock_socket.assert_called_with(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # type: ignore
     sock.bind.assert_called_with("/tmp/hypercorn.sock")  # type: ignore
@@ -99,7 +99,7 @@ def test_create_sockets_fd(monkeypatch: MonkeyPatch) -> None:
     config = Config()
     config.bind = ["fd://2"]
     sockets = config.create_sockets()
-    sock = sockets[0]
+    sock = sockets.insecure_sockets[0]
     mock_fromfd.assert_called_with(2, socket.AF_UNIX, socket.SOCK_STREAM)
     sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # type: ignore
     sock.setblocking.assert_called_with(False)  # type: ignore
@@ -112,4 +112,4 @@ def test_create_sockets_multiple(monkeypatch: MonkeyPatch) -> None:
     config = Config()
     config.bind = ["127.0.0.1", "unix:/tmp/hypercorn.sock"]
     sockets = config.create_sockets()
-    assert len(sockets) == 2
+    assert len(sockets.insecure_sockets) == 2

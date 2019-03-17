@@ -3,8 +3,7 @@ import platform
 import signal
 import ssl
 from multiprocessing.synchronize import Event as EventType
-from socket import socket
-from typing import Any, Coroutine, List, Optional
+from typing import Any, Coroutine, Optional
 
 from .base import HTTPServer
 from .h2 import H2Server
@@ -12,7 +11,7 @@ from .h11 import H11Server
 from .lifespan import Lifespan
 from .wsproto import WebsocketServer
 from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
-from ..config import Config
+from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
     check_shutdown,
@@ -106,15 +105,13 @@ async def worker_serve(
     app: ASGIFramework,
     config: Config,
     *,
-    sockets: Optional[List[socket]] = None,
+    sockets: Optional[Sockets] = None,
     shutdown_event: Optional[EventType] = None,
 ) -> None:
     lifespan = Lifespan(app, config)
     lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
 
     await lifespan.wait_for_startup()
-
-    ssl_context = config.create_ssl_context()
 
     if sockets is None:
         sockets = config.create_sockets()
@@ -149,6 +146,7 @@ async def worker_serve(
 
     ssl_handshake_timeout = None
     if config.ssl_enabled:
+        ssl_context = config.create_ssl_context()
         ssl_handshake_timeout = config.ssl_handshake_timeout
 
     servers = [
@@ -159,8 +157,16 @@ async def worker_serve(
             sock=sock,
             ssl_handshake_timeout=ssl_handshake_timeout,
         )
-        for sock in sockets
+        for sock in sockets.secure_sockets
     ]
+    servers.extend(
+        [
+            await loop.create_server(  # type: ignore
+                lambda: Server(app, loop, config), backlog=config.backlog, sock=sock
+            )
+            for sock in sockets.insecure_sockets
+        ]
+    )
 
     reload_ = False
     try:
@@ -187,9 +193,7 @@ async def worker_serve(
 
 
 def asyncio_worker(
-    config: Config,
-    sockets: Optional[List[socket]] = None,
-    shutdown_event: Optional[EventType] = None,
+    config: Config, sockets: Optional[Sockets] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
     app = load_application(config.application_path)
     _run(
@@ -199,9 +203,7 @@ def asyncio_worker(
 
 
 def uvloop_worker(
-    config: Config,
-    sockets: Optional[List[socket]] = None,
-    shutdown_event: Optional[EventType] = None,
+    config: Config, sockets: Optional[Sockets] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
     try:
         import uvloop

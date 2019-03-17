@@ -74,5 +74,7 @@ def run_multiple(config: Config, worker_func: WorkerFunc) -> None:
     for process in processes:
         process.terminate()
 
-    for sock in sockets:
+    for sock in sockets.secure_sockets:
+        sock.close()
+    for sock in sockets.insecure_sockets:
         sock.close()

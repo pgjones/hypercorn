@@ -85,6 +85,15 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     )
     parser.add_argument("--keyfile", help="Path to the SSL key file", default=sentinel)
     parser.add_argument(
+        "--insecure-bind",
+        dest="insecure_binds",
+        help="""The host/address to bind to. SSL options will not apply to these binds.
+        See *bind* for formatting options. Care must be taken! See HTTP -> HTTPS redirection docs.
+        """,
+        default=[],
+        action="append",
+    )
+    parser.add_argument(
         "-p", "--pid", help="Location to write the PID (Program ID) to.", default=sentinel
     )
     parser.add_argument(
@@ -167,12 +176,16 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     if args.workers is not sentinel:
         config.workers = args.workers
 
-    scheme = "https" if config.ssl_enabled else "http"
     if len(args.binds) > 0:
         config.bind = args.binds
+    if len(args.insecure_binds) > 0:
+        config.insecure_bind = args.insecure_binds
 
     for bind in config.bind:
+        scheme = "https" if config.ssl_enabled else "http"
         print(f"Running on {bind} over {scheme} (CTRL + C to quit)")  # noqa: T001
+    for bind in config.insecure_bind:
+        print(f"Running on {bind} over http (CTRL + C to quit)")  # noqa: T001
 
     run(config)
 

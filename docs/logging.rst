@@ -14,7 +14,7 @@ Configuring access logs
 
 The access log format can be configured by specifying the atoms (see
 below) to include in a specific format. By default hypercorn will
-choose ``%(h)s %(r)s %(s)s %(b)s %(D)s`` as the format. The
+choose ``%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s`` as the format. The
 configuration variable ``access_log_format`` specifies the format
 used.
 
@@ -22,7 +22,7 @@ used.
 Access log atoms
 ````````````````
 
-The following atoms, as matches `Gunicorn
+The following atoms, a superset of those in `Gunicorn
 <https://github.com/benoitc/gunicorn>`_, are available for use.
 
 ===========  ===========
@@ -38,6 +38,7 @@ U            URL path without query string
 q            query string
 H            protocol
 s            status
+S            scheme {http, https, ws, wss}
 B            response length
 b            response length or ``'-'`` (CLF format)
 f            referer

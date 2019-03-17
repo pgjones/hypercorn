@@ -1,7 +1,6 @@
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
-from socket import socket
-from typing import List, Optional
+from typing import Optional
 
 import trio
 
@@ -10,7 +9,7 @@ from .h11 import H11Server
 from .lifespan import Lifespan
 from .wsproto import WebsocketServer
 from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
-from ..config import Config
+from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
     check_shutdown,
@@ -56,7 +55,7 @@ async def worker_serve(
     app: ASGIFramework,
     config: Config,
     *,
-    sockets: Optional[List[socket]] = None,
+    sockets: Optional[Sockets] = None,
     shutdown_event: Optional[EventType] = None,
     task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
 ) -> None:
@@ -77,19 +76,26 @@ async def worker_serve(
 
                 if sockets is None:
                     sockets = config.create_sockets()
-                    for sock in sockets:
+                    for sock in sockets.secure_sockets:
                         sock.listen(config.backlog)
-                listeners = [
-                    trio.SocketListener(trio.socket.from_stdlib_socket(sock)) for sock in sockets
-                ]
-                if config.ssl_enabled:
-                    listeners = [
-                        trio.ssl.SSLListener(
-                            tcp_listener, config.create_ssl_context(), https_compatible=True
-                        )
-                        for tcp_listener in listeners
-                    ]
+                    for sock in sockets.insecure_sockets:
+                        sock.listen(config.backlog)
 
+                ssl_context = config.create_ssl_context()
+                listeners = [
+                    trio.ssl.SSLListener(
+                        trio.SocketListener(trio.socket.from_stdlib_socket(sock)),
+                        ssl_context,
+                        https_compatible=True,
+                    )
+                    for sock in sockets.secure_sockets
+                ]
+                listeners.extend(
+                    [
+                        trio.SocketListener(trio.socket.from_stdlib_socket(sock))
+                        for sock in sockets.insecure_sockets
+                    ]
+                )
                 task_status.started()
                 await trio.serve_listeners(partial(serve_stream, app, config), listeners)
 
@@ -106,12 +112,12 @@ async def worker_serve(
 
 
 def trio_worker(
-    config: Config,
-    sockets: Optional[List[socket]] = None,
-    shutdown_event: Optional[EventType] = None,
+    config: Config, sockets: Optional[Sockets] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
     if sockets is not None:
-        for sock in sockets:
+        for sock in sockets.secure_sockets:
+            sock.listen(config.backlog)
+        for sock in sockets.insecure_sockets:
             sock.listen(config.backlog)
     app = load_application(config.application_path)
     trio.run(partial(worker_serve, app, config, sockets=sockets, shutdown_event=shutdown_event))
