@@ -33,7 +33,7 @@ process. This allows a client to send a HTTP/1.1 request with a
 ``Upgrade: h2c`` header that results in the connection being upgraded
 to HTTP/2. To test this try
 
-.. code-block::
+.. code-block:: shell
 
    $ curl --http2 http://url:port/path
 
