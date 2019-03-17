@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import h11
 import trio
@@ -23,7 +23,7 @@ class MustCloseError(Exception):
 class WebsocketServer(HTTPServer, WebsocketMixin):
     def __init__(
         self,
-        app: Type[ASGIFramework],
+        app: ASGIFramework,
         config: Config,
         stream: trio.abc.Stream,
         *,

@@ -119,3 +119,7 @@ class PushFramework:
                 await send({"type": "http.response.push", "path": "/", "headers": []})
                 await send({"type": "http.response.body", "more_body": False})
                 break
+
+
+async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> None:
+    await send({"type": "lifespan.startup.failed", "message": "Failure"})

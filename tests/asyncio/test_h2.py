@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import AsyncGenerator, Optional, Type
+from typing import AsyncGenerator, Optional
 from unittest.mock import Mock
 
 import h2
@@ -24,7 +24,7 @@ class MockConnection:
         event_loop: asyncio.AbstractEventLoop,
         *,
         config: Config = Config(),
-        framework: Type[ASGIFramework] = EchoFramework,
+        framework: ASGIFramework = EchoFramework,
         upgrade_request: Optional[h11.Request] = None,
     ) -> None:
         self.transport = MockTransport()

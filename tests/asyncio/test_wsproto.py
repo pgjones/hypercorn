@@ -1,5 +1,5 @@
 import asyncio
-from typing import AnyStr, List, Type
+from typing import AnyStr, List
 
 import h11
 import pytest
@@ -19,7 +19,7 @@ class MockHTTPConnection:
         path: str,
         event_loop: asyncio.AbstractEventLoop,
         *,
-        framework: Type[ASGIFramework] = EchoFramework,
+        framework: ASGIFramework = EchoFramework,
     ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
@@ -61,7 +61,7 @@ class MockWebsocketConnection:
         path: str,
         event_loop: asyncio.AbstractEventLoop,
         *,
-        framework: Type[ASGIFramework] = EchoFramework,
+        framework: ASGIFramework = EchoFramework,
     ) -> None:
         self.transport = MockTransport()
         self.server = WebsocketServer(  # type: ignore

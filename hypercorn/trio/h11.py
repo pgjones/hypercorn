@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import h11
 import trio
@@ -18,7 +18,7 @@ class MustCloseError(Exception):
 
 
 class H11Server(HTTPServer, H11Mixin):
-    def __init__(self, app: Type[ASGIFramework], config: Config, stream: trio.abc.Stream) -> None:
+    def __init__(self, app: ASGIFramework, config: Config, stream: trio.abc.Stream) -> None:
         super().__init__(stream, "h11")
         self.app = app
         self.config = config

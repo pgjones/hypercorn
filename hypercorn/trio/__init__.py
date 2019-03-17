@@ -1,5 +1,4 @@
 import warnings
-from typing import Type
 
 import trio
 
@@ -9,7 +8,7 @@ from ..typing import ASGIFramework
 
 
 async def serve(
-    app: Type[ASGIFramework],
+    app: ASGIFramework,
     config: Config,
     *,
     task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,

@@ -1,3 +1,4 @@
+import inspect
 import os
 import platform
 import socket
@@ -7,10 +8,10 @@ from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
 from time import time
 from types import ModuleType
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple
 from wsgiref.handlers import format_date_time
 
-from .typing import ASGIFramework
+from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework
 
 
 class Shutdown(Exception):
@@ -33,6 +34,11 @@ class LifespanTimeout(Exception):
         )
 
 
+class LifespanFailure(Exception):
+    def __init__(self, stage: str, message: str) -> None:
+        super().__init__(f"Lifespan failure in {stage}. {message}")
+
+
 def suppress_body(method: str, status_code: int) -> bool:
     return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
 
@@ -44,7 +50,7 @@ def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
     ]
 
 
-def load_application(path: str) -> Type[ASGIFramework]:
+def load_application(path: str) -> ASGIFramework:
     try:
         module_name, app_name = path.split(":", 1)
     except ValueError:
@@ -145,3 +151,25 @@ def parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
         return (address[0], address[1])
     else:
         return None
+
+
+async def invoke_asgi(app: ASGIFramework, scope: dict, receive: Callable, send: Callable) -> None:
+    if _is_asgi_2(app):
+        scope["asgi"]["version"] = "2.0"
+        app = cast(ASGI2Framework, app)
+        asgi_instance = app(scope)
+        await asgi_instance(receive, send)
+    else:
+        scope["asgi"]["version"] = "3.0"
+        app = cast(ASGI3Framework, app)
+        await app(scope, receive, send)
+
+
+def _is_asgi_2(app: ASGIFramework) -> bool:
+    if inspect.isclass(app):
+        return True
+
+    if hasattr(app, "__call__") and inspect.iscoroutinefunction(app.__call__):  # type: ignore
+        return False
+
+    return not inspect.iscoroutinefunction(app)

@@ -1,6 +1,6 @@
 import asyncio
 from time import time
-from typing import Callable, Iterable, List, Tuple, Type
+from typing import Callable, Iterable, List, Tuple
 from urllib.parse import unquote
 
 import h2.config
@@ -23,7 +23,7 @@ from .utils import (
 )
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import suppress_body
+from ..utils import invoke_asgi, suppress_body
 
 
 class H2Event:
@@ -67,7 +67,7 @@ class ServerPush(H2Event):
 
 
 class H2HTTPStreamMixin:
-    app: Type[ASGIFramework]
+    app: ASGIFramework
     asend: Callable
     config: Config
     response: dict
@@ -95,7 +95,7 @@ class H2HTTPStreamMixin:
         self.scope = {
             "type": "http",
             "http_version": "2",
-            "asgi": {"spec_version": "2.1", "version": "2.0"},
+            "asgi": {"spec_version": "2.1"},
             "method": method,
             "scheme": scheme,
             "path": unquote(path.decode("ascii")),
@@ -111,8 +111,7 @@ class H2HTTPStreamMixin:
     async def handle_asgi_app(self) -> None:
         start_time = time()
         try:
-            asgi_instance = self.app(self.scope)
-            await asgi_instance(self.asgi_receive, self.asgi_send)
+            await invoke_asgi(self.app, self.scope, self.asgi_receive, self.asgi_send)
         except asyncio.CancelledError:
             pass
         except Exception:
@@ -159,7 +158,7 @@ class H2HTTPStreamMixin:
 
 
 class H2WebsocketStreamMixin:
-    app: Type[ASGIFramework]
+    app: ASGIFramework
     asend: Callable
     config: Config
     connection: wsproto.connection.Connection
@@ -192,7 +191,7 @@ class H2WebsocketStreamMixin:
         path, _, query_string = raw_path.partition(b"?")
         self.scope = {
             "type": "websocket",
-            "asgi": {"spec_version": "2.1", "version": "2.0"},
+            "asgi": {"spec_version": "2.1"},
             # RFC 8441 (HTTP/2) Says use http or https, ASGI says ws or wss
             "scheme": "wss" if scheme == "https" else "ws",
             "http_version": "2",
@@ -220,8 +219,7 @@ class H2WebsocketStreamMixin:
         self.start_time = time()
         await self.asgi_put({"type": "websocket.connect"})
         try:
-            asgi_instance = self.app(self.scope)
-            await asgi_instance(self.asgi_receive, self.asgi_send)
+            await invoke_asgi(self.app, self.scope, self.asgi_receive, self.asgi_send)
         except asyncio.CancelledError:
             pass
         except Exception:

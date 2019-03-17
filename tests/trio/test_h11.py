@@ -1,5 +1,5 @@
 import json
-from typing import Type, Union
+from typing import Union
 
 import h11
 import pytest
@@ -16,7 +16,7 @@ BASIC_DATA = "index"
 
 
 class MockConnection:
-    def __init__(self, *, framework: Type[ASGIFramework] = EchoFramework) -> None:
+    def __init__(self, *, framework: ASGIFramework = EchoFramework) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.client = h11.Connection(h11.CLIENT)

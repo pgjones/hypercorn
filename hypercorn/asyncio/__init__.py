@@ -1,12 +1,11 @@
 import warnings
-from typing import Type
 
 from .run import worker_serve
 from ..config import Config
 from ..typing import ASGIFramework
 
 
-async def serve(app: Type[ASGIFramework], config: Config) -> None:
+async def serve(app: ASGIFramework, config: Config) -> None:
     """Serve an ASGI framework app given the config.
 
     This allows for a programmatic way to serve an ASGI framework, it

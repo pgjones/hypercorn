@@ -1,7 +1,7 @@
 import asyncio
 from functools import partial
 from itertools import chain
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 import h2.config
 import h2.connection
@@ -30,7 +30,7 @@ from ..typing import ASGIFramework, H2SyncStream
 class H2HTTPStream(H2HTTPStreamMixin):
     """A HTTP Stream."""
 
-    def __init__(self, app: Type[ASGIFramework], config: Config, asend: Callable) -> None:
+    def __init__(self, app: ASGIFramework, config: Config, asend: Callable) -> None:
         self.app = app
         self.config = config
         self.response: Optional[dict] = None
@@ -59,9 +59,7 @@ class H2HTTPStream(H2HTTPStreamMixin):
 class H2WebsocketStream(H2WebsocketStreamMixin):
     """A Websocket Stream."""
 
-    def __init__(
-        self, app: Type[ASGIFramework], config: Config, asend: Callable, send: Callable
-    ) -> None:
+    def __init__(self, app: ASGIFramework, config: Config, asend: Callable, send: Callable) -> None:
         self.app = app
         self.config = config
         self.response: Optional[dict] = None
@@ -107,7 +105,7 @@ class H2WebsocketStream(H2WebsocketStreamMixin):
 class H2Server(HTTPServer):
     def __init__(
         self,
-        app: Type[ASGIFramework],
+        app: ASGIFramework,
         loop: asyncio.AbstractEventLoop,
         config: Config,
         transport: asyncio.BaseTransport,

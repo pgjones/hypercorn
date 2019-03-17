@@ -1,4 +1,4 @@
-from typing import AnyStr, List, Type
+from typing import AnyStr, List
 
 import h11
 import pytest
@@ -13,7 +13,7 @@ from ..helpers import BadFramework, EchoFramework, MockSocket
 
 
 class MockHTTPConnection:
-    def __init__(self, path: str, *, framework: Type[ASGIFramework] = EchoFramework) -> None:
+    def __init__(self, path: str, *, framework: ASGIFramework = EchoFramework) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.client = h11.Connection(h11.CLIENT)
@@ -48,7 +48,7 @@ class MockHTTPConnection:
 
 
 class MockWebsocketConnection:
-    def __init__(self, path: str, *, framework: Type[ASGIFramework] = EchoFramework) -> None:
+    def __init__(self, path: str, *, framework: ASGIFramework = EchoFramework) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
         self.server = WebsocketServer(framework, Config(), server_stream)

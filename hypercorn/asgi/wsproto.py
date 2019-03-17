@@ -1,6 +1,6 @@
 import asyncio
 from time import time
-from typing import List, Optional, Tuple, Type, Union
+from typing import List, Optional, Tuple, Union
 from urllib.parse import unquote
 
 from wsproto.events import (
@@ -24,11 +24,11 @@ from .utils import (
 )
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import suppress_body
+from ..utils import invoke_asgi, suppress_body
 
 
 class WebsocketMixin:
-    app: Type[ASGIFramework]
+    app: ASGIFramework
     client: Tuple[str, int]
     config: Config
     response: Optional[dict]
@@ -63,7 +63,7 @@ class WebsocketMixin:
         headers.extend(event.extra_headers)
         self.scope = {
             "type": "websocket",
-            "asgi": {"spec_version": "2.1", "version": "2.0"},
+            "asgi": {"spec_version": "2.1"},
             "http_version": "1.1",
             "scheme": self.scheme,
             "path": unquote(path),
@@ -87,8 +87,7 @@ class WebsocketMixin:
         self.start_time = time()
         await self.asgi_put({"type": "websocket.connect"})
         try:
-            asgi_instance = self.app(self.scope)
-            await asgi_instance(self.asgi_receive, self.asgi_send)
+            await invoke_asgi(self.app, self.scope, self.asgi_receive, self.asgi_send)
         except asyncio.CancelledError:
             pass
         except Exception:

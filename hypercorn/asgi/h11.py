@@ -1,7 +1,7 @@
 import asyncio
 from itertools import chain
 from time import time
-from typing import List, Optional, Tuple, Type
+from typing import List, Optional, Tuple
 from urllib.parse import unquote
 
 import h11
@@ -10,7 +10,7 @@ from .run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequir
 from .utils import ASGIHTTPState, build_and_validate_headers, UnexpectedMessage
 from ..config import Config
 from ..typing import ASGIFramework, H11SendableEvent
-from ..utils import suppress_body
+from ..utils import invoke_asgi, suppress_body
 
 
 class H11Mixin:
@@ -18,7 +18,7 @@ class H11Mixin:
     # (including when to close) should be handled by the actual worker
     # rather than this class.
 
-    app: Type[ASGIFramework]
+    app: ASGIFramework
     client: Tuple[str, int]
     config: Config
     response: Optional[dict]
@@ -89,7 +89,7 @@ class H11Mixin:
         self.scope = {
             "type": "http",
             "http_version": request.http_version.decode(),
-            "asgi": {"spec_version": "2.1", "version": "2.0"},
+            "asgi": {"spec_version": "2.1"},
             "method": request.method.decode().upper(),
             "scheme": self.scheme,
             "path": unquote(path.decode("ascii")),
@@ -104,8 +104,7 @@ class H11Mixin:
     async def handle_asgi_app(self) -> None:
         start_time = time()
         try:
-            asgi_instance = self.app(self.scope)
-            await asgi_instance(self.asgi_receive, self.asgi_send)
+            await invoke_asgi(self.app, self.scope, self.asgi_receive, self.asgi_send)
         except asyncio.CancelledError:
             pass
         except Exception:

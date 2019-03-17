@@ -4,7 +4,7 @@ import signal
 import ssl
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import Any, Coroutine, List, Optional, Type
+from typing import Any, Coroutine, List, Optional
 
 from .base import HTTPServer
 from .h2 import H2Server
@@ -34,9 +34,7 @@ def _raise_shutdown(*args: Any) -> None:
 
 
 class Server(asyncio.Protocol):
-    def __init__(
-        self, app: Type[ASGIFramework], loop: asyncio.AbstractEventLoop, config: Config
-    ) -> None:
+    def __init__(self, app: ASGIFramework, loop: asyncio.AbstractEventLoop, config: Config) -> None:
         self.app = app
         self.loop = loop
         self.config = config
@@ -105,7 +103,7 @@ async def _windows_signal_support() -> None:
 
 
 async def worker_serve(
-    app: Type[ASGIFramework],
+    app: ASGIFramework,
     config: Config,
     *,
     sockets: Optional[List[socket]] = None,

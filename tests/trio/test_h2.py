@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator, Optional, Type
+from typing import AsyncGenerator, Optional
 
 import h2
 import h11
@@ -21,7 +21,7 @@ class MockConnection:
         self,
         *,
         config: Config = Config(),
-        framework: Type[ASGIFramework] = EchoFramework,
+        framework: ASGIFramework = EchoFramework,
         upgrade_request: Optional[h11.Request] = None,
     ) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()

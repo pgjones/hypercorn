@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, Type
+from typing import Optional
 
 import h11
 
@@ -14,7 +14,7 @@ from ..typing import ASGIFramework, H11SendableEvent
 class H11Server(HTTPServer, H11Mixin):
     def __init__(
         self,
-        app: Type[ASGIFramework],
+        app: ASGIFramework,
         loop: asyncio.AbstractEventLoop,
         config: Config,
         transport: asyncio.BaseTransport,

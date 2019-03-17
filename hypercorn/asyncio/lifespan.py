@@ -1,9 +1,8 @@
 import asyncio
-from typing import Type
 
 from ..config import Config
 from ..typing import ASGIFramework
-from ..utils import LifespanTimeout
+from ..utils import invoke_asgi, LifespanFailure, LifespanTimeout
 
 
 class UnexpectedMessage(Exception):
@@ -11,38 +10,36 @@ class UnexpectedMessage(Exception):
 
 
 class Lifespan:
-    def __init__(self, app: Type[ASGIFramework], config: Config) -> None:
+    def __init__(self, app: ASGIFramework, config: Config) -> None:
         self.app = app
         self.config = config
         self.startup = asyncio.Event()
         self.shutdown = asyncio.Event()
         self.app_queue: asyncio.Queue = asyncio.Queue()
         self.supported = True
-        self._support_checked = asyncio.Event()
+
+        # This mimics the Trio nursery.start task_status and is
+        # required to ensure the support has been checked before
+        # waiting on timeouts.
+        self._started = asyncio.Event()
 
     async def handle_lifespan(self) -> None:
-        scope = {"type": "lifespan"}
+        self._started.set()
+        scope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
         try:
-            asgi_instance = self.app(scope)
+            await invoke_asgi(self.app, scope, self.asgi_receive, self.asgi_send)
+        except LifespanFailure:
+            # Lifespan failures should crash the server
+            raise
         except Exception:
-            self._support_checked.set()
             self.supported = False
             if self.config.error_logger is not None:
                 self.config.error_logger.warning(
                     "ASGI Framework Lifespan error, continuing without Lifespan support"
                 )
-        else:
-            self._support_checked.set()
-            try:
-                await asgi_instance(self.asgi_receive, self.asgi_send)
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                if self.config.error_logger is not None:
-                    self.config.error_logger.exception("Error in ASGI Framework")
 
     async def wait_for_startup(self) -> None:
-        await self._support_checked.wait()
+        await self._started.wait()
         if not self.supported:
             return
 
@@ -53,7 +50,7 @@ class Lifespan:
             raise LifespanTimeout("startup") from error
 
     async def wait_for_shutdown(self) -> None:
-        await self._support_checked.wait()
+        await self._started.wait()
         if not self.supported:
             return
 
@@ -71,5 +68,9 @@ class Lifespan:
             self.startup.set()
         elif message["type"] == "lifespan.shutdown.complete":
             self.shutdown.set()
+        elif message["type"] == "lifespan.startup.failed":
+            raise LifespanFailure("startup", message["message"])
+        elif message["type"] == "lifespan.shutdown.failed":
+            raise LifespanFailure("shutdown", message["message"])
         else:
             raise UnexpectedMessage(message["type"])

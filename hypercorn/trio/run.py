@@ -1,7 +1,7 @@
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from socket import socket
-from typing import List, Optional, Type
+from typing import List, Optional
 
 import trio
 
@@ -22,7 +22,7 @@ from ..utils import (
 )
 
 
-async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.abc.Stream) -> None:
+async def serve_stream(app: ASGIFramework, config: Config, stream: trio.abc.Stream) -> None:
     if config.ssl_enabled:
         try:
             with trio.fail_after(config.ssl_handshake_timeout):
@@ -53,7 +53,7 @@ async def serve_stream(app: Type[ASGIFramework], config: Config, stream: trio.ab
 
 
 async def worker_serve(
-    app: Type[ASGIFramework],
+    app: ASGIFramework,
     config: Config,
     *,
     sockets: Optional[List[socket]] = None,

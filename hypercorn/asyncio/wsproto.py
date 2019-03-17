@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, Type
+from typing import Optional
 
 import h11
 from wsproto import ConnectionType, WSConnection
@@ -17,7 +17,7 @@ from ..typing import ASGIFramework
 class WebsocketServer(HTTPServer, WebsocketMixin):
     def __init__(
         self,
-        app: Type[ASGIFramework],
+        app: ASGIFramework,
         loop: asyncio.AbstractEventLoop,
         config: Config,
         transport: asyncio.BaseTransport,

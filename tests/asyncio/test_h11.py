@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Type, Union
+from typing import Union
 from unittest.mock import Mock
 
 import h11
@@ -18,10 +18,7 @@ BASIC_DATA = "index"
 
 class MockConnection:
     def __init__(
-        self,
-        event_loop: asyncio.AbstractEventLoop,
-        *,
-        framework: Type[ASGIFramework] = EchoFramework,
+        self, event_loop: asyncio.AbstractEventLoop, *, framework: ASGIFramework = EchoFramework
     ) -> None:
         self.transport = MockTransport()
         self.client = h11.Connection(h11.CLIENT)
