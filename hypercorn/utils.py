@@ -82,6 +82,7 @@ async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
     last_updates: Dict[ModuleType, float] = {}
     while True:
         for module in list(sys.modules.values()):
+            await sleep(0)
             filename = getattr(module, "__file__", None)
             if filename is None:
                 continue
