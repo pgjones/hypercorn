@@ -196,7 +196,7 @@ class Config:
                 )
                 if self.workers > 1:
                     try:
-                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RESUSEPORT, 1)  # type: ignore
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  # type: ignore
                     except AttributeError:
                         pass
                 binding = (host, port)
