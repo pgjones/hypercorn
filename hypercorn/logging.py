@@ -13,6 +13,7 @@ class AccessLogger:
             self.logger = target
         elif target is not None:
             self.logger = logging.getLogger("hypercorn.access")
+            self.logger.propagate = False
             self.logger.handlers = []
             if target == "-":
                 self.logger.addHandler(logging.StreamHandler(sys.stdout))
