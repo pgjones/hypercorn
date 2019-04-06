@@ -11,7 +11,7 @@ import wsproto.connection
 import wsproto.events
 import wsproto.extensions
 import wsproto.frame_protocol
-from wsproto.handshake import handshake_extensions
+from wsproto.handshake import server_extensions_handshake
 from wsproto.utilities import split_comma_header  # Specifically to match wsproto expectations
 
 from .utils import (
@@ -255,7 +255,7 @@ class H2WebsocketStreamMixin:
                 if name == b"sec-websocket-extensions":
                     extensions = split_comma_header(value)
             supported_extensions = [wsproto.extensions.PerMessageDeflate()]
-            accepts = handshake_extensions(extensions, supported_extensions)
+            accepts = server_extensions_handshake(extensions, supported_extensions)
             headers = [(b":status", b"200")]
             headers.extend(build_and_validate_headers(message.get("headers", [])))
             raise_if_subprotocol_present(headers)
