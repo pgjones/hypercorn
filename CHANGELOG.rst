@@ -1,3 +1,13 @@
+0.5.4 2019-04-06
+----------------
+
+* Bugfix correctly support the ASGI specification; headers an
+  subprotocol support on WebSocket acceptance.
+* Bugfix ensure the response headers are correctly built, ensuring
+  they have lowercase names.
+* Bugfix reloading when invocated as python -m hypercorn.
+* Bugfix RESUSE -> REUSE typo.
+
 0.5.3 2019-02-24
 ----------------
 
