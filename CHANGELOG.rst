@@ -1,3 +1,21 @@
+0.6.0 2019-04-06
+----------------
+
+* Remove deprecated features, this renders this version incompatible
+  with Quart 0.6.X releases - please use the 0.5.X Hypercorn releases.
+* Bugfix accept bind definitions as a single string (alongside a list
+  of strings).
+* Add a LifespanTimeout Exception to better communicate the failure.
+* Stop supporting Python 3.6, support only 3.7 or better.
+* Add an SSL handshake timeout, fixing a potential DOS weakness.
+* Pause reading during h11 pipelining, fixing a potential DOS weakness.
+* Add the spec_version to the scope.
+* Added check for supported ssl versions.
+* Support ASGI 3.0, with ASGI 2.0 also supported for the time being.
+* Support serving on insecure binds alongside secure binds, thereby
+  allowing responses that redirect HTTP to HTTPS.
+* Don't propagate access logs.
+
 0.5.4 2019-04-06
 ----------------
 
