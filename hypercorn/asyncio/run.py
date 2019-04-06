@@ -172,7 +172,7 @@ async def worker_serve(
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
 
     servers = [
-        await loop.create_server(
+        await loop.create_server(  # type: ignore
             lambda: Server(app, loop, config), backlog=config.backlog, ssl=ssl_context, sock=sock
         )
         for sock in sockets
