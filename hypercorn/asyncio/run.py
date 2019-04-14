@@ -112,6 +112,10 @@ async def worker_serve(
     lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
 
     await lifespan.wait_for_startup()
+    if lifespan_task.done():
+        exception = lifespan_task.exception()
+        if exception is not None:
+            raise exception
 
     if sockets is None:
         sockets = config.create_sockets()

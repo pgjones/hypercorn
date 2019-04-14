@@ -22,5 +22,8 @@ async def test_startup_timeout_error(nursery: trio._core._run.Nursery) -> None:
 async def test_startup_failure() -> None:
     lifespan = Lifespan(lifespan_failure, Config())  # type: ignore
     with pytest.raises(LifespanFailure) as exc_info:
-        await lifespan.handle_lifespan()
-    assert str(exc_info.value) == "Lifespan failure in startup. Failure"
+        async with trio.open_nursery() as lifespan_nursery:
+            await lifespan_nursery.start(lifespan.handle_lifespan)
+            await lifespan.wait_for_startup()
+
+    assert str(exc_info.value) == "Lifespan failure in startup. 'Failure'"

@@ -38,6 +38,9 @@ async def test_startup_timeout_error() -> None:
 @pytest.mark.asyncio
 async def test_startup_failure() -> None:
     lifespan = Lifespan(lifespan_failure, Config())  # type: ignore
-    with pytest.raises(LifespanFailure) as exc_info:
-        await lifespan.handle_lifespan()
-    assert str(exc_info.value) == "Lifespan failure in startup. Failure"
+    lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
+    await lifespan.wait_for_startup()
+    assert lifespan_task.done()
+    exception = lifespan_task.exception()
+    assert isinstance(exception, LifespanFailure)
+    assert str(exception) == "Lifespan failure in startup. 'Failure'"

@@ -36,7 +36,7 @@ class LifespanTimeout(Exception):
 
 class LifespanFailure(Exception):
     def __init__(self, stage: str, message: str) -> None:
-        super().__init__(f"Lifespan failure in {stage}. {message}")
+        super().__init__(f"Lifespan failure in {stage}. '{message}'")
 
 
 def suppress_body(method: str, status_code: int) -> bool:

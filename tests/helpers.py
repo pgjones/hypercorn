@@ -104,4 +104,8 @@ async def push_framework(scope: dict, receive: Callable, send: Callable) -> None
 
 
 async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> None:
-    await send({"type": "lifespan.startup.failed", "message": "Failure"})
+    while True:
+        message = await receive()
+        if message["type"] == "lifespan.startup":
+            await send({"type": "lifespan.startup.failed", "message": "Failure"})
+        break

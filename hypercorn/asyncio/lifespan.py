@@ -69,8 +69,10 @@ class Lifespan:
         elif message["type"] == "lifespan.shutdown.complete":
             self.shutdown.set()
         elif message["type"] == "lifespan.startup.failed":
+            self.startup.set()
             raise LifespanFailure("startup", message["message"])
         elif message["type"] == "lifespan.shutdown.failed":
+            self.shutdown.set()
             raise LifespanFailure("shutdown", message["message"])
         else:
             raise UnexpectedMessage(message["type"])
