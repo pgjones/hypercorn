@@ -45,3 +45,6 @@ class MockTransport:
 
     def resume_reading(self) -> None:
         pass
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.data}, {self.updated}, {self.closed})"
