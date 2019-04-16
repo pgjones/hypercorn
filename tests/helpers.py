@@ -109,3 +109,10 @@ async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> No
         if message["type"] == "lifespan.startup":
             await send({"type": "lifespan.startup.failed", "message": "Failure"})
         break
+
+
+async def early_response(scope: dict, receive: Callable, send: Callable) -> None:
+    await send(
+        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"0")]}
+    )
+    await send({"type": "http.response.body", "body": b"", "more_body": False})

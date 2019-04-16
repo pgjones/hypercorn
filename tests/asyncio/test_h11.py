@@ -10,7 +10,7 @@ from hypercorn.asyncio.h11 import H11Server
 from hypercorn.config import Config
 from hypercorn.typing import ASGIFramework
 from .helpers import MockTransport
-from ..helpers import chunked_response_framework, echo_framework
+from ..helpers import chunked_response_framework, early_response, echo_framework
 
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 BASIC_DATA = "index"
@@ -176,3 +176,15 @@ async def test_connection_error(event_loop: asyncio.AbstractEventLoop) -> None:
     connection.server.resume_writing()
     await connection.send(h11.EndOfMessage())
     await connection.transport.closed.wait()
+
+
+@pytest.mark.asyncio
+async def test_early_close_keep_alive(event_loop: asyncio.AbstractEventLoop) -> None:
+    transport = MockTransport()
+    server = H11Server(early_response, event_loop, Config(), transport)  # type: ignore
+    server.data_received(
+        b"POST / HTTP/1.1\r\nHost: hypercorn\r\n"
+        b"Content-Length: 10\r\nConnection: Keep-Alive\r\n\r\n"
+    )
+    # Should be kept alive, but early return forces close
+    await transport.closed.wait()

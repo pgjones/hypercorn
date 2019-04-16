@@ -100,14 +100,18 @@ class H11Server(HTTPServer, H11Mixin):
 
     def recycle_or_close(self, future: asyncio.Future) -> None:
         if self.connection.our_state is h11.DONE:
-            self.connection.start_next_cycle()
-            self.transport.resume_reading()  # type: ignore
-            self.app_queue = asyncio.Queue(loop=self.loop)
-            self.response = None
-            self.scope = None
-            self.state = ASGIHTTPState.REQUEST
-            self.start_keep_alive_timeout()
-            self.handle_events()
+            try:
+                self.connection.start_next_cycle()
+            except h11.LocalProtocolError:
+                self.close()
+            else:
+                self.transport.resume_reading()  # type: ignore
+                self.app_queue = asyncio.Queue(loop=self.loop)
+                self.response = None
+                self.scope = None
+                self.state = ASGIHTTPState.REQUEST
+                self.start_keep_alive_timeout()
+                self.handle_events()
         else:  # Either reached a good close state, or has errored
             self.close()
 
