@@ -18,7 +18,7 @@ from ..helpers import bad_framework, empty_framework
 
 class MockH2HTTPStream(H2HTTPStreamMixin):
     def __init__(self) -> None:
-        self.app = empty_framework  # type: ignore
+        self.app = empty_framework
         self.config = Config()
         self.sent_events: list = []
         self.state = ASGIHTTPState.REQUEST
@@ -131,7 +131,7 @@ async def test_http_asgi_send_invalid_server_push_message(path: str, headers: An
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_http_bad_framework(path: str) -> None:
     stream = MockH2HTTPStream()
-    stream.app = bad_framework  # type: ignore
+    stream.app = bad_framework
     request = h2.events.RequestReceived()
     request.headers = [
         (b":method", b"GET"),
@@ -145,7 +145,7 @@ async def test_http_bad_framework(path: str) -> None:
 
 class MockH2WebsocketStream(H2WebsocketStreamMixin):
     def __init__(self) -> None:
-        self.app = empty_framework  # type: ignore
+        self.app = empty_framework
         self.config = Config()
         self.scope = {"headers": []}
         self.sent_events: list = []
@@ -195,7 +195,7 @@ async def test_websocket_asgi_scope() -> None:
 @pytest.mark.asyncio
 async def test_websocket_asgi_send() -> None:
     stream = MockH2WebsocketStream()
-    stream.app = bad_framework  # type: ignore
+    stream.app = bad_framework
     await stream.asgi_send({"type": "websocket.accept"})
     await stream.asgi_send({"type": "websocket.send", "bytes": b"abc"})
     await stream.asgi_send({"type": "websocket.close", "code": 1000})
@@ -290,7 +290,7 @@ async def test_websocket_asgi_send_invalid_http_message(
 @pytest.mark.asyncio
 async def test_websocket_bad_framework() -> None:
     stream = MockH2WebsocketStream()
-    stream.app = bad_framework  # type: ignore
+    stream.app = bad_framework
     request = h2.events.RequestReceived()
     request.headers = [
         (b":method", b"GET"),
@@ -311,7 +311,7 @@ async def test_websocket_bad_framework() -> None:
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework_http(path: str) -> None:
     stream = MockH2WebsocketStream()
-    stream.app = bad_framework  # type: ignore
+    stream.app = bad_framework
     request = h2.events.RequestReceived()
     request.headers = [
         (b":method", b"GET"),

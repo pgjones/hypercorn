@@ -90,7 +90,7 @@ class H11Server(HTTPServer, H11Mixin):
 
     def send(self, event: H11SendableEvent) -> None:
         try:
-            self.write(self.connection.send(event))  # type: ignore
+            self.write(self.connection.send(event))
         except h11.LocalProtocolError:
             pass
 

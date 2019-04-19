@@ -14,7 +14,7 @@ async def test_http_to_https_redirect_middleware_http() -> None:
         sent_events.append(message)
 
     scope = {"type": "http", "scheme": "http", "path": "/abc", "query_string": b"a=b"}
-    await app(scope, None, send)  # type: ignore
+    await app(scope, None, send)
 
     assert sent_events == [
         {
@@ -42,7 +42,7 @@ async def test_http_to_https_redirect_middleware_websocket() -> None:
         "query_string": b"a=b",
         "extensions": {"websocket.http.response": {}},
     }
-    await app(scope, None, send)  # type: ignore
+    await app(scope, None, send)
 
     assert sent_events == [
         {
@@ -71,7 +71,7 @@ async def test_http_to_https_redirect_middleware_websocket_http2() -> None:
         "query_string": b"a=b",
         "extensions": {"websocket.http.response": {}},
     }
-    await app(scope, None, send)  # type: ignore
+    await app(scope, None, send)
 
     assert sent_events == [
         {
@@ -99,6 +99,6 @@ async def test_http_to_https_redirect_middleware_websocket_no_rejection() -> Non
         "path": "/abc",
         "query_string": b"a=b",
     }
-    await app(scope, None, send)  # type: ignore
+    await app(scope, None, send)
 
     assert sent_events == [{"type": "websocket.close"}]

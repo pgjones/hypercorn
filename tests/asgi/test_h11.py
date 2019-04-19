@@ -12,7 +12,7 @@ from ..helpers import bad_framework, empty_framework
 
 class MockH11(H11Mixin):
     def __init__(self) -> None:
-        self.app = empty_framework  # type: ignore
+        self.app = empty_framework
         self.client = ("127.0.0.1", 5000)
         self.config = Config()
         self.server = ("remote", 5000)
@@ -124,7 +124,7 @@ async def test_asgi_send_invalid_message(status: Any, headers: Any, body: Any) -
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework(path: str) -> None:
     server = MockH11()
-    server.app = bad_framework  # type: ignore
+    server.app = bad_framework
     request = h11.Request(method="GET", target=path.encode(), headers=[(b"host", b"hypercorn")])
     await server.handle_request(request)
     assert server.sent_events == [

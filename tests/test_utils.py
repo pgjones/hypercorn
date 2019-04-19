@@ -30,7 +30,7 @@ async def test_invoke_asgi_3() -> None:
         nonlocal result
         result = scope
 
-    await hypercorn.utils.invoke_asgi(asgi3_callable, {"asgi": {}}, None, None)  # type: ignore
+    await hypercorn.utils.invoke_asgi(asgi3_callable, {"asgi": {}}, None, None)
     assert result["asgi"]["version"] == "3.0"
 
 

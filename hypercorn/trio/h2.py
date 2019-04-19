@@ -120,7 +120,7 @@ class H2Server(HTTPServer):
         self.app = app
         self.config = config
 
-        self.streams: Dict[int, H2AsyncStream] = {}  # type: ignore
+        self.streams: Dict[int, H2AsyncStream] = {}
         self.flow_control: Dict[int, trio.Event] = {}
         self.send_lock = trio.Lock()
         self.upgrade_request = upgrade_request

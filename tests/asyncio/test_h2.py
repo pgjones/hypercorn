@@ -110,7 +110,7 @@ async def test_request(headers: list, body: str, event_loop: asyncio.AbstractEve
         elif isinstance(event, h2.events.StreamEnded):
             connection.close()
     data = json.loads(response_data.decode())
-    assert data["request_body"] == body  # type: ignore
+    assert data["request_body"] == body
 
 
 @pytest.mark.asyncio

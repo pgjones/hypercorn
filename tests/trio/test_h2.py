@@ -26,9 +26,7 @@ class MockConnection:
     ) -> None:
         self.client_stream, server_stream = trio.testing.memory_stream_pair()
         server_stream.socket = MockSocket()
-        self.server = H2Server(  # type: ignore
-            framework, config, server_stream, upgrade_request=upgrade_request
-        )
+        self.server = H2Server(framework, config, server_stream, upgrade_request=upgrade_request)
         self.connection = h2.connection.H2Connection()
         if upgrade_request is not None:
             self.connection.initiate_upgrade_connection()
@@ -116,7 +114,7 @@ async def test_request(headers: list, body: str, nursery: trio._core._run.Nurser
         elif isinstance(event, h2.events.StreamEnded):
             await connection.close()
     data = json.loads(response_data.decode())
-    assert data["request_body"] == body  # type: ignore
+    assert data["request_body"] == body
 
 
 @pytest.mark.trio

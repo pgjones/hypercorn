@@ -32,8 +32,8 @@ async def test_http_server_drain(event_loop: asyncio.AbstractEventLoop) -> None:
 
     asyncio.ensure_future(write())
     await transport.updated.wait()
-    assert transport.data == b"Pre drain"
+    assert bytes(transport.data) == b"Pre drain"
     transport.clear()
     server.resume_writing()
     await transport.updated.wait()
-    assert transport.data == b"Post drain"
+    assert bytes(transport.data) == b"Post drain"

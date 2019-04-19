@@ -186,7 +186,7 @@ class Config:
                 )
                 if self.workers > 1:
                     try:
-                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  # type: ignore
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
                     except AttributeError:
                         pass
                 binding = (host, port)
@@ -247,7 +247,7 @@ class Config:
             filename: The filename which gives the path to the file.
         """
         file_path = os.fspath(filename)
-        spec = importlib.util.spec_from_file_location("module.name", file_path)  # type: ignore
+        spec = importlib.util.spec_from_file_location("module.name", file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)  # type: ignore
         return cls.from_object(module)

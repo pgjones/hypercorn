@@ -20,7 +20,7 @@ async def test_startup_timeout_error(nursery: trio._core._run.Nursery) -> None:
 
 @pytest.mark.trio
 async def test_startup_failure() -> None:
-    lifespan = Lifespan(lifespan_failure, Config())  # type: ignore
+    lifespan = Lifespan(lifespan_failure, Config())
     with pytest.raises(LifespanFailure) as exc_info:
         async with trio.open_nursery() as lifespan_nursery:
             await lifespan_nursery.start(lifespan.handle_lifespan)

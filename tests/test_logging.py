@@ -75,8 +75,8 @@ def test_access_log_standard_atoms(request_scope: dict, response: dict) -> None:
     assert atoms["a"] == "Hypercorn"
     assert atoms["p"] == f"<{os.getpid()}>"
     assert atoms["not-atom"] == "-"
-    assert atoms["T"] == 0
-    assert atoms["D"] == 23
+    assert int(atoms["T"]) == 0
+    assert int(atoms["D"]) == 23
     assert atoms["L"] == "0.000023"
 
 

@@ -19,7 +19,7 @@ from ..helpers import bad_framework, empty_framework
 
 class MockWebsocket(WebsocketMixin):
     def __init__(self) -> None:
-        self.app = empty_framework  # type: ignore
+        self.app = empty_framework
         self.client = ("127.0.0.1", 5000)
         self.config = Config()
         self.server = ("remote", 5000)
@@ -65,7 +65,7 @@ async def test_asgi_scope() -> None:
 @pytest.mark.asyncio
 async def test_asgi_send() -> None:
     server = MockWebsocket()
-    server.app = bad_framework  # type: ignore
+    server.app = bad_framework
     await server.asgi_send({"type": "websocket.accept"})
     await server.asgi_send({"type": "websocket.send", "bytes": b"abc"})
     await server.asgi_send({"type": "websocket.close", "code": 1000})
@@ -164,7 +164,7 @@ async def test_asgi_send_invalid_http_message(status: Any, headers: Any, body: A
 @pytest.mark.asyncio
 async def test_bad_framework() -> None:
     server = MockWebsocket()
-    server.app = bad_framework  # type: ignore
+    server.app = bad_framework
     headers = [
         (b"sec-websocket-key", b"ZdCqRHQRNflNt6o7yU48Pg=="),
         (b"sec-websocket-version", b"13"),
@@ -181,7 +181,7 @@ async def test_bad_framework() -> None:
 @pytest.mark.parametrize("path", ["/", "/no_response", "/call"])
 async def test_bad_framework_http(path: str) -> None:
     server = MockWebsocket()
-    server.app = bad_framework  # type: ignore
+    server.app = bad_framework
     headers = [
         (b"sec-websocket-key", b"ZdCqRHQRNflNt6o7yU48Pg=="),
         (b"sec-websocket-version", b"13"),

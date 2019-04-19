@@ -43,7 +43,7 @@ class WebsocketBuffer:
                 self.value = ""
             else:
                 self.value = b""
-        self.value += event.data  # type: ignore
+        self.value += event.data
         if len(self.value) > self.max_length:
             raise FrameTooLarge()
 

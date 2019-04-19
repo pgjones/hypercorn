@@ -67,7 +67,7 @@ async def test_request(
     assert b"date" in (header[0] for header in response.headers)
     assert all(isinstance(datum, h11.Data) for datum in data)
     data = json.loads(b"".join(datum.data for datum in data).decode())
-    assert data["request_body"] == body  # type: ignore
+    assert data["request_body"] == body
     assert isinstance(end, h11.EndOfMessage)
 
 
@@ -114,7 +114,7 @@ async def test_client_sends_chunked(event_loop: asyncio.AbstractEventLoop,) -> N
     assert response.status_code == 200
     assert all(isinstance(datum, h11.Data) for datum in data)
     data = json.loads(b"".join(datum.data for datum in data).decode())
-    assert data["request_body"] == "chunked data"  # type: ignore
+    assert data["request_body"] == "chunked data"
     assert isinstance(end, h11.EndOfMessage)
 
 

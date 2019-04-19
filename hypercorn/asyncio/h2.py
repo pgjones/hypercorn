@@ -115,7 +115,7 @@ class H2Server(HTTPServer):
     ) -> None:
         super().__init__(loop, config, transport, "h2")
         self.app = app
-        self.streams: Dict[int, H2SyncStream] = {}  # type: ignore
+        self.streams: Dict[int, H2SyncStream] = {}
         self.flow_control: Dict[int, asyncio.Event] = {}
 
         self.connection = h2.connection.H2Connection(

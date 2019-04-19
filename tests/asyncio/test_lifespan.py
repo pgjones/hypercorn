@@ -19,7 +19,7 @@ async def no_lifespan_app(scope: dict, receive: Callable, send: Callable) -> Non
 async def test_ensure_no_race_condition() -> None:
     config = Config()
     config.startup_timeout = 0.2
-    lifespan = Lifespan(no_lifespan_app, config)  # type: ignore
+    lifespan = Lifespan(no_lifespan_app, config)
     asyncio.ensure_future(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()  # Raises if there is a race condition
 
@@ -37,7 +37,7 @@ async def test_startup_timeout_error() -> None:
 
 @pytest.mark.asyncio
 async def test_startup_failure() -> None:
-    lifespan = Lifespan(lifespan_failure, Config())  # type: ignore
+    lifespan = Lifespan(lifespan_failure, Config())
     lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
     assert lifespan_task.done()
