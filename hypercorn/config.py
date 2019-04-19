@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from ssl import SSLContext, VerifyFlags, VerifyMode  # type: ignore
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Type, Union
 
-import pytoml
+import toml
 
 from .logging import AccessLogger
 
@@ -267,7 +267,7 @@ class Config:
         """
         file_path = os.fspath(filename)
         with open(file_path) as file_:
-            data = pytoml.load(file_)
+            data = toml.load(file_)
         return cls.from_mapping(data)
 
     @classmethod
