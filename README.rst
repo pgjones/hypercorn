@@ -45,15 +45,18 @@ Contributing
 ------------
 
 Hypercorn is developed on `GitLab
-<https://gitlab.com/pgjones/hypercorn>`_. You are very welcome to open
-`issues <https://gitlab.com/pgjones/hypercorn/issues>`_ or propose
-`merge requests
+<https://gitlab.com/pgjones/hypercorn>`_. If you come across an issue,
+or have a feature request please open an `issue
+<https://gitlab.com/pgjones/hypercorn/issues>`_.  If you want to
+contribute a fix or the feature-implementation please do (typo fixes
+welcome), by proposing a `merge request
 <https://gitlab.com/pgjones/hypercorn/merge_requests>`_.
 
 Testing
 ~~~~~~~
 
-The best way to test Hypercorn is with Tox,
+The best way to test Hypercorn is with `Tox
+<https://tox.readthedocs.io>`_,
 
 .. code-block:: console
 
@@ -66,7 +69,8 @@ Help
 ----
 
 The Hypercorn `documentation <https://pgjones.gitlab.io/hypercorn/>`_
-is the best place to start, after that try opening an `issue
+is the best place to start, after that try searching stack overflow,
+if you still can't find an answer please `open an issue
 <https://gitlab.com/pgjones/hypercorn/issues>`_.
 
 
