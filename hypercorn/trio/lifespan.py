@@ -31,7 +31,7 @@ class Lifespan:
         except Exception:
             self.supported = False
             if self.config.error_logger is not None:
-                self.config.error_logger.warning(
+                self.config.error_logger.exception(
                     "ASGI Framework Lifespan error, continuing without Lifespan support"
                 )
         finally:
