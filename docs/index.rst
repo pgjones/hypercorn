@@ -1,5 +1,10 @@
-Hypercorn
-=========
+:orphan:
+
+.. title:: Hypercorn documentation
+
+.. image:: _static/logo.png
+   :width: 300px
+   :alt: Hypercorn
 
 Hypercorn is an `ASGI
 <https://github.com/django/asgiref/blob/master/specs/asgi.rst>`_ web

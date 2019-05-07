@@ -2,7 +2,7 @@ py37:
   image: python:3.7
   script:
   - pip install tox
-  - tox -e format,mypy,py37,pep8,setuppy,manifest
+  - tox
 
 pages:
   image: python:3.7

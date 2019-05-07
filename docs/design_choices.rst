@@ -1,4 +1,4 @@
-.. _design_choices::
+.. _design_choices:
 
 Design Choices
 ==============
