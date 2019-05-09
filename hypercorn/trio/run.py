@@ -22,7 +22,7 @@ from ..utils import (
 
 
 async def serve_stream(app: ASGIFramework, config: Config, stream: trio.abc.Stream) -> None:
-    if config.ssl_enabled:
+    if isinstance(stream, trio.SSLStream):
         try:
             with trio.fail_after(config.ssl_handshake_timeout):
                 await stream.do_handshake()
