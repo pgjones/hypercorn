@@ -83,7 +83,7 @@ async def worker_serve(
 
                 ssl_context = config.create_ssl_context()
                 listeners = [
-                    trio.ssl.SSLListener(
+                    trio.SSLListener(
                         trio.SocketListener(trio.socket.from_stdlib_socket(sock)),
                         ssl_context,
                         https_compatible=True,
