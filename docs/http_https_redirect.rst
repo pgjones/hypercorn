@@ -38,15 +38,17 @@ you can do this directly in your ASGI application.
     HTTP requests.
 
 To use the ``HTTPToHTTPSRedirectMiddleware`` wrap your app and specify
-the host the redirects should be aimed at, in the example below
-``localhost`` is used,
+the host the redirects should be aimed at. If you want to redirect
+users from ``http://example.com`` to ``https://example.com`` the host should
+be ``example.com`` as in the example below,
 
 .. code-block:: python
 
-    redirected_app = HTTPToHTTPSRedirectMiddleware(app, host="localhost")
+    redirected_app = HTTPToHTTPSRedirectMiddleware(app, host="example.com")
 
-and serve the redirected app,
+You can then serve the redirect_app over a secure and an insecure bind
+as explained above, for example,
 
 .. code-block:: shell
 
-    $ hypercorn module:redirected_app
+    $ hypercorn --certfile cert.pem --keyfile key.pem --bind localhost:443 --insecure-bind localhost:80 module:redirected_app
