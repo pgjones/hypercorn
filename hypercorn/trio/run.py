@@ -4,11 +4,8 @@ from typing import Optional
 
 import trio
 
-from .h2 import H2Server
-from .h11 import H11Server
 from .lifespan import Lifespan
-from .wsproto import WebsocketServer
-from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
+from .server import Server
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -19,36 +16,6 @@ from ..utils import (
     restart,
     Shutdown,
 )
-
-
-async def serve_stream(app: ASGIFramework, config: Config, stream: trio.abc.Stream) -> None:
-    if isinstance(stream, trio.SSLStream):
-        try:
-            with trio.fail_after(config.ssl_handshake_timeout):
-                await stream.do_handshake()
-        except (trio.BrokenResourceError, trio.TooSlowError):
-            return  # Handshake failed
-        selected_protocol = stream.selected_alpn_protocol()
-    else:
-        selected_protocol = "http/1.1"
-
-    if selected_protocol == "h2":
-        protocol = H2Server(app, config, stream)
-    else:
-        protocol = H11Server(app, config, stream)  # type: ignore
-    try:
-        await protocol.handle_connection()
-    except WebsocketProtocolRequired as error:
-        protocol = WebsocketServer(  # type: ignore
-            app, config, stream, upgrade_request=error.request
-        )
-        await protocol.handle_connection()
-    except H2CProtocolRequired as error:
-        protocol = H2Server(app, config, stream, upgrade_request=error.request)
-        await protocol.handle_connection()
-    except H2ProtocolAssumed as error:
-        protocol = H2Server(app, config, stream, received_data=error.data)
-        await protocol.handle_connection()
 
 
 async def worker_serve(
@@ -97,7 +64,7 @@ async def worker_serve(
                     ]
                 )
                 task_status.started()
-                await trio.serve_listeners(partial(serve_stream, app, config), listeners)
+                await trio.serve_listeners(partial(Server, app, config), listeners)
 
         except MustReloadException:
             reload_ = True

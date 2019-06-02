@@ -3,6 +3,8 @@ from json import dumps
 from socket import AF_INET
 from typing import Callable, Tuple
 
+SANITY_BODY = b"Hello Hypercorn"
+
 
 class MockSocket:
 
@@ -58,51 +60,6 @@ async def echo_framework(input_scope: dict, receive: Callable, send: Callable) -
             await send({"type": "websocket.send", "text": event["text"], "bytes": event["bytes"]})
 
 
-async def chunked_response_framework(scope: dict, receive: Callable, send: Callable) -> None:
-    while True:
-        event = await receive()
-        if event["type"] == "http.disconnect":
-            break
-        elif event["type"] == "http.request":
-            if not event.get("more_body", False):
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 200,
-                        "headers": [(b"transfer-encoding", b"chunked")],
-                    }
-                )
-                for chunk in [b"chunked ", b"data"]:
-                    await send({"type": "http.response.body", "body": chunk, "more_body": True})
-                await send({"type": "http.response.body", "body": b"", "more_body": False})
-                break
-
-
-async def bad_framework(scope: dict, receive: Callable, send: Callable) -> None:
-    scope = scope
-    if scope["path"] == "/":
-        raise Exception()
-    if scope["path"] == "/no_response":
-        return
-    elif scope["path"] == "/call":
-        raise Exception()
-    elif scope["path"] == "/accept":
-        await send({"type": "websocket.accept"})
-        raise Exception()
-
-
-async def push_framework(scope: dict, receive: Callable, send: Callable) -> None:
-    while True:
-        event = await receive()
-        if event["type"] == "http.disconnect":
-            break
-        elif event["type"] == "http.request" and not event.get("more_body", False):
-            await send({"type": "http.response.start", "status": 200, "headers": []})
-            await send({"type": "http.response.push", "path": "/", "headers": []})
-            await send({"type": "http.response.body", "more_body": False})
-            break
-
-
 async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> None:
     while True:
         message = await receive()
@@ -111,8 +68,35 @@ async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> No
         break
 
 
-async def early_response(scope: dict, receive: Callable, send: Callable) -> None:
-    await send(
-        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"0")]}
-    )
-    await send({"type": "http.response.body", "body": b"", "more_body": False})
+async def sanity_framework(scope: dict, receive: Callable, send: Callable) -> None:
+    body = b""
+    if scope["type"] == "websocket":
+        await send({"type": "websocket.accept"})
+
+    while True:
+        event = await receive()
+        if event["type"] in {"http.disconnect", "websocket.disconnect"}:
+            break
+        elif event["type"] == "lifespan.startup":
+            await send({"type": "lifspan.startup.complete"})
+        elif event["type"] == "lifespan.shutdown":
+            await send({"type": "lifspan.shutdown.complete"})
+        elif event["type"] == "http.request" and event.get("more_body", False):
+            body += event["body"]
+        elif event["type"] == "http.request" and not event.get("more_body", False):
+            body += event["body"]
+            assert body == SANITY_BODY
+            response = b"Hello & Goodbye"
+            content_length = len(response)
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [(b"content-length", str(content_length).encode())],
+                }
+            )
+            await send({"type": "http.response.body", "body": response, "more_body": False})
+            break
+        elif event["type"] == "websocket.receive":
+            assert event["bytes"] == SANITY_BODY
+            await send({"type": "websocket.send", "text": "Hello & Goodbye"})

@@ -3,6 +3,7 @@ import os
 import platform
 import socket
 import sys
+from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
@@ -39,6 +40,15 @@ class LifespanFailure(Exception):
         super().__init__(f"Lifespan failure in {stage}. '{message}'")
 
 
+class UnexpectedMessage(Exception):
+    def __init__(self, state: Enum, message_type: str) -> None:
+        super().__init__(f"Unexpected message type, {message_type} given the state {state}")
+
+
+class FrameTooLarge(Exception):
+    pass
+
+
 def suppress_body(method: str, status_code: int) -> bool:
     return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
 
@@ -48,6 +58,11 @@ def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
         (b"date", format_date_time(time()).encode("ascii")),
         (b"server", f"hypercorn-{protocol}".encode("ascii")),
     ]
+
+
+def build_and_validate_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
+    # Validates that the header name and value are bytes
+    return [(bytes(name).lower().strip(), bytes(value).strip()) for name, value in headers]
 
 
 def load_application(path: str) -> ASGIFramework:

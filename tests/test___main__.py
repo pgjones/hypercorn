@@ -3,9 +3,9 @@ import os
 from unittest.mock import Mock
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.__main__
-from _pytest.monkeypatch import MonkeyPatch
 from hypercorn.config import Config
 
 

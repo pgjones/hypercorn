@@ -15,7 +15,7 @@ class Lifespan:
         self.config = config
         self.startup = asyncio.Event()
         self.shutdown = asyncio.Event()
-        self.app_queue: asyncio.Queue = asyncio.Queue()
+        self.app_queue: asyncio.Queue = asyncio.Queue(config.max_app_queue_size)
         self.supported = True
 
         # This mimics the Trio nursery.start task_status and is

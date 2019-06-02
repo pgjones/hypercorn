@@ -1,50 +1,54 @@
 import asyncio
-from socket import AF_INET
-from typing import Tuple
+from typing import Optional, Union
+
+from ..helpers import MockSocket
 
 
-class MockSocket:
-
-    family = AF_INET
-
-    def getsockname(self) -> Tuple[str, int]:
-        return ("162.1.1.1", 80)
-
-    def getpeername(self) -> Tuple[str, int]:
-        return ("127.0.0.1", 80)
+class MockSSLObject:
+    def selected_alpn_protocol(self) -> str:
+        return "h2"
 
 
-class MockTransport:
+class MemoryReader:
     def __init__(self) -> None:
-        self.data = bytearray()
-        self.closed = asyncio.Event()
-        self.updated = asyncio.Event()
+        self.data: asyncio.Queue = asyncio.Queue()
 
-    def get_extra_info(self, name: str) -> MockSocket:
+    async def send(self, data: bytes) -> None:
+        await self.data.put(data)
+
+    async def read(self, length: int) -> bytes:
+        return await self.data.get()
+
+
+class MemoryWriter:
+    def __init__(self, http2: bool = False) -> None:
+        self.is_closed = False
+        self.data: asyncio.Queue = asyncio.Queue()
+        self.http2 = http2
+
+    def get_extra_info(self, name: str) -> Optional[Union[MockSocket, MockSSLObject]]:
         if name == "socket":
             return MockSocket()
-        return None
+        elif self.http2 and name == "ssl_object":
+            return MockSSLObject()
+        else:
+            return None
+
+    def write_eof(self) -> None:
+        self.data.put_nowait(b"")
 
     def write(self, data: bytes) -> None:
-        assert not self.closed.is_set()
-        if data == b"":
-            return
-        self.data.extend(data)
-        self.updated.set()
+        self.data.put_nowait(data)
+
+    async def drain(self) -> None:
+        pass
 
     def close(self) -> None:
-        self.updated.set()
-        self.closed.set()
+        self.is_closed = True
+        self.data.put_nowait(b"")
 
-    def clear(self) -> None:
-        self.data = bytearray()
-        self.updated.clear()
-
-    def pause_reading(self) -> None:
+    async def wait_closed(self) -> None:
         pass
 
-    def resume_reading(self) -> None:
-        pass
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.data}, {self.updated}, {self.closed})"
+    async def receive(self) -> bytes:
+        return await self.data.get()

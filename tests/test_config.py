@@ -5,8 +5,8 @@ from typing import Tuple
 from unittest.mock import Mock
 
 import pytest
-
 from _pytest.monkeypatch import MonkeyPatch
+
 from hypercorn.config import Config
 
 access_log_format = "bob"

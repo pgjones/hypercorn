@@ -1,7 +1,7 @@
 class App:
 
     def __init__(self, scope):
-         self.tasks = []
+        pass
 
     async def __call__(self, receive, send):
         while True:

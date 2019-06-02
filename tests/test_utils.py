@@ -1,9 +1,9 @@
 from typing import Callable
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.utils
-from _pytest.monkeypatch import MonkeyPatch
 from hypercorn.typing import ASGIFramework
 
 

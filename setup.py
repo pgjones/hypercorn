@@ -53,6 +53,7 @@ setup(
         'uvloop': ['uvloop'],
     },
     tests_require=INSTALL_REQUIRES + [
+        'asynctest',
         'hypothesis',
         'pytest',
         'pytest-asyncio',

@@ -53,6 +53,7 @@ class Config:
     h2_max_inbound_frame_size = 2 ** 14 * OCTETS
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
+    max_app_queue_size: int = 10
     pid_path: Optional[str] = None
     root_path = ""
     shutdown_timeout = 60 * SECONDS
@@ -196,7 +197,7 @@ class Config:
                 sock.bind(binding)
             sock.setblocking(False)
             try:
-                sock.set_inheritable(True)  # type: ignore
+                sock.set_inheritable(True)
             except AttributeError:
                 pass
             sockets.append(sock)

@@ -15,7 +15,9 @@ class Lifespan:
         self.config = config
         self.startup = trio.Event()
         self.shutdown = trio.Event()
-        self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(10)
+        self.app_send_channel, self.app_receive_channel = trio.open_memory_channel(
+            config.max_app_queue_size
+        )
         self.supported = True
 
     async def handle_lifespan(

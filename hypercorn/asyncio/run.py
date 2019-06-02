@@ -5,12 +5,8 @@ import ssl
 from multiprocessing.synchronize import Event as EventType
 from typing import Any, Coroutine, Optional
 
-from .base import HTTPServer
-from .h2 import H2Server
-from .h11 import H11Server
 from .lifespan import Lifespan
-from .wsproto import WebsocketServer
-from ..asgi.run import H2CProtocolRequired, H2ProtocolAssumed, WebsocketProtocolRequired
+from .server import Server
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -30,68 +26,6 @@ except ImportError:
 
 def _raise_shutdown(*args: Any) -> None:
     raise Shutdown()
-
-
-class Server(asyncio.Protocol):
-    def __init__(self, app: ASGIFramework, loop: asyncio.AbstractEventLoop, config: Config) -> None:
-        self.app = app
-        self.loop = loop
-        self.config = config
-        self._server: Optional[HTTPServer] = None
-        self._ssl_enabled = False
-
-    def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        ssl_object = transport.get_extra_info("ssl_object")
-        if ssl_object is not None:
-            self._ssl_enabled = True
-            protocol = ssl_object.selected_alpn_protocol()
-        else:
-            protocol = "http/1.1"
-
-        if protocol == "h2":
-            self._server = H2Server(self.app, self.loop, self.config, transport)
-        else:
-            self._server = H11Server(self.app, self.loop, self.config, transport)
-
-    def connection_lost(self, exception: Exception) -> None:
-        self._server.connection_lost(exception)
-
-    def data_received(self, data: bytes) -> None:
-        try:
-            self._server.data_received(data)
-        except WebsocketProtocolRequired as error:
-            self._server = WebsocketServer(
-                self.app,
-                self.loop,
-                self.config,
-                self._server.transport,
-                upgrade_request=error.request,
-            )
-        except H2CProtocolRequired as error:
-            self._server = H2Server(
-                self.app,
-                self.loop,
-                self.config,
-                self._server.transport,
-                upgrade_request=error.request,
-            )
-        except H2ProtocolAssumed as error:
-            self._server = H2Server(
-                self.app, self.loop, self.config, self._server.transport, received_data=error.data
-            )
-
-    def eof_received(self) -> bool:
-        if self._ssl_enabled:
-            # Returning anything other than False has no affect under
-            # SSL, and just raises an annoying warning.
-            return False
-        return self._server.eof_received()
-
-    def pause_writing(self) -> None:
-        self._server.pause_writing()
-
-    def resume_writing(self) -> None:
-        self._server.resume_writing()
 
 
 async def _windows_signal_support() -> None:
@@ -153,10 +87,14 @@ async def worker_serve(
         ssl_context = config.create_ssl_context()
         ssl_handshake_timeout = config.ssl_handshake_timeout
 
+    async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await Server(app, loop, config, reader, writer)
+
     servers = [
-        await loop.create_server(  # type: ignore
-            lambda: Server(app, loop, config),
+        await asyncio.start_server(
+            _server_callback,
             backlog=config.backlog,
+            loop=loop,
             ssl=ssl_context,
             sock=sock,
             ssl_handshake_timeout=ssl_handshake_timeout,
@@ -165,8 +103,8 @@ async def worker_serve(
     ]
     servers.extend(
         [
-            await loop.create_server(  # type: ignore
-                lambda: Server(app, loop, config), backlog=config.backlog, sock=sock
+            await asyncio.start_server(
+                _server_callback, backlog=config.backlog, loop=loop, sock=sock
             )
             for sock in sockets.insecure_sockets
         ]

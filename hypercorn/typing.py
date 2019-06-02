@@ -75,3 +75,17 @@ class H2AsyncStream(Protocol):
         server: Tuple[str, int],
     ) -> None:
         ...
+
+
+class Event(Protocol):
+    def __init__(self) -> None:
+        ...
+
+    async def clear(self) -> None:
+        ...
+
+    async def set(self) -> None:
+        ...
+
+    async def wait(self) -> None:
+        ...
