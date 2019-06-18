@@ -118,7 +118,9 @@ class Config:
         context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
         context.set_alpn_protocols(self.alpn_protocols)
 
-        context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
+        if self.certfile is not None and self.keyfile is not None:
+            context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
+
         if self.ca_certs is not None:
             context.load_verify_locations(self.ca_certs)
         if self.verify_mode is not None:
@@ -206,7 +208,7 @@ class Config:
 
             config = {'keep_alive_timeout': 10}
             Config.from_mapping(config)
-            Config.form_mapping(keep_alive_timeout=10)
+            Config.from_mapping(keep_alive_timeout=10)
 
         Arguments:
             mapping: Optionally a mapping object.
