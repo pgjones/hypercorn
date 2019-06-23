@@ -33,6 +33,7 @@ class SlowLifespanFramework:
 async def echo_framework(input_scope: dict, receive: Callable, send: Callable) -> None:
     scope = deepcopy(input_scope)
     scope["query_string"] = scope["query_string"].decode()
+    scope["raw_path"] = scope["raw_path"].decode()
     scope["headers"] = [(name.decode(), value.decode()) for name, value in scope["headers"]]
 
     body = bytearray()

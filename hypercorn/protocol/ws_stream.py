@@ -172,6 +172,7 @@ class WSStream:
                 "scheme": self.scheme,
                 "http_version": event.http_version,
                 "path": unquote(path.decode("ascii")),
+                "raw_path": path,
                 "query_string": query_string,
                 "root_path": self.config.root_path,
                 "headers": event.headers,

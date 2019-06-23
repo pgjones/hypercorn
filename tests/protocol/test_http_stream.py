@@ -32,6 +32,7 @@ async def test_handle_request(stream: HTTPStream) -> None:
         "method": "GET",
         "scheme": "http",
         "path": "/",
+        "raw_path": b"/",
         "query_string": b"a=b",
         "root_path": stream.config.root_path,
         "headers": [],

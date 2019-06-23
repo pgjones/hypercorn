@@ -151,6 +151,7 @@ async def test_handle_request(stream: WSStream) -> None:
         "scheme": "ws",
         "http_version": "2.0",
         "path": "/",
+        "raw_path": b"/",
         "query_string": b"a=b",
         "root_path": "",
         "headers": [(b"sec-websocket-version", b"13")],

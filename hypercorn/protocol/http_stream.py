@@ -51,6 +51,7 @@ class HTTPStream:
                 "method": event.method,
                 "scheme": self.scheme,
                 "path": unquote(path.decode("ascii")),
+                "raw_path": path,
                 "query_string": query_string,
                 "root_path": self.config.root_path,
                 "headers": event.headers,
