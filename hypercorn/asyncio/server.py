@@ -123,7 +123,7 @@ class Server:
     async def _close(self) -> None:
         try:
             self.writer.write_eof()
-        except NotImplementedError:
+        except (NotImplementedError, OSError):
             pass  # Likely SSL connection
 
         try:

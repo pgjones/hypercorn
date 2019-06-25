@@ -11,7 +11,7 @@ from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData, Updated
 from hypercorn.protocol.events import Body, Data, EndBody, Request, Response, StreamClosed
-from hypercorn.protocol.h11 import H11Protocol
+from hypercorn.protocol.h11 import H2CProtocolRequired, H2ProtocolAssumed, H11Protocol
 from hypercorn.protocol.http_stream import HTTPStream
 from hypercorn.typing import Event as IOEvent
 
@@ -207,3 +207,42 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
         call(RawData(data=b"")),
         call(Closed()),
     ]
+
+
+@pytest.mark.asyncio
+async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
+    with pytest.raises(H2CProtocolRequired) as exc_info:
+        await protocol.handle(
+            RawData(
+                data=(
+                    b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"
+                    b"upgrade: h2c\r\nhttp2-settings: abcd\r\n\r\nbbb"
+                )
+            )
+        )
+    assert protocol.send.call_args_list == [
+        call(
+            RawData(
+                b"HTTP/1.1 101 \r\nupgrade: h2c\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\n"
+                b"server: hypercorn-h11\r\n\r\n"
+            )
+        )
+    ]
+    assert exc_info.value.data == b"bbb"
+    assert exc_info.value.headers == [
+        (b":method", b"GET"),
+        (b":path", b"/"),
+        (b":authority", b"hypercorn"),
+        (b"host", b"hypercorn"),
+        (b"upgrade", b"h2c"),
+        (b"http2-settings", b"abcd"),
+    ]
+    assert exc_info.value.settings == "abcd"
+
+
+@pytest.mark.asyncio
+async def test_protocol_handle_h2_prior(protocol: H11Protocol) -> None:
+    with pytest.raises(H2ProtocolAssumed) as exc_info:
+        await protocol.handle(RawData(data=b"PRI * HTTP/2.0\r\n\r\nbbb"))
+
+    assert exc_info.value.data == b"PRI * HTTP/2.0\r\n\r\nbbb"

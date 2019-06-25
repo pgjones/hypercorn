@@ -62,9 +62,20 @@ class H2Protocol:
     def idle(self) -> bool:
         return len(self.streams) == 0
 
-    async def initiate(self) -> None:
-        self.connection.initiate_connection()
+    async def initiate(
+        self, headers: Optional[List[Tuple[bytes, bytes]]] = None, settings: Optional[str] = None
+    ) -> None:
+        if settings is not None:
+            self.connection.initiate_upgrade_connection(settings)
+        else:
+            self.connection.initiate_connection()
         await self._flush()
+        if headers is not None:
+            event = h2.events.RequestReceived()
+            event.stream_id = 1
+            event.headers = headers
+            await self._create_stream(event)
+            await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
 
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):

@@ -23,6 +23,27 @@ from ..utils import response_headers
 STREAM_ID = 1
 
 
+class H2CProtocolRequired(Exception):
+    def __init__(self, data: bytes, request: h11.Request) -> None:
+        settings = ""
+        headers = [(b":method", request.method), (b":path", request.target)]
+        for name, value in request.headers:
+            if name.lower() == b"http2-settings":
+                settings = value.decode()
+            elif name.lower() == b"host":
+                headers.append((b":authority", value))
+            headers.append((name, value))
+
+        self.data = data
+        self.headers = headers
+        self.settings = settings
+
+
+class H2ProtocolAssumed(Exception):
+    def __init__(self, data: bytes) -> None:
+        self.data = data
+
+
 class H11WSConnection:
     # This class matches the h11 interface, and either passes data
     # through without altering it (for Data, EndData) or sends h11
@@ -127,7 +148,7 @@ class H11Protocol:
                 break
             else:
                 if isinstance(event, h11.Request):
-                    # self._raise_if_upgrade(event)
+                    await self._check_protocol(event)
                     await self._create_stream(event)
                 elif isinstance(event, h11.Data):
                     await self.stream.handle(Body(stream_id=STREAM_ID, data=event.data))
@@ -225,3 +246,28 @@ class H11Protocol:
         if self.stream is not None:
             await self.stream.handle(StreamClosed(stream_id=STREAM_ID))
             self.stream = None
+
+    async def _check_protocol(self, event: h11.Request) -> None:
+        upgrade_value = ""
+        has_body = False
+        for name, value in event.headers:
+            sanitised_name = name.decode().strip().lower()
+            if sanitised_name == "upgrade":
+                upgrade_value = value.decode().strip()
+            elif sanitised_name in {"content-length", "transfer-encoding"}:
+                has_body = True
+
+        # h2c Upgrade requests with a body are a pain as the body must
+        # be fully recieved in HTTP/1.1 before the upgrade response
+        # and HTTP/2 takes over, so Hypercorn ignores the upgrade and
+        # responds in HTTP/1.1. Use a preflight OPTIONS request to
+        # initiate the upgrade if really required (or just use h2).
+        if upgrade_value.lower() == "h2c" and not has_body:
+            await self._send_h11_event(
+                h11.InformationalResponse(
+                    status_code=101, headers=[(b"upgrade", b"h2c")] + response_headers("h11")
+                )
+            )
+            raise H2CProtocolRequired(self.connection.trailing_data[0], event)
+        elif event.method == b"PRI" and event.target == b"*" and event.http_version == b"2.0":
+            raise H2ProtocolAssumed(b"PRI * HTTP/2.0\r\n\r\n" + self.connection.trailing_data[0])

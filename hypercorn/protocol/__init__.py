@@ -1,9 +1,9 @@
 from typing import Awaitable, Callable, Optional, Tuple, Type, Union
 
 from .h2 import H2Protocol
-from .h11 import H11Protocol
+from .h11 import H2CProtocolRequired, H2ProtocolAssumed, H11Protocol
 from ..config import Config
-from ..events import Event
+from ..events import Event, RawData
 from ..typing import Event as IOEvent
 
 
@@ -56,4 +56,31 @@ class ProtocolWrapper:
         return await self.protocol.initiate()
 
     async def handle(self, event: Event) -> None:
-        return await self.protocol.handle(event)
+        try:
+            return await self.protocol.handle(event)
+        except H2ProtocolAssumed as error:
+            self.protocol = H2Protocol(
+                self.config,
+                self.ssl,
+                self.client,
+                self.server,
+                self.send,
+                self.spawn_app,
+                self.event_class,
+            )
+            await self.protocol.initiate()
+            if error.data != b"":
+                return await self.protocol.handle(RawData(data=error.data))
+        except H2CProtocolRequired as error:
+            self.protocol = H2Protocol(
+                self.config,
+                self.ssl,
+                self.client,
+                self.server,
+                self.send,
+                self.spawn_app,
+                self.event_class,
+            )
+            await self.protocol.initiate(error.headers, error.settings)
+            if error.data != b"":
+                return await self.protocol.handle(RawData(data=error.data))
