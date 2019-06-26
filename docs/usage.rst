@@ -7,7 +7,7 @@ Hypercorn is invoked via the command line script ``hypercorn``
 
 .. code-block:: shell
 
-    $ hypercon [OPTIONS] MODULE_APP
+    $ hypercorn [OPTIONS] MODULE_APP
 
 with ``MODULE_APP`` has the pattern
 ``$(MODULE_NAME):$(VARIABLE_NAME)`` with the module name as a full
