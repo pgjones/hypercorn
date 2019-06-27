@@ -1,3 +1,6 @@
+----------------
+* Remove support for the older NPN protocol negotiation.
+
 0.6.0 2019-04-06
 ----------------
 

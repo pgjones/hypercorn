@@ -134,11 +134,7 @@ class Config:
         context.options |= cipher_opts  # RFC 7540 Section 9.2: MUST be TLS >=1.2
         context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
         context.set_alpn_protocols(self.alpn_protocols)
-        try:
-            context.set_npn_protocols(self.alpn_protocols)
-        except NotImplementedError:
-            pass  # NPN is not necessarily available
-
+        
         context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
         if self.ca_certs is not None:
             context.load_verify_locations(self.ca_certs)
