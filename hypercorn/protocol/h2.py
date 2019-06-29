@@ -105,7 +105,9 @@ class H2Protocol:
                 await self._flush()
             elif isinstance(event, (Body, Data)):
                 await self._send_data(event.stream_id, event.data)
-            elif isinstance(event, (EndBody, EndData, StreamClosed)):
+            elif isinstance(event, EndData):
+                pass
+            elif isinstance(event, (EndBody, StreamClosed)):
                 self.connection.end_stream(event.stream_id)
                 await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
                 del self.streams[event.stream_id]

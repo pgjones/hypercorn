@@ -10,7 +10,7 @@ import hypercorn.utils
 from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData, Updated
-from hypercorn.protocol.events import Body, Data, EndBody, Request, Response, StreamClosed
+from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
 from hypercorn.protocol.h11 import H2CProtocolRequired, H2ProtocolAssumed, H11Protocol
 from hypercorn.protocol.http_stream import HTTPStream
 from hypercorn.typing import Event as IOEvent
@@ -91,6 +91,13 @@ async def test_protocol_send_end_body(
     await protocol.stream_send(EndBody(stream_id=1))
     protocol.send.assert_called()
     assert protocol.send.call_args_list[2] == call(expected)
+
+
+@pytest.mark.asyncio
+async def test_protocol_send_end_data(protocol: H11Protocol) -> None:
+    protocol.stream = AsyncMock()
+    await protocol.stream_send(EndData(stream_id=1))
+    assert protocol.stream is not None
 
 
 @pytest.mark.asyncio

@@ -131,7 +131,9 @@ class H11Protocol:
             await self._maybe_recycle()
         elif isinstance(event, Data):
             await self.send(RawData(data=event.data))
-        elif isinstance(event, (EndData, StreamClosed)):
+        elif isinstance(event, EndData):
+            pass
+        elif isinstance(event, StreamClosed):
             await self._maybe_recycle()
 
     async def _handle_events(self) -> None:
