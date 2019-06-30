@@ -14,7 +14,7 @@ from hypercorn.utils import UnexpectedMessage
 async def _stream() -> HTTPStream:
     stream = HTTPStream(Config(), False, None, None, CoroutineMock(), CoroutineMock(), 1)
     stream.app_put = CoroutineMock()
-    stream.config._access_logger = Mock()
+    stream.config._log = Mock()
     return stream
 
 
@@ -84,7 +84,7 @@ async def test_send_response(stream: HTTPStream) -> None:
         call(Body(stream_id=1, data=b"Body")),
         call(EndBody(stream_id=1)),
     ]
-    stream.config._access_logger.access.assert_called()
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.asyncio
@@ -105,7 +105,7 @@ async def test_send_app_error(stream: HTTPStream) -> None:
         call(EndBody(stream_id=1)),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._access_logger.access.assert_called()
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.parametrize(

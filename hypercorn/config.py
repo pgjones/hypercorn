@@ -5,7 +5,6 @@ import os
 import socket
 import ssl
 import stat
-import sys
 import types
 import warnings
 from dataclasses import dataclass
@@ -14,7 +13,7 @@ from typing import Any, AnyStr, Dict, List, Mapping, Optional, Type, Union
 
 import toml
 
-from .logging import AccessLogger
+from .logging import Logger
 
 BYTES = 1
 OCTETS = 1
@@ -30,15 +29,12 @@ class Sockets:
 
 
 class Config:
-
-    _access_logger: Optional[AccessLogger] = None
-    _error_log_target: Optional[str] = None
     _bind = ["127.0.0.1:8000"]
     _insecure_bind: List[str] = []
+    _log: Optional[Logger] = None
 
     access_log_format = "%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s"
-    access_log_target: Optional[str] = None
-    access_logger_class = AccessLogger
+    accesslog: Union[logging.Logger, str, None] = None
     alpn_protocols = ["h2", "http/1.1"]
     application_path: str
     backlog = 100
@@ -46,13 +42,15 @@ class Config:
     certfile: Optional[str] = None
     ciphers: str = "ECDHE+AESGCM"
     debug = False
-    error_logger: Optional[logging.Logger] = None
+    errorlog: Union[logging.Logger, str, None] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2 ** 16
     h2_max_inbound_frame_size = 2 ** 14 * OCTETS
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
+    logger_class = Logger
+    loglevel: str = "info"
     max_app_queue_size: int = 10
     pid_path: Optional[str] = None
     root_path = ""
@@ -73,31 +71,12 @@ class Config:
     cert_reqs = property(None, set_cert_reqs)
 
     @property
-    def access_logger(self) -> AccessLogger:
-        if self._access_logger is None:
-            self._access_logger = self.access_logger_class(
-                self.access_log_format, self.access_log_target
+    def log(self) -> Logger:
+        if self._log is None:
+            self._log = self.logger_class(
+                self.accesslog, "info", self.errorlog, self.loglevel, self.access_log_format
             )
-        return self._access_logger
-
-    @access_logger.setter
-    def access_logger(self, value: logging.Logger) -> None:
-        self._access_logger = self.access_logger_class(self.access_log_format, value)
-
-    @property
-    def error_log_target(self) -> Optional[str]:
-        return self._error_log_target
-
-    @error_log_target.setter
-    def error_log_target(self, value: Optional[str]) -> None:
-        self._error_log_target = value
-        if self.error_log_target is not None:
-            self.error_logger = logging.getLogger("hypercorn.error")
-            if self.error_log_target == "-":
-                self.error_logger.addHandler(logging.StreamHandler(sys.stderr))
-            else:
-                self.error_logger.addHandler(logging.FileHandler(self.error_log_target))
-            self.error_logger.setLevel(logging.INFO)
+        return self._log
 
     @property
     def bind(self) -> List[str]:

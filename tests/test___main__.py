@@ -59,7 +59,7 @@ def test_main_cli_override(
         if (
             not inspect.ismethod(value)
             and not name.startswith("_")
-            and name not in {"access_logger", config_key}
+            and name not in {"log", config_key}
         ):
             assert getattr(raw_config, name) == getattr(config, name)
     assert getattr(config, config_key) == set_value

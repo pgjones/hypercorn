@@ -32,10 +32,9 @@ class Lifespan:
             raise
         except Exception:
             self.supported = False
-            if self.config.error_logger is not None:
-                self.config.error_logger.exception(
-                    "ASGI Framework Lifespan error, continuing without Lifespan support"
-                )
+            self.config.log.exception(
+                "ASGI Framework Lifespan error, continuing without Lifespan support"
+            )
         finally:
             await self.app_send_channel.aclose()
             await self.app_receive_channel.aclose()

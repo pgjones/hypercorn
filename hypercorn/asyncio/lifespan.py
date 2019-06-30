@@ -33,10 +33,9 @@ class Lifespan:
             raise
         except Exception:
             self.supported = False
-            if self.config.error_logger is not None:
-                self.config.error_logger.exception(
-                    "ASGI Framework Lifespan error, continuing without Lifespan support"
-                )
+            self.config.log.exception(
+                "ASGI Framework Lifespan error, continuing without Lifespan support"
+            )
 
     async def wait_for_startup(self) -> None:
         await self._started.wait()

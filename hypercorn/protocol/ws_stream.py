@@ -207,7 +207,7 @@ class WSStream:
         if message is None:  # App has errored
             if self.state == ASGIWebsocketState.HANDSHAKE:
                 await self._send_error_response(500)
-                self.config.access_logger.access(
+                self.config.log.access(
                     self.scope, {"status": 500, "headers": []}, time() - self.start_time
                 )
             elif self.state == ASGIWebsocketState.CONNECTED:
@@ -222,7 +222,7 @@ class WSStream:
                 await self.send(
                     Response(stream_id=self.stream_id, status_code=status_code, headers=headers)
                 )
-                self.config.access_logger.access(
+                self.config.log.access(
                     self.scope, {"status": status_code, "headers": []}, time() - self.start_time
                 )
             elif (
@@ -288,7 +288,7 @@ class WSStream:
             )
         )
         await self.send(EndBody(stream_id=self.stream_id))
-        self.config.access_logger.access(
+        self.config.log.access(
             self.scope, {"status": status_code, "headers": []}, time() - self.start_time
         )
 
@@ -313,4 +313,4 @@ class WSStream:
         if not message.get("more_body", False):
             await self.send(EndBody(stream_id=self.stream_id))
             self.state = ASGIWebsocketState.HTTPCLOSED
-            self.config.access_logger.access(self.scope, self.response, time() - self.start_time)
+            self.config.log.access(self.scope, self.response, time() - self.start_time)

@@ -128,7 +128,7 @@ async def _stream() -> WSStream:
     stream = WSStream(Config(), False, None, None, CoroutineMock(), CoroutineMock(), 1)
     stream.spawn_app.return_value = CoroutineMock()
     stream.app_put = CoroutineMock()
-    stream.config._access_logger = Mock()
+    stream.config._log = Mock()
     return stream
 
 
@@ -229,7 +229,7 @@ async def test_send_reject(stream: WSStream) -> None:
         call(Body(stream_id=1, data=b"Body")),
         call(EndBody(stream_id=1)),
     ]
-    stream.config._access_logger.access.assert_called()
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.asyncio
@@ -256,7 +256,7 @@ async def test_send_app_error_handshake(stream: WSStream) -> None:
         call(EndBody(stream_id=1)),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._access_logger.access.assert_called()
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.asyncio
@@ -278,7 +278,7 @@ async def test_send_app_error_connected(stream: WSStream) -> None:
         call(Data(stream_id=1, data=b"\x88\x02\x03\xe8")),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._access_logger.access.assert_called()
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.asyncio

@@ -33,8 +33,7 @@ async def _handle(
     except asyncio.CancelledError:
         pass
     except Exception:
-        if config.error_logger is not None:
-            config.error_logger.exception("Error in ASGI Framework")
+        config.log.exception("Error in ASGI Framework")
         await send(None)
 
 

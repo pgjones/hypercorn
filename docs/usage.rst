@@ -18,9 +18,10 @@ Options
 -------
 
 The following options exist with the given usage,
-
   -h, --help            show this help message and exit
   --access-log ACCESS_LOG
+                        Deprecated, see access-logfile
+  --access-logfile ACCESS_LOGFILE
                         The target location for the access log, use `-` for
                         stdout
   --access-logformat ACCESS_LOGFORMAT
@@ -41,6 +42,8 @@ The following options exist with the given usage,
                         `python:` a Python file.
   --debug               Enable debug mode, i.e. extra logging and checks
   --error-log ERROR_LOG
+                        Deprecated, see error-logfile
+  --error-logfile ERROR_LOGFILE, --log-file ERROR_LOGFILE
                         The target location for the error log, use `-` for
                         stderr
   -k WORKER_CLASS, --worker-class WORKER_CLASS
@@ -55,12 +58,12 @@ The following options exist with the given usage,
                         apply to these binds. See *bind* for formatting
                         options. Care must be taken! See HTTP -> HTTPS
                         redirection docs.
+  --log-level LOG_LEVEL
+                        The (error) log level, defaults to info
   -p PID, --pid PID     Location to write the PID (Program ID) to.
   --reload              Enable automatic reloads on code changes
   --root-path ROOT_PATH
                         The setting for the ASGI root_path variable
-  --uvloop              Enable uvloop usage (Deprecated, use `--worker-class
-                        uvloop` instead)
   --verify-mode VERIFY_MODE
                         SSL verify mode for peer's certificate, see
                         ssl.VerifyMode enum for possible values.

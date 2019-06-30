@@ -1,6 +1,7 @@
 import argparse
 import ssl
 import sys
+import warnings
 from typing import List, Optional
 
 from .config import Config
@@ -23,8 +24,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "application", help="The application to dispatch to as path.to.module:instance.path"
     )
+    parser.add_argument("--access-log", help="Deprecated, see access-logfile", default=sentinel)
     parser.add_argument(
-        "--access-log",
+        "--access-logfile",
         help="The target location for the access log, use `-` for stdout",
         default=sentinel,
     )
@@ -62,8 +64,11 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         action="store_true",
         default=sentinel,
     )
+    parser.add_argument("--error-log", help="Deprecated, see error-logfile", default=sentinel)
     parser.add_argument(
-        "--error-log",
+        "--error-logfile",
+        "--log-file",
+        dest="error_logfile",
         help="The target location for the error log, use `-` for stderr",
         default=sentinel,
     )
@@ -91,6 +96,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         """,
         default=[],
         action="append",
+    )
+    parser.add_argument(
+        "--log-level", help="The (error) log level, defaults to info", default="info"
     )
     parser.add_argument(
         "-p", "--pid", help="Location to write the PID (Program ID) to.", default=sentinel
@@ -128,11 +136,18 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     args = parser.parse_args(sys_args or sys.argv[1:])
     config = _load_config(args.config)
     config.application_path = args.application
+    config.loglevel = args.log_level
 
     if args.access_logformat is not sentinel:
         config.access_log_format = args.access_logformat
     if args.access_log is not sentinel:
-        config.access_log_target = args.access_log
+        warnings.warn(
+            "The --access-log argument is deprecated, use `--access-logfile` instead",
+            DeprecationWarning,
+        )
+        config.accesslog = args.access_log
+    if args.access_logfile is not sentinel:
+        config.accesslog = args.access_logfile
     if args.backlog is not sentinel:
         config.backlog = args.backlog
     if args.ca_certs is not sentinel:
@@ -146,7 +161,13 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     if args.debug is not sentinel:
         config.debug = args.debug
     if args.error_log is not sentinel:
-        config.error_log_target = args.error_log
+        warnings.warn(
+            "The --error-log argument is deprecated, use `--error-logfile` instead",
+            DeprecationWarning,
+        )
+        config.errorlog = args.error_log
+    if args.error_logfile is not sentinel:
+        config.errorlog = args.error_log
     if args.keep_alive is not sentinel:
         config.keep_alive_timeout = args.keep_alive
     if args.keyfile is not sentinel:

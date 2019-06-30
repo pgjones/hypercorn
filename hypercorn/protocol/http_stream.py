@@ -88,7 +88,7 @@ class HTTPStream:
                 )
                 await self.send(EndBody(stream_id=self.stream_id))
                 self.state = ASGIHTTPState.CLOSED
-                self.config.access_logger.access(
+                self.config.log.access(
                     self.scope, {"status": 500, "headers": []}, time() - self.start_time
                 )
             await self.send(StreamClosed(stream_id=self.stream_id))
@@ -139,8 +139,6 @@ class HTTPStream:
                     if self.state != ASGIHTTPState.CLOSED:
                         await self.send(EndBody(stream_id=self.stream_id))
                         self.state = ASGIHTTPState.CLOSED
-                        self.config.access_logger.access(
-                            self.scope, self.response, time() - self.start_time
-                        )
+                        self.config.log.access(self.scope, self.response, time() - self.start_time)
             else:
                 raise UnexpectedMessage(self.state, message["type"])

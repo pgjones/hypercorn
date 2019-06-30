@@ -5,7 +5,7 @@ from typing import Optional, Type, Union
 
 import pytest
 
-from hypercorn.logging import AccessLogAtoms, AccessLogger
+from hypercorn.logging import AccessLogAtoms, Logger
 
 
 @pytest.mark.parametrize(
@@ -22,16 +22,16 @@ def test_access_logger_init(
     expected_name: Optional[str],
     expected_handler_type: Optional[Type[logging.Handler]],
 ) -> None:
-    access_logger = AccessLogger("%h", target)
-    assert access_logger.log_format == "%h"
+    logger = Logger(target, "info", None, "info", "%h")
+    assert logger.access_log_format == "%h"
     if expected_name is None:
-        assert access_logger.logger is None
+        assert logger.access_logger.handlers == []
     else:
-        assert access_logger.logger.name == expected_name
+        assert logger.access_logger.name == expected_name
         if expected_handler_type is None:
-            assert access_logger.handlers == []
+            assert logger.access_logger.handlers == []
         else:
-            assert isinstance(access_logger.handlers[0], expected_handler_type)
+            assert isinstance(logger.access_logger.handlers[0], expected_handler_type)
 
 
 @pytest.fixture(name="request_scope")

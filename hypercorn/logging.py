@@ -2,34 +2,47 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 
-class AccessLogger:
-    def __init__(self, log_format: str, target: Union[logging.Logger, str, None]) -> None:
-        self.logger: Optional[logging.Logger] = None
-        self.log_format = log_format
-        if isinstance(target, logging.Logger):
-            self.logger = target
+def _create_logger(
+    name: str, target: Union[logging.Logger, str, None], level: str, sys_default: Any
+) -> logging.Logger:
+    if isinstance(target, logging.Logger):
+        return target
+    else:
+        logger = logging.getLogger(name)
+        logger.propagate = False
+        logger.handlers = []
+        if target == "-":
+            logger.addHandler(logging.StreamHandler(sys_default))
         elif target is not None:
-            self.logger = logging.getLogger("hypercorn.access")
-            self.logger.propagate = False
-            self.logger.handlers = []
-            if target == "-":
-                self.logger.addHandler(logging.StreamHandler(sys.stdout))
-            else:
-                self.logger.addHandler(logging.FileHandler(target))
-            self.logger.setLevel(logging.INFO)
+            logger.addHandler(logging.FileHandler(target))
+        return logger
+
+
+class Logger:
+    def __init__(
+        self,
+        access_target: Union[logging.Logger, str, None],
+        access_level: str,
+        error_target: Union[logging.Logger, str, None],
+        error_level: str,
+        access_log_format: str,
+    ) -> None:
+        self.access_logger = _create_logger(
+            "hypercorn.access", access_target, access_level, sys.stdout
+        )
+        self.error_logger = _create_logger("hypercorn.error", error_target, error_level, sys.stderr)
+        self.access_log_format = access_log_format
 
     def access(self, request: dict, response: dict, request_time: float) -> None:
-        if self.logger is not None:
-            self.logger.info(self.log_format, AccessLogAtoms(request, response, request_time))
+        self.access_logger.info(
+            self.access_log_format, AccessLogAtoms(request, response, request_time)
+        )
 
     def __getattr__(self, name: str) -> Any:
-        if self.logger is None:
-            return lambda *_: None
-        else:
-            return getattr(self.logger, name)
+        return getattr(self.error_logger, name)
 
 
 class AccessLogAtoms(dict):
