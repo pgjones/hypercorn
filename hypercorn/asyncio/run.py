@@ -14,6 +14,7 @@ from ..utils import (
     load_application,
     MustReloadException,
     observe_changes,
+    repr_socket_addr,
     restart,
     Shutdown,
 )
@@ -90,25 +91,29 @@ async def worker_serve(
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         await Server(app, loop, config, reader, writer)
 
-    servers = [
-        await asyncio.start_server(
-            _server_callback,
-            backlog=config.backlog,
-            loop=loop,
-            ssl=ssl_context,
-            sock=sock,
-            ssl_handshake_timeout=ssl_handshake_timeout,
+    servers = []
+    for sock in sockets.secure_sockets:
+        servers.append(
+            await asyncio.start_server(
+                _server_callback,
+                backlog=config.backlog,
+                loop=loop,
+                ssl=ssl_context,
+                sock=sock,
+                ssl_handshake_timeout=ssl_handshake_timeout,
+            )
         )
-        for sock in sockets.secure_sockets
-    ]
-    servers.extend(
-        [
+        bind = repr_socket_addr(sock.family, sock.getsockname())
+        config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
+
+    for sock in sockets.insecure_sockets:
+        servers.append(
             await asyncio.start_server(
                 _server_callback, backlog=config.backlog, loop=loop, sock=sock
             )
-            for sock in sockets.insecure_sockets
-        ]
-    )
+        )
+        bind = repr_socket_addr(sock.family, sock.getsockname())
+        config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
     reload_ = False
     try:

@@ -169,6 +169,15 @@ def parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
         return None
 
 
+def repr_socket_addr(family: int, address: tuple) -> str:
+    if family in {socket.AF_INET, socket.AF_INET6}:
+        return f"{address[0]}:{address[1]}"
+    elif family == socket.AF_UNIX:
+        return f"unix:{address}"
+    else:
+        return f"{address}"
+
+
 async def invoke_asgi(app: ASGIFramework, scope: dict, receive: Callable, send: Callable) -> None:
     if _is_asgi_2(app):
         scope["asgi"]["version"] = "2.0"

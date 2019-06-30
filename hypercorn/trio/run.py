@@ -13,6 +13,7 @@ from ..utils import (
     load_application,
     MustReloadException,
     observe_changes,
+    repr_socket_addr,
     restart,
     Shutdown,
 )
@@ -49,20 +50,23 @@ async def worker_serve(
                         sock.listen(config.backlog)
 
                 ssl_context = config.create_ssl_context()
-                listeners = [
-                    trio.SSLListener(
-                        trio.SocketListener(trio.socket.from_stdlib_socket(sock)),
-                        ssl_context,
-                        https_compatible=True,
+                listeners = []
+                for sock in sockets.secure_sockets:
+                    listeners.append(
+                        trio.SSLListener(
+                            trio.SocketListener(trio.socket.from_stdlib_socket(sock)),
+                            ssl_context,
+                            https_compatible=True,
+                        )
                     )
-                    for sock in sockets.secure_sockets
-                ]
-                listeners.extend(
-                    [
-                        trio.SocketListener(trio.socket.from_stdlib_socket(sock))
-                        for sock in sockets.insecure_sockets
-                    ]
-                )
+                    bind = repr_socket_addr(sock.family, sock.getsockname())
+                    config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
+
+                for sock in sockets.insecure_sockets:
+                    listeners.append(trio.SocketListener(trio.socket.from_stdlib_socket(sock)))
+                    bind = repr_socket_addr(sock.family, sock.getsockname())
+                    config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
+
                 task_status.started()
                 await trio.serve_listeners(partial(Server, app, config), listeners)
 

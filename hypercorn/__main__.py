@@ -188,12 +188,6 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     if len(args.insecure_binds) > 0:
         config.insecure_bind = args.insecure_binds
 
-    for bind in config.bind:
-        scheme = "https" if config.ssl_enabled else "http"
-        print(f"Running on {bind} over {scheme} (CTRL + C to quit)")  # noqa: T001
-    for bind in config.insecure_bind:
-        print(f"Running on {bind} over http (CTRL + C to quit)")  # noqa: T001
-
     run(config)
 
 
