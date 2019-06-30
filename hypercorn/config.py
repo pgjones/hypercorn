@@ -152,6 +152,7 @@ class Config:
             elif bind.startswith("fd://"):
                 sock = socket.fromfd(int(bind[5:]), socket.AF_UNIX, socket.SOCK_STREAM)
             else:
+                bind = bind.replace("[", "").replace("]", "")
                 try:
                     value = bind.rsplit(":", 1)
                     host, port = value[0], int(value[1])

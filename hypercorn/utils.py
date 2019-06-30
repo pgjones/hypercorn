@@ -170,8 +170,10 @@ def parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
 
 
 def repr_socket_addr(family: int, address: tuple) -> str:
-    if family in {socket.AF_INET, socket.AF_INET6}:
+    if family == socket.AF_INET:
         return f"{address[0]}:{address[1]}"
+    elif family == socket.AF_INET6:
+        return f"[{address[0]}]:{address[1]}"
     elif family == socket.AF_UNIX:
         return f"unix:{address}"
     else:
