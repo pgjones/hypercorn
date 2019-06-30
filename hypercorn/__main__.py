@@ -1,7 +1,6 @@
 import argparse
 import ssl
 import sys
-import warnings
 from typing import List, Optional
 
 from .config import Config
@@ -105,13 +104,6 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--root-path", help="The setting for the ASGI root_path variable", default=sentinel
     )
-    parser.add_argument(
-        "--uvloop",
-        dest="uvloop",
-        help="Enable uvloop usage (Deprecated, use `--worker-class uvloop` instead)",
-        action="store_true",
-        default=sentinel,
-    )
 
     def _convert_verify_mode(value: str) -> ssl.VerifyMode:  # type: ignore
         try:
@@ -165,12 +157,6 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.root_path = args.root_path
     if args.reload is not sentinel:
         config.use_reloader = args.reload
-    if args.uvloop is not sentinel:
-        warnings.warn(
-            "The uvloop argument is deprecated, use `--worker-class uvloop` instead",
-            DeprecationWarning,
-        )
-        config.worker_class = "uvloop"
     if args.worker_class is not sentinel:
         config.worker_class = args.worker_class
     if args.workers is not sentinel:
