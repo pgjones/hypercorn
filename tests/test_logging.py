@@ -24,6 +24,7 @@ def test_access_logger_init(
 ) -> None:
     logger = Logger(target, "info", None, "info", "%h")
     assert logger.access_log_format == "%h"
+    assert logger.getEffectiveLevel() == logging.INFO
     if expected_name is None:
         assert logger.access_logger.handlers == []
     else:

@@ -18,6 +18,7 @@ def _create_logger(
             logger.addHandler(logging.StreamHandler(sys_default))
         elif target is not None:
             logger.addHandler(logging.FileHandler(target))
+        logger.setLevel(logging.getLevelName(level.upper()))
         return logger
 
 
