@@ -42,7 +42,7 @@ class Config:
     certfile: Optional[str] = None
     ciphers: str = "ECDHE+AESGCM"
     debug = False
-    errorlog: Union[logging.Logger, str, None] = None
+    errorlog: Union[logging.Logger, str, None] = "-"
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2 ** 16
