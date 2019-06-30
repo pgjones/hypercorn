@@ -4,18 +4,11 @@ import h2
 import h11
 import pytest
 import wsproto
-from _pytest.monkeypatch import MonkeyPatch
 
-import hypercorn.utils
 from hypercorn.asyncio.server import Server
 from hypercorn.config import Config
 from .helpers import MemoryReader, MemoryWriter
 from ..helpers import SANITY_BODY, sanity_framework
-
-
-@pytest.fixture(autouse=True)
-def _time(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(hypercorn.utils, "time", lambda: 5000)
 
 
 @pytest.mark.asyncio

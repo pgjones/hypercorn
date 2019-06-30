@@ -20,7 +20,6 @@ from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData
 from ..typing import Event as IOEvent
-from ..utils import response_headers
 
 
 class H2Protocol:
@@ -100,7 +99,7 @@ class H2Protocol:
                     event.stream_id,
                     [(b":status", b"%d" % event.status_code)]
                     + event.headers
-                    + response_headers("h2"),
+                    + self.config.response_headers("h2"),
                 )
                 await self._flush()
             elif isinstance(event, (Body, Data)):
@@ -223,7 +222,7 @@ class H2Protocol:
         push_stream_id = self.connection.get_next_available_stream_id()
         request_headers = [(b":method", b"GET") + (b":path", path)]
         request_headers.extend(headers)
-        request_headers.extend(response_headers("h2"))
+        request_headers.extend(self.config.response_headers("h2"))
         try:
             self.connection.push_stream(
                 stream_id=stream_id,

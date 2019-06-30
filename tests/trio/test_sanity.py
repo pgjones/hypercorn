@@ -5,18 +5,11 @@ import h11
 import pytest
 import trio
 import wsproto
-from _pytest.monkeypatch import MonkeyPatch
 
-import hypercorn.utils
 from asynctest.mock import CoroutineMock
 from hypercorn.config import Config
 from hypercorn.trio.server import Server
 from ..helpers import MockSocket, SANITY_BODY, sanity_framework
-
-
-@pytest.fixture(autouse=True)
-def _time(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(hypercorn.utils, "time", lambda: 5000)
 
 
 @pytest.mark.trio

@@ -9,7 +9,9 @@ import types
 import warnings
 from dataclasses import dataclass
 from ssl import SSLContext, VerifyFlags, VerifyMode  # type: ignore
-from typing import Any, AnyStr, Dict, List, Mapping, Optional, Type, Union
+from time import time
+from typing import Any, AnyStr, Dict, List, Mapping, Optional, Tuple, Type, Union
+from wsgiref.handlers import format_date_time
 
 import toml
 
@@ -47,6 +49,7 @@ class Config:
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2 ** 16
     h2_max_inbound_frame_size = 2 ** 14 * OCTETS
+    include_server_header = True
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
     logger_class = Logger
@@ -178,6 +181,12 @@ class Config:
                 pass
             sockets.append(sock)
         return sockets
+
+    def response_headers(self, protocol: str) -> List[Tuple[bytes, bytes]]:
+        headers = [(b"date", format_date_time(time()).encode("ascii"))]
+        if self.include_server_header:
+            headers.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
+        return headers
 
     @classmethod
     def from_mapping(

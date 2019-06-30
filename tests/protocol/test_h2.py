@@ -5,18 +5,12 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h2
-import hypercorn.utils
 from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.asyncio.server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import H2Protocol
 from hypercorn.protocol.http_stream import HTTPStream
-
-
-@pytest.fixture(autouse=True)
-def _time(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(hypercorn.utils, "time", lambda: 5000)
 
 
 @pytest.fixture(name="protocol")

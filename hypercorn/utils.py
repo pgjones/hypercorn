@@ -7,10 +7,8 @@ from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
-from time import time
 from types import ModuleType
 from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple
-from wsgiref.handlers import format_date_time
 
 from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework
 
@@ -51,13 +49,6 @@ class FrameTooLarge(Exception):
 
 def suppress_body(method: str, status_code: int) -> bool:
     return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
-
-
-def response_headers(protocol: str) -> List[Tuple[bytes, bytes]]:
-    return [
-        (b"date", format_date_time(time()).encode("ascii")),
-        (b"server", f"hypercorn-{protocol}".encode("ascii")),
-    ]
 
 
 def build_and_validate_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:

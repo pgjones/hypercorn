@@ -18,7 +18,6 @@ from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..typing import Event as IOEvent, H11SendableEvent
-from ..utils import response_headers
 
 STREAM_ID = 1
 
@@ -113,14 +112,14 @@ class H11Protocol:
             if event.status_code >= 200:
                 await self._send_h11_event(
                     h11.Response(
-                        headers=chain(event.headers, response_headers("h11")),
+                        headers=chain(event.headers, self.config.response_headers("h11")),
                         status_code=event.status_code,
                     )
                 )
             else:
                 await self._send_h11_event(
                     h11.InformationalResponse(
-                        headers=chain(event.headers, response_headers("h11")),
+                        headers=chain(event.headers, self.config.response_headers("h11")),
                         status_code=event.status_code,
                     )
                 )
@@ -140,7 +139,9 @@ class H11Protocol:
         while True:
             if self.connection.they_are_waiting_for_100_continue:
                 await self._send_h11_event(
-                    h11.InformationalResponse(status_code=100, headers=response_headers("h11"))
+                    h11.InformationalResponse(
+                        status_code=100, headers=self.config.response_headers("h11")
+                    )
                 )
             try:
                 event = self.connection.next_event()
@@ -221,7 +222,8 @@ class H11Protocol:
             h11.Response(
                 status_code=status_code,
                 headers=chain(
-                    [(b"content-length", b"0"), (b"connection", b"close")], response_headers("h11")
+                    [(b"content-length", b"0"), (b"connection", b"close")],
+                    self.config.response_headers("h11"),
                 ),
             )
         )
@@ -267,7 +269,8 @@ class H11Protocol:
         if upgrade_value.lower() == "h2c" and not has_body:
             await self._send_h11_event(
                 h11.InformationalResponse(
-                    status_code=101, headers=[(b"upgrade", b"h2c")] + response_headers("h11")
+                    status_code=101,
+                    headers=[(b"upgrade", b"h2c")] + self.config.response_headers("h11"),
                 )
             )
             raise H2CProtocolRequired(self.connection.trailing_data[0], event)

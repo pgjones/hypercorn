@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
+import hypercorn.config
 from hypercorn.config import Config
 
 access_log_format = "bob"
@@ -113,3 +114,14 @@ def test_create_sockets_multiple(monkeypatch: MonkeyPatch) -> None:
     config.bind = ["127.0.0.1", "unix:/tmp/hypercorn.sock"]
     sockets = config.create_sockets()
     assert len(sockets.insecure_sockets) == 2
+
+
+def test_response_headers(monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(hypercorn.config, "time", lambda: 1_512_229_395)
+    config = Config()
+    assert config.response_headers("test") == [
+        (b"date", b"Sat, 02 Dec 2017 15:43:15 GMT"),
+        (b"server", b"hypercorn-test"),
+    ]
+    config.include_server_header = False
+    assert config.response_headers("test") == [(b"date", b"Sat, 02 Dec 2017 15:43:15 GMT")]

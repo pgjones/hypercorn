@@ -6,7 +6,6 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h11
-import hypercorn.utils
 from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData, Updated
@@ -16,11 +15,6 @@ from hypercorn.protocol.http_stream import HTTPStream
 from hypercorn.typing import Event as IOEvent
 
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
-
-
-@pytest.fixture(autouse=True)
-def _time(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setattr(hypercorn.utils, "time", lambda: 5000)
 
 
 @pytest.fixture(name="protocol")
