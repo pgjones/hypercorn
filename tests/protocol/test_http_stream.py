@@ -1,10 +1,11 @@
 from typing import Any
-from unittest.mock import call, Mock
+from unittest.mock import call
 
 import pytest
 
-from asynctest.mock import CoroutineMock
+from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
+from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, EndBody, Request, Response, StreamClosed
 from hypercorn.protocol.http_stream import ASGIHTTPState, HTTPStream
 from hypercorn.utils import UnexpectedMessage
@@ -14,7 +15,7 @@ from hypercorn.utils import UnexpectedMessage
 async def _stream() -> HTTPStream:
     stream = HTTPStream(Config(), False, None, None, CoroutineMock(), CoroutineMock(), 1)
     stream.app_put = CoroutineMock()
-    stream.config._log = Mock()
+    stream.config._log = AsyncMock(spec=Logger)
     return stream
 
 

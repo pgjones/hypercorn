@@ -44,6 +44,7 @@ class Config:
     certfile: Optional[str] = None
     ciphers: str = "ECDHE+AESGCM"
     debug = False
+    dogstatsd_tags = ""
     errorlog: Union[logging.Logger, str, None] = "-"
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100
@@ -60,6 +61,8 @@ class Config:
     shutdown_timeout = 60 * SECONDS
     ssl_handshake_timeout = 60 * SECONDS
     startup_timeout = 60 * SECONDS
+    statsd_host: Optional[str] = None
+    statsd_prefix = ""
     use_reloader = False
     verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None
@@ -76,9 +79,7 @@ class Config:
     @property
     def log(self) -> Logger:
         if self._log is None:
-            self._log = self.logger_class(
-                self.accesslog, "info", self.errorlog, self.loglevel, self.access_log_format
-            )
+            self._log = self.logger_class(self)
         return self._log
 
     @property
@@ -187,6 +188,10 @@ class Config:
         if self.include_server_header:
             headers.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
         return headers
+
+    def set_statsd_logger_class(self, statsd_logger: Type[Logger]) -> None:
+        if self.logger_class == Logger and self.statsd_host is not None:
+            self.logger_class = statsd_logger
 
     @classmethod
     def from_mapping(

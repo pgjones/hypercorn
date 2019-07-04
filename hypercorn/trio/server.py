@@ -33,7 +33,7 @@ async def _handle(
     try:
         await invoke_asgi(app, scope, receive, send)
     except (trio.MultiError, Exception):
-        config.log.exception("Error in ASGI Framework")
+        await config.log.exception("Error in ASGI Framework")
         await send(None)
 
 

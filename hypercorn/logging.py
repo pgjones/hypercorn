@@ -2,7 +2,10 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Union
+from typing import Any, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from .config import Config
 
 
 def _create_logger(
@@ -23,24 +26,40 @@ def _create_logger(
 
 
 class Logger:
-    def __init__(
-        self,
-        access_target: Union[logging.Logger, str, None],
-        access_level: str,
-        error_target: Union[logging.Logger, str, None],
-        error_level: str,
-        access_log_format: str,
-    ) -> None:
+    def __init__(self, config: "Config") -> None:
         self.access_logger = _create_logger(
-            "hypercorn.access", access_target, access_level, sys.stdout
+            "hypercorn.access", config.accesslog, "info", sys.stdout
         )
-        self.error_logger = _create_logger("hypercorn.error", error_target, error_level, sys.stderr)
-        self.access_log_format = access_log_format
+        self.error_logger = _create_logger(
+            "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
+        )
+        self.access_log_format = config.access_log_format
 
-    def access(self, request: dict, response: dict, request_time: float) -> None:
+    async def access(self, request: dict, response: dict, request_time: float) -> None:
         self.access_logger.info(
             self.access_log_format, AccessLogAtoms(request, response, request_time)
         )
+
+    async def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.critical(message, *args, **kwargs)
+
+    async def error(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.error(message, *args, **kwargs)
+
+    async def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.warning(message, *args, **kwargs)
+
+    async def info(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.info(message, *args, **kwargs)
+
+    async def debug(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.debug(message, *args, **kwargs)
+
+    async def exception(self, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.exception(message, *args, **kwargs)
+
+    async def log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
+        self.error_logger.log(level, message, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.error_logger, name)

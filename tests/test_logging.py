@@ -5,6 +5,7 @@ from typing import Optional, Type, Union
 
 import pytest
 
+from hypercorn.config import Config
 from hypercorn.logging import AccessLogAtoms, Logger
 
 
@@ -22,7 +23,10 @@ def test_access_logger_init(
     expected_name: Optional[str],
     expected_handler_type: Optional[Type[logging.Handler]],
 ) -> None:
-    logger = Logger(target, "info", None, "info", "%h")
+    config = Config()
+    config.accesslog = target
+    config.access_log_format = "%h"
+    logger = Logger(config)
     assert logger.access_log_format == "%h"
     assert logger.getEffectiveLevel() == logging.INFO
     if expected_name is None:

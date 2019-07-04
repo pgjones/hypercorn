@@ -7,6 +7,7 @@ from typing import Any, Coroutine, Optional
 
 from .lifespan import Lifespan
 from .server import Server
+from .statsd import StatsdLogger
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -43,6 +44,8 @@ async def worker_serve(
     sockets: Optional[Sockets] = None,
     shutdown_event: Optional[EventType] = None,
 ) -> None:
+    config.set_statsd_logger_class(StatsdLogger)
+
     lifespan = Lifespan(app, config)
     lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
 
@@ -104,7 +107,7 @@ async def worker_serve(
             )
         )
         bind = repr_socket_addr(sock.family, sock.getsockname())
-        config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
+        await config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
 
     for sock in sockets.insecure_sockets:
         servers.append(
@@ -113,7 +116,7 @@ async def worker_serve(
             )
         )
         bind = repr_socket_addr(sock.family, sock.getsockname())
-        config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
+        await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
     reload_ = False
     try:

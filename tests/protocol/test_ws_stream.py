@@ -4,8 +4,9 @@ from unittest.mock import call, Mock
 import pytest
 from wsproto.events import BytesMessage, TextMessage
 
-from asynctest.mock import CoroutineMock
+from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
+from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
 from hypercorn.protocol.ws_stream import (
     ASGIWebsocketState,
@@ -128,7 +129,7 @@ async def _stream() -> WSStream:
     stream = WSStream(Config(), False, None, None, CoroutineMock(), CoroutineMock(), 1)
     stream.spawn_app.return_value = CoroutineMock()
     stream.app_put = CoroutineMock()
-    stream.config._log = Mock()
+    stream.config._log = AsyncMock(spec=Logger)
     return stream
 
 

@@ -32,7 +32,7 @@ class Lifespan:
             raise
         except Exception:
             self.supported = False
-            self.config.log.exception(
+            await self.config.log.exception(
                 "ASGI Framework Lifespan error, continuing without Lifespan support"
             )
         finally:

@@ -6,6 +6,7 @@ import trio
 
 from .lifespan import Lifespan
 from .server import Server
+from .statsd import StatsdLogger
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -27,6 +28,8 @@ async def worker_serve(
     shutdown_event: Optional[EventType] = None,
     task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
 ) -> None:
+    config.set_statsd_logger_class(StatsdLogger)
+
     lifespan = Lifespan(app, config)
     reload_ = False
 
@@ -60,12 +63,12 @@ async def worker_serve(
                         )
                     )
                     bind = repr_socket_addr(sock.family, sock.getsockname())
-                    config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
+                    await config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
 
                 for sock in sockets.insecure_sockets:
                     listeners.append(trio.SocketListener(trio.socket.from_stdlib_socket(sock)))
                     bind = repr_socket_addr(sock.family, sock.getsockname())
-                    config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
+                    await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
                 task_status.started()
                 await trio.serve_listeners(partial(Server, app, config), listeners)

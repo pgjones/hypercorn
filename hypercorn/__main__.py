@@ -112,6 +112,10 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--root-path", help="The setting for the ASGI root_path variable", default=sentinel
     )
+    parser.add_argument(
+        "--statsd-host", help="The host:port of the statsd server", default=sentinel
+    )
+    parser.add_argument("--statsd-prefix", help="Prefix for all statsd messages", default=sentinel)
 
     def _convert_verify_mode(value: str) -> ssl.VerifyMode:  # type: ignore
         try:
@@ -137,6 +141,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     config = _load_config(args.config)
     config.application_path = args.application
     config.loglevel = args.log_level
+    config.statsd_prefix = args.statsd_prefix
 
     if args.access_logformat is not sentinel:
         config.access_log_format = args.access_logformat
@@ -178,6 +183,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.root_path = args.root_path
     if args.reload is not sentinel:
         config.use_reloader = args.reload
+    if args.statsd_host is not sentinel:
+        config.statsd_host = args.statsd_host
     if args.worker_class is not sentinel:
         config.worker_class = args.worker_class
     if args.workers is not sentinel:

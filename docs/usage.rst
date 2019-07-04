@@ -64,6 +64,10 @@ The following options exist with the given usage,
   --reload              Enable automatic reloads on code changes
   --root-path ROOT_PATH
                         The setting for the ASGI root_path variable
+  --statsd-host STATSD_HOST
+                        The host:port of the statsd server
+  --statsd-prefix STATSD_PREFIX
+                        Prefix for all statsd messages
   --verify-mode VERIFY_MODE
                         SSL verify mode for peer's certificate, see
                         ssl.VerifyMode enum for possible values.
