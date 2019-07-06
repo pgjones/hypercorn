@@ -163,7 +163,6 @@ class H11Protocol:
                 elif event is h11.PAUSED:
                     await self.can_read.clear()
                     await self.can_read.wait()
-                    break
                 elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
                     break
 
@@ -240,7 +239,6 @@ class H11Protocol:
                 self.response = None
                 self.scope = None
                 await self.can_read.set()
-                await self._handle_events()
                 await self.send(Updated())
         else:
             await self.can_read.set()

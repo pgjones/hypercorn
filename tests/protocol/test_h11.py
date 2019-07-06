@@ -156,12 +156,14 @@ async def test_protocol_handle_protocol_error(protocol: H11Protocol) -> None:
 
 @pytest.mark.asyncio
 async def test_protocol_handle_pipelining(protocol: H11Protocol) -> None:
-    await protocol.handle(
-        RawData(
-            data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\nConnection: keep-alive\r\n\r\n"
-            b"GET / HTTP/1.1\r\nHost: hypercorn\r\nConnection: close\r\n\r\n"
+    protocol.can_read.wait.side_effect = Exception()
+    with pytest.raises(Exception):
+        await protocol.handle(
+            RawData(
+                data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\nConnection: keep-alive\r\n\r\n"
+                b"GET / HTTP/1.1\r\nHost: hypercorn\r\nConnection: close\r\n\r\n"
+            )
         )
-    )
     protocol.can_read.clear.assert_called()
     protocol.can_read.wait.assert_called()
 
