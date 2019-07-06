@@ -137,10 +137,10 @@ class HTTPStream:
 
                 if not message.get("more_body", False):
                     if self.state != ASGIHTTPState.CLOSED:
-                        await self.send(EndBody(stream_id=self.stream_id))
                         self.state = ASGIHTTPState.CLOSED
                         await self.config.log.access(
                             self.scope, self.response, time() - self.start_time
                         )
+                        await self.send(EndBody(stream_id=self.stream_id))
             else:
                 raise UnexpectedMessage(self.state, message["type"])

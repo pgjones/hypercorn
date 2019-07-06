@@ -32,7 +32,16 @@ async def _handle(
 ) -> None:
     try:
         await invoke_asgi(app, scope, receive, send)
-    except (trio.MultiError, Exception):
+    except trio.Cancelled:
+        raise
+    except trio.MultiError as error:
+        errors = error.filter(lambda exc: None if isinstance(exc, trio.Cancelled) else exc)
+        if errors is not None:
+            await config.log.exception("Error in ASGI Framework")
+            await send(None)
+        else:
+            raise
+    except Exception:
         await config.log.exception("Error in ASGI Framework")
         await send(None)
 
