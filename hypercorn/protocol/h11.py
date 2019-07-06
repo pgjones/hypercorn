@@ -51,7 +51,7 @@ class H11WSConnection:
     they_are_waiting_for_100_continue = False
 
     def __init__(self, h11_connection: h11.Connection) -> None:
-        self.buffer = bytearray()
+        self.buffer = bytearray(h11_connection.trailing_data[0])
         self.h11_connection = h11_connection
 
     def receive_data(self, data: bytes) -> None:
