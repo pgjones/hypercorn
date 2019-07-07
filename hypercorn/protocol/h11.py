@@ -146,7 +146,8 @@ class H11Protocol:
             try:
                 event = self.connection.next_event()
             except h11.RemoteProtocolError:
-                await self._send_error_response(400)
+                if self.connection.our_state in {h11.IDLE, h11.SEND_RESPONSE}:
+                    await self._send_error_response(400)
                 await self.send(Closed())
                 break
             else:
