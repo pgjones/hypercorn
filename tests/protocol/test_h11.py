@@ -257,3 +257,14 @@ async def test_protocol_handle_data_post_response(protocol: H11Protocol) -> None
     await protocol.stream_send(Response(stream_id=1, status_code=201, headers=[]))
     await protocol.stream_send(EndBody(stream_id=1))
     await protocol.handle(RawData(data=b"abcd\r\n\r\n"))
+
+
+@pytest.mark.asyncio
+async def test_protocol_handle_data_post_close(protocol: H11Protocol) -> None:
+    await protocol.handle(
+        RawData(data=b"POST / HTTP/1.1\r\nHost: hypercorn\r\nContent-Length: 10\r\n")
+    )
+    await protocol.stream_send(Response(stream_id=1, status_code=201, headers=[]))
+    await protocol.stream_send(EndBody(stream_id=1))
+    # Key is that this doesn't error
+    await protocol.handle(RawData(data=b"abcdefghij"))

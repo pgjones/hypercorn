@@ -143,6 +143,9 @@ class H11Protocol:
                         status_code=100, headers=self.config.response_headers("h11")
                     )
                 )
+            if self.connection.our_state in {h11.DONE, h11.CLOSED, h11.MUST_CLOSE}:
+                return
+
             try:
                 event = self.connection.next_event()
             except h11.RemoteProtocolError:
