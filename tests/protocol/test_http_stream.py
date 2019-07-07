@@ -144,3 +144,7 @@ async def test_send_invalid_message(
     with pytest.raises((TypeError, ValueError)):
         await stream.app_send({"type": "http.response.start", "headers": headers, "status": status})
         await stream.app_send({"type": "http.response.body", "body": body})
+
+
+def test_stream_idle(stream: HTTPStream) -> None:
+    assert stream.idle is False

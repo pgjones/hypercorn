@@ -347,3 +347,17 @@ async def test_send_invalid_http_message(
             {"type": "websocket.http.response.start", "headers": headers, "status": status}
         )
         await stream.app_send({"type": "websocket.http.response.body", "body": body})
+
+
+@pytest.mark.parametrize(
+    "state, idle",
+    [
+        (state, False)
+        for state in ASGIWebsocketState
+        if state not in {ASGIWebsocketState.CLOSED, ASGIWebsocketState.HTTPCLOSED}
+    ]
+    + [(ASGIWebsocketState.CLOSED, True), (ASGIWebsocketState.HTTPCLOSED, True)],
+)
+def test_stream_idle(stream: WSStream, state: ASGIWebsocketState, idle: bool) -> None:
+    stream.state = state
+    assert stream.idle is idle

@@ -162,6 +162,10 @@ class WSStream:
         self.connection: Connection
         self.handshake: Handshake
 
+    @property
+    def idle(self) -> bool:
+        return self.state in {ASGIWebsocketState.CLOSED, ASGIWebsocketState.HTTPCLOSED}
+
     async def handle(self, event: Event) -> None:
         if isinstance(event, Request):
             self.handshake = Handshake(event.headers, event.http_version)
@@ -247,14 +251,14 @@ class WSStream:
             elif (
                 message["type"] == "websocket.close" and self.state == ASGIWebsocketState.HANDSHAKE
             ):
-                await self._send_error_response(403)
                 self.state = ASGIWebsocketState.HTTPCLOSED
+                await self._send_error_response(403)
             elif message["type"] == "websocket.close":
+                self.state = ASGIWebsocketState.CLOSED
                 await self._send_wsproto_event(
                     CloseConnection(code=int(message.get("code", CloseReason.NORMAL_CLOSURE)))
                 )
                 await self.send(EndData(stream_id=self.stream_id))
-                self.state = ASGIWebsocketState.CLOSED
             else:
                 raise UnexpectedMessage(self.state, message["type"])
 
@@ -311,6 +315,6 @@ class WSStream:
         if not body_suppressed:
             await self.send(Body(stream_id=self.stream_id, data=bytes(message.get("body", b""))))
         if not message.get("more_body", False):
-            await self.send(EndBody(stream_id=self.stream_id))
             self.state = ASGIWebsocketState.HTTPCLOSED
+            await self.send(EndBody(stream_id=self.stream_id))
             await self.config.log.access(self.scope, self.response, time() - self.start_time)

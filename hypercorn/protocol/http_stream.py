@@ -41,6 +41,10 @@ class HTTPStream:
         self.state = ASGIHTTPState.REQUEST
         self.stream_id = stream_id
 
+    @property
+    def idle(self) -> bool:
+        return False
+
     async def handle(self, event: Event) -> None:
         if isinstance(event, Request):
             path, _, query_string = event.raw_path.partition(b"?")

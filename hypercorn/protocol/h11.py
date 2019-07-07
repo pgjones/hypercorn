@@ -94,7 +94,7 @@ class H11Protocol:
 
     @property
     def idle(self) -> bool:
-        return self.stream is None
+        return self.stream is None or self.stream.idle
 
     async def initiate(self) -> None:
         pass

@@ -59,7 +59,7 @@ class H2Protocol:
 
     @property
     def idle(self) -> bool:
-        return len(self.streams) == 0
+        return len(self.streams) == 0 or all(stream.idle for stream in self.streams.values())
 
     async def initiate(
         self, headers: Optional[List[Tuple[bytes, bytes]]] = None, settings: Optional[str] = None
