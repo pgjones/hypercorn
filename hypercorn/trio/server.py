@@ -1,6 +1,5 @@
-import math
 from functools import partial
-from typing import Any, Awaitable, Callable, Generator
+from typing import Any, Awaitable, Callable, Generator, Optional
 
 import trio
 
@@ -66,6 +65,8 @@ class Server:
         self.send_lock = trio.Lock()
         self.stream = stream
 
+        self._keep_alive_timeout_handle: Optional[trio.CancelScope] = None
+
     def __await__(self) -> Generator[Any, None, None]:
         return self.run().__await__()
 
@@ -101,7 +102,7 @@ class Server:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
-                self._update_keep_alive_timeout()
+                await self._update_keep_alive_timeout()
                 await self._read_data()
         except trio.MultiError:
             pass
@@ -117,7 +118,7 @@ class Server:
                     pass  # Allow ASGI Apps to finish
         elif isinstance(event, Closed):
             await self._close()
-        self._update_keep_alive_timeout()
+        await self._update_keep_alive_timeout()
 
     async def _read_data(self) -> None:
         while True:
@@ -130,7 +131,7 @@ class Server:
                 break
             else:
                 await self.protocol.handle(RawData(data))
-                self._update_keep_alive_timeout()
+                await self._update_keep_alive_timeout()
                 if data == b"":
                     break
 
@@ -148,10 +149,24 @@ class Server:
             pass
         await self.stream.aclose()
 
-    def _update_keep_alive_timeout(self) -> None:
+    async def _update_keep_alive_timeout(self) -> None:
+        if self._keep_alive_timeout_handle is not None:
+            self._keep_alive_timeout_handle.cancel()
+        self._keep_alive_timeout_handle = None
         if self.protocol.idle:
-            self.nursery.cancel_scope.deadline = (
-                trio.current_time() + self.config.keep_alive_timeout
+            self._keep_alive_timeout_handle = await self.nursery.start(
+                _call_later, self.config.keep_alive_timeout, self.stream.aclose
             )
-        else:
-            self.nursery.cancel_scope.deadline = math.inf
+
+
+async def _call_later(
+    timeout: float,
+    callback: Callable,
+    task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
+) -> None:
+    cancel_scope = trio.CancelScope()
+    task_status.started(cancel_scope)
+    with cancel_scope:
+        await trio.sleep(timeout)
+        cancel_scope.shield = True
+        await callback()
