@@ -54,6 +54,7 @@ async def worker_serve(
 
                 ssl_context = config.create_ssl_context()
                 listeners = []
+                binds = []
                 for sock in sockets.secure_sockets:
                     listeners.append(
                         trio.SSLListener(
@@ -63,14 +64,16 @@ async def worker_serve(
                         )
                     )
                     bind = repr_socket_addr(sock.family, sock.getsockname())
+                    binds.append(f"https://{bind}")
                     await config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
 
                 for sock in sockets.insecure_sockets:
                     listeners.append(trio.SocketListener(trio.socket.from_stdlib_socket(sock)))
                     bind = repr_socket_addr(sock.family, sock.getsockname())
+                    binds.append(f"http://{bind}")
                     await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
-                task_status.started()
+                task_status.started(binds)
                 await trio.serve_listeners(partial(Server, app, config), listeners)
 
         except MustReloadException:
