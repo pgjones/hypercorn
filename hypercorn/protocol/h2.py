@@ -108,9 +108,9 @@ class H2Protocol:
                 pass
             elif isinstance(event, (EndBody, StreamClosed)):
                 self.connection.end_stream(event.stream_id)
+                await self._flush()
                 await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
                 del self.streams[event.stream_id]
-                await self._flush()
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
         except h2.exceptions.ProtocolError:
