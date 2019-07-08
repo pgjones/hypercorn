@@ -137,7 +137,9 @@ class H2Protocol:
                 del self.streams[event.stream_id]
             elif isinstance(event, h2.events.WindowUpdated):
                 await self._window_updated(event.stream_id)
-                pass
+            elif isinstance(event, h2.events.RemoteSettingsChanged):
+                if h2.settings.SettingCodes.INITIAL_WINDOW_SIZE in event.changed_settings:
+                    await self._window_updated(None)
             elif isinstance(event, h2.events.ConnectionTerminated):
                 await self.send(Closed())
         await self._flush()
@@ -149,7 +151,7 @@ class H2Protocol:
 
     async def _send_data(self, stream_id: int, data: bytes) -> None:
         while True:
-            while not self.connection.local_flow_control_window(stream_id):
+            while self.connection.local_flow_control_window(stream_id) < 1:
                 await self._wait_for_flow_control(stream_id)
 
             chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
