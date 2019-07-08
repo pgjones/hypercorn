@@ -1,5 +1,33 @@
+0.7.0 2019-07-08
 ----------------
+
+* Switch from pytoml to toml as the TOML dependency.
+* Bump minimum supported Trio version to 0.11.
+* Structually refactor the codebase. This is a large change that aims
+  to simplify the codebase and hence make Hypercorn much more
+  robust. It may result in lower performance (please open an issue if
+  so), it should result in less runtime errors.
+* Support raw_path in the scope.
 * Remove support for the older NPN protocol negotiation.
+* Remove the `--uvloop` argument, use `-k uvloop` instead.
+* Rationalise the logging settings based on Gunicorn. This makes
+  Hypercorn match the Gunicorn logging settings, at the cost of
+  deprecating `--access-log` and `--error-log` replacing with
+  `--access-logfile` and `--error-logfile`.
+* Set the default error log (target) to `-` i.e. stderr. This means
+  that by default Hypercorn logs messages.
+* Log the bindings after binding. This ensures that when binding to
+  port 0 (random port) the logged message is the port Hypercorn bound
+  to.
+* Support literal IPv6 addresses (square brackets).
+* Allow the addtion server header to be prevented.
+* Add the ability to log metrics to statsd. This follows Gunicorn with
+  the naming and which metrics are logged.
+* Timeout the close handshake in WebSocket connections.
+* Report the list of binds on trio worker startup.
+* Allow a subclass to decide how and where to load certificates for a
+  SSL context.
+* Bugfix HTTP/2 flow control handling.
 
 0.6.0 2019-04-06
 ----------------
