@@ -33,7 +33,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
     )
     await server.reader.send(client.send(h11.Data(data=SANITY_BODY)))  # type: ignore
     await server.reader.send(client.send(h11.EndOfMessage()))  # type: ignore
-    events = []  # type: ignore
+    events = []
     while True:
         event = client.next_event()
         if event == h11.NEED_DATA:
@@ -116,7 +116,7 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
     client.send_data(stream_id, SANITY_BODY)
     client.end_stream(stream_id)
     await server.reader.send(client.data_to_send())  # type: ignore
-    events = []  # type: ignore
+    events = []
     open_ = True
     while open_:
         data = await server.writer.receive()  # type: ignore

@@ -34,7 +34,7 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
     )
     await client_stream.send_all(client.send(h11.Data(data=SANITY_BODY)))
     await client_stream.send_all(client.send(h11.EndOfMessage()))
-    events = []  # type: ignore
+    events = []
     while True:
         event = client.next_event()
         if event == h11.NEED_DATA:
@@ -113,7 +113,7 @@ async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
     client.send_data(stream_id, SANITY_BODY)
     client.end_stream(stream_id)
     await client_stream.send_all(client.data_to_send())
-    events = []  # type: ignore
+    events = []
     open_ = True
     while open_:
         # bytes cast is key otherwise b"" is lost
