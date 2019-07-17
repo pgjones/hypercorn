@@ -65,7 +65,7 @@ class StatsdLogger(Logger):
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
         await super().access(request, response, request_time)
-        await self.histogram("hypercorn.request.duration", request_time * 1_000_000)
+        await self.histogram("hypercorn.request.duration", request_time * 1_000)
         await self.increment("hypercorn.requests", 1)
         await self.increment(f"hypercorn.request.status.{response['status']}", 1)
 
