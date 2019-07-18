@@ -199,9 +199,10 @@ class WSStream:
             else:
                 self.connection.receive_data(event.data)
             await self._handle_events()
-        elif isinstance(event, StreamClosed) and self.app_put is not None:
-            await self.app_put({"type": "websocket.disconnect"})
+        elif isinstance(event, StreamClosed) and not self.closed:
             self.closed = True
+            if self.app_put is not None:
+                await self.app_put({"type": "websocket.disconnect"})
 
     async def app_send(self, message: Optional[dict]) -> None:
         if self.closed:

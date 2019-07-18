@@ -148,3 +148,22 @@ async def test_send_invalid_message(
 
 def test_stream_idle(stream: HTTPStream) -> None:
     assert stream.idle is False
+
+
+@pytest.mark.asyncio
+async def test_closure(stream: HTTPStream) -> None:
+    assert not stream.closed
+    await stream.handle(StreamClosed(stream_id=1))
+    assert stream.closed
+    await stream.handle(StreamClosed(stream_id=1))
+    assert stream.closed
+    # It is important that the disconnect message has only been sent
+    # once.
+    assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
+
+
+@pytest.mark.asyncio
+async def test_closed_app_send_noop(stream: HTTPStream) -> None:
+    stream.closed = True
+    await stream.app_send({"type": "http.response.start", "status": 200, "headers": []})
+    stream.send.assert_not_called()

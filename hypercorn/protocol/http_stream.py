@@ -72,9 +72,10 @@ class HTTPStream:
             )
         elif isinstance(event, EndBody):
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
-        elif isinstance(event, StreamClosed):
-            await self.app_put({"type": "http.disconnect"})
+        elif isinstance(event, StreamClosed) and not self.closed:
             self.closed = True
+            if self.app_put is not None:
+                await self.app_put({"type": "http.disconnect"})
 
     async def app_send(self, message: Optional[dict]) -> None:
         if self.closed:
