@@ -173,17 +173,17 @@ class H11Protocol:
         upgrade_value = ""
         connection_value = ""
         for name, value in request.headers:
-            sanitised_name = name.decode().strip().lower()
+            sanitised_name = name.decode("latin1").strip().lower()
             if sanitised_name == "upgrade":
-                upgrade_value = value.decode().strip()
+                upgrade_value = value.decode("latin1").strip()
             elif sanitised_name == "connection":
-                connection_value = value.decode().strip()
+                connection_value = value.decode("latin1").strip()
 
         connection_tokens = connection_value.lower().split(",")
         if (
             any(token.strip() == "upgrade" for token in connection_tokens)
             and upgrade_value.lower() == "websocket"
-            and request.method.decode().upper() == "GET"
+            and request.method.decode("ascii").upper() == "GET"
         ):
             self.stream = WSStream(
                 self.config,
@@ -210,7 +210,7 @@ class H11Protocol:
                 stream_id=STREAM_ID,
                 headers=request.headers,
                 http_version=request.http_version.decode(),
-                method=request.method.decode().upper(),
+                method=request.method.decode("ascii").upper(),
                 raw_path=request.target,
             )
         )
@@ -256,9 +256,9 @@ class H11Protocol:
         upgrade_value = ""
         has_body = False
         for name, value in event.headers:
-            sanitised_name = name.decode().strip().lower()
+            sanitised_name = name.decode("latin1").strip().lower()
             if sanitised_name == "upgrade":
-                upgrade_value = value.decode().strip()
+                upgrade_value = value.decode("latin1").strip()
             elif sanitised_name in {"content-length", "transfer-encoding"}:
                 has_body = True
 
