@@ -115,7 +115,7 @@ class Server:
                 try:
                     await self.stream.send_all(event.data)
                 except trio.BrokenResourceError:
-                    pass  # Allow ASGI Apps to finish
+                    await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
         await self._update_keep_alive_timeout()
@@ -124,10 +124,8 @@ class Server:
         while True:
             try:
                 data = await self.stream.receive_some(MAX_RECV)
-            except trio.TooSlowError:
-                await self.protocol.handle(Closed())
-                await self._close()
             except (trio.ClosedResourceError, trio.BrokenResourceError):
+                await self.protocol.handle(Closed())
                 break
             else:
                 await self.protocol.handle(RawData(data))

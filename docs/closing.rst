@@ -7,6 +7,20 @@ Connection closure is a difficult part of the connection lifecycle
 with choices needing to be made by Hypercorn about how to respond and
 what to send to the ASGI application.
 
+Before a connection is fully closed, it is often 'half-closed' by one
+side sending an EOF (empty bytestring b""). If sent by the client
+Hypercorn will not expect any further messages, but will allow
+messages to be sent to the client.
+
+Client disconnection
+--------------------
+
+If the client disconnects unexpectedly, i.e. whilst the server is
+still expecting to read or send data, the read/send socket action will
+raise an exception. This exception is caught and a Closed event is
+sent to the protocol. The protocol should then send each stream a
+StreamClosed event and delete the stream.
+
 ASGI messages
 -------------
 

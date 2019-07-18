@@ -102,7 +102,7 @@ class Server:
                 self.writer.write(event.data)
                 await self.writer.drain()
             except (BrokenPipeError, ConnectionResetError):
-                pass  # Allow ASGI Apps to finish
+                await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
         self._update_keep_alive_timeout()
@@ -112,6 +112,7 @@ class Server:
             try:
                 data = await self.reader.read(MAX_RECV)
             except (BrokenPipeError, ConnectionResetError):
+                await self.protocol.handle(Closed())
                 break
             else:
                 await self.protocol.handle(RawData(data))
