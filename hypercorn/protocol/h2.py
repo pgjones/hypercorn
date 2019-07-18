@@ -18,7 +18,7 @@ from .events import (
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
-from ..events import Closed, Event, RawData
+from ..events import Closed, Event, RawData, Updated
 from ..typing import Event as IOEvent
 
 
@@ -111,6 +111,7 @@ class H2Protocol:
                 await self._flush()
                 await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
                 del self.streams[event.stream_id]
+                await self.send(Updated())
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
         except h2.exceptions.ProtocolError:

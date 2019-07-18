@@ -4,7 +4,7 @@ from typing import Any, Awaitable, Callable, Generator, Optional
 import trio
 
 from ..config import Config
-from ..events import Closed, Event, RawData
+from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
 from ..typing import ASGIFramework
 from ..utils import invoke_asgi, parse_socket_addr
@@ -118,6 +118,8 @@ class Server:
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
+        elif isinstance(event, Updated):
+            pass  # Triggers the keep alive timeout update
         await self._update_keep_alive_timeout()
 
     async def _read_data(self) -> None:
