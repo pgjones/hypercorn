@@ -192,12 +192,7 @@ class WSStream:
                 self.app_put = await self.spawn_app(self.scope, self.app_send)
                 await self.app_put({"type": "websocket.connect"})
         elif isinstance(event, (Body, Data)):
-            if event.data == b"":
-                # WSProto expects None to indicate the connection has
-                # closed on it.
-                self.connection.receive_data(None)
-            else:
-                self.connection.receive_data(event.data)
+            self.connection.receive_data(event.data)
             await self._handle_events()
         elif isinstance(event, StreamClosed) and not self.closed:
             self.closed = True
