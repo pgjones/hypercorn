@@ -72,7 +72,7 @@ async def test_protocol_send_body(protocol: H11Protocol) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("keep_alive, expected", [(True, Updated()), (False, Closed())])
-async def test_protocol_send_end_body(
+async def test_protocol_send_stream_closed(
     keep_alive: bool, expected: Any, protocol: H11Protocol
 ) -> None:
     data = b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"
@@ -83,6 +83,7 @@ async def test_protocol_send_end_body(
     await protocol.handle(RawData(data=data))
     await protocol.stream_send(Response(stream_id=1, status_code=200, headers=[]))
     await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.stream_send(StreamClosed(stream_id=1))
     protocol.send.assert_called()
     assert protocol.send.call_args_list[2] == call(expected)
 

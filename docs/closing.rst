@@ -21,6 +21,19 @@ raise an exception. This exception is caught and a Closed event is
 sent to the protocol. The protocol should then send each stream a
 StreamClosed event and delete the stream.
 
+Server disconnection
+--------------------
+
+In the normal course of actions a stream should send a EndBody or
+EndData followed by a StreamClosed event to indicate that the stream
+has finished and the connection can be closed. However if the
+application errors the stream may only be able to send a StreamClosed
+event. Therefore the protocol only sends a StreamClosed event back to
+the stream on receipt of the StreamClosed from the stream.
+
+The protocol only sends a Closed event to the server if the connection
+must be closed, e.g. HTTP/1 without keep alive or an error.
+
 ASGI messages
 -------------
 

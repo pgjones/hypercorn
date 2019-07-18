@@ -147,5 +147,6 @@ class HTTPStream:
                             self.scope, self.response, time() - self.start_time
                         )
                         await self.send(EndBody(stream_id=self.stream_id))
+                        await self.send(StreamClosed(stream_id=self.stream_id))
             else:
                 raise UnexpectedMessage(self.state, message["type"])

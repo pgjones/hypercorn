@@ -91,6 +91,7 @@ class H2Protocol:
             self.flow_control = {}
             for stream_id, stream in self.streams.items():
                 await stream.handle(StreamClosed(stream_id=stream_id))
+            self.streams = {}
 
     async def stream_send(self, event: StreamEvent) -> None:
         try:
@@ -104,11 +105,10 @@ class H2Protocol:
                 await self._flush()
             elif isinstance(event, (Body, Data)):
                 await self._send_data(event.stream_id, event.data)
-            elif isinstance(event, EndData):
-                pass
-            elif isinstance(event, (EndBody, StreamClosed)):
+            elif isinstance(event, (EndBody, EndData)):
                 self.connection.end_stream(event.stream_id)
                 await self._flush()
+            elif isinstance(event, StreamClosed):
                 await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
                 del self.streams[event.stream_id]
                 await self.send(Updated())

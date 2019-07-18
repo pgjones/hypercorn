@@ -118,6 +118,7 @@ class Server:
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
+            await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
             pass  # Triggers the keep alive timeout update
         await self._update_keep_alive_timeout()

@@ -127,7 +127,6 @@ class H11Protocol:
             await self._send_h11_event(h11.Data(data=event.data))
         elif isinstance(event, EndBody):
             await self._send_h11_event(h11.EndOfMessage())
-            await self._maybe_recycle()
         elif isinstance(event, Data):
             await self.send(RawData(data=event.data))
         elif isinstance(event, EndData):
