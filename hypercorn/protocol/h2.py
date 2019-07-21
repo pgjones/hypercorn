@@ -133,9 +133,9 @@ class H2Protocol:
             elif isinstance(event, h2.events.StreamEnded):
                 await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
             elif isinstance(event, h2.events.StreamReset):
-                await self._window_updated(event.stream_id)
                 await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
                 del self.streams[event.stream_id]
+                await self._window_updated(event.stream_id)
             elif isinstance(event, h2.events.WindowUpdated):
                 await self._window_updated(event.stream_id)
             elif isinstance(event, h2.events.RemoteSettingsChanged):
@@ -154,6 +154,8 @@ class H2Protocol:
         while True:
             while self.connection.local_flow_control_window(stream_id) < 1:
                 await self._wait_for_flow_control(stream_id)
+                if stream_id not in self.streams:  # Stream has been cancelled
+                    return
 
             chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
             chunk_size = min(chunk_size, self.connection.max_outbound_frame_size)
@@ -163,7 +165,7 @@ class H2Protocol:
             await self._flush()
             data = data[chunk_size:]
             if not data:
-                break
+                return
 
     async def _wait_for_flow_control(self, stream_id: int) -> None:
         event = self.event_class()
