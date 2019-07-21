@@ -234,6 +234,7 @@ class H2Protocol:
                 promised_stream_id=push_stream_id,
                 request_headers=request_headers,
             )
+            await self._flush()
         except h2.exceptions.ProtocolError:
             # Client does not accept push promises or we are trying to
             # push on a push promises request.
