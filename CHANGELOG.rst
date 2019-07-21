@@ -1,3 +1,17 @@
+0.7.1 2019-07-21
+----------------
+
+* Bugfix correct the request duration units.
+* Bugfix ensure disconnect messages are only sent once.
+* Bugfix correctly handle client disconnection.
+* Bugfix ensure the keep alive timeout is updated.
+* Bugfix don't pass None to the wsproto connection.
+* Bugfix correctly handle server disconnections.
+* Bugfix specify header encoding.
+* Bugfix HTTP/2 stream closing issues.
+* Bugfix send HTTP/2 push promise frame sooner.
+* Bugfix HTTP/2 stream closing issues.
+
 0.7.0 2019-07-08
 ----------------
 
