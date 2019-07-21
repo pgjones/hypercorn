@@ -86,12 +86,12 @@ class H2Protocol:
             else:
                 await self._handle_events(events)
         elif isinstance(event, Closed):
-            for flow_event in self.flow_control.values():
-                await flow_event.set()
-            self.flow_control = {}
             for stream_id, stream in self.streams.items():
                 await stream.handle(StreamClosed(stream_id=stream_id))
             self.streams = {}
+            for flow_event in self.flow_control.values():
+                await flow_event.set()
+            self.flow_control = {}
 
     async def stream_send(self, event: StreamEvent) -> None:
         try:
