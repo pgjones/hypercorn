@@ -109,8 +109,7 @@ class H2Protocol:
                 self.connection.end_stream(event.stream_id)
                 await self._flush()
             elif isinstance(event, StreamClosed):
-                await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
-                del self.streams[event.stream_id]
+                await self._close_stream(event.stream_id)
                 await self.send(Updated())
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
@@ -133,8 +132,7 @@ class H2Protocol:
             elif isinstance(event, h2.events.StreamEnded):
                 await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
             elif isinstance(event, h2.events.StreamReset):
-                await self.streams[event.stream_id].handle(StreamClosed(stream_id=event.stream_id))
-                del self.streams[event.stream_id]
+                await self._close_stream(event.stream_id)
                 await self._window_updated(event.stream_id)
             elif isinstance(event, h2.events.WindowUpdated):
                 await self._window_updated(event.stream_id)
@@ -245,3 +243,8 @@ class H2Protocol:
             event.headers = request_headers
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
+
+    async def _close_stream(self, stream_id: int) -> None:
+        if stream_id in self.streams:
+            await self.streams[stream_id].handle(StreamClosed(stream_id=stream_id))
+            del self.streams[stream_id]
