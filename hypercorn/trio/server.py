@@ -85,10 +85,10 @@ class Server:
             socket = self.stream.socket
             ssl = False
 
-        client = parse_socket_addr(socket.family, socket.getpeername())
-        server = parse_socket_addr(socket.family, socket.getsockname())
-
         try:
+            client = parse_socket_addr(socket.family, socket.getpeername())
+            server = parse_socket_addr(socket.family, socket.getsockname())
+
             async with trio.open_nursery() as nursery:
                 self.nursery = nursery
                 self.protocol = ProtocolWrapper(
