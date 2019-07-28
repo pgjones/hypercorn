@@ -82,7 +82,8 @@ class HTTPStream:
             # Allow app to finish after close
             return
 
-        if message is None:  # App has errored
+        if message is None:  # ASGI App has finished sending messages
+            # Cleanup if required
             if self.state == ASGIHTTPState.REQUEST:
                 await self.send(
                     Response(
