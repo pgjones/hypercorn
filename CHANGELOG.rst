@@ -1,3 +1,15 @@
+0.7.2 2019-07-28
+----------------
+
+* Bugfix only delete the H2 stream if present.
+* Bugfix change the h2 closed routine to avoid a dictionary changed
+  size during iteration error.
+* Bugfix move the trio socket address parsing within the try-finally
+  (as the socket can immediately close after/during the ssl
+  handshake).
+* Bugfix handle ASGI apps ending prematurely.
+* Bugfix shield data sending in Trio worker.
+
 0.7.1 2019-07-21
 ----------------
 
