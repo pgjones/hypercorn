@@ -114,7 +114,9 @@ class Server:
         if isinstance(event, RawData):
             async with self.send_lock:
                 try:
-                    await self.stream.send_all(event.data)
+                    with trio.CancelScope() as cancel_scope:
+                        cancel_scope.shield = True
+                        await self.stream.send_all(event.data)
                 except trio.BrokenResourceError:
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
