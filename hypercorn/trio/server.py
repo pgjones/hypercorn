@@ -42,7 +42,8 @@ async def _handle(
             raise
     except Exception:
         await config.log.exception("Error in ASGI Framework")
-    await send(None)
+    finally:
+        await send(None)
 
 
 async def spawn_app(
