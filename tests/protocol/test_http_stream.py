@@ -19,16 +19,17 @@ async def _stream() -> HTTPStream:
     return stream
 
 
+@pytest.mark.parametrize("http_version", ["1.0", "1.1"])
 @pytest.mark.asyncio
-async def test_handle_request(stream: HTTPStream) -> None:
+async def test_handle_request_1(stream: HTTPStream, http_version: str) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="1.1", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
     )
     stream.spawn_app.assert_called()
     scope = stream.spawn_app.call_args[0][0]
     assert scope == {
         "type": "http",
-        "http_version": "1.1",
+        "http_version": http_version,
         "asgi": {"spec_version": "2.1"},
         "method": "GET",
         "scheme": "http",
@@ -39,6 +40,30 @@ async def test_handle_request(stream: HTTPStream) -> None:
         "headers": [],
         "client": None,
         "server": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_handle_request_2(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+    )
+    stream.spawn_app.assert_called()
+    scope = stream.spawn_app.call_args[0][0]
+    assert scope == {
+        "type": "http",
+        "http_version": "2",
+        "asgi": {"spec_version": "2.1"},
+        "method": "GET",
+        "scheme": "http",
+        "path": "/",
+        "raw_path": b"/",
+        "query_string": b"a=b",
+        "root_path": stream.config.root_path,
+        "headers": [],
+        "client": None,
+        "server": None,
+        "extensions": {"http.response.push": {}},
     }
 
 
@@ -68,10 +93,11 @@ async def test_handle_closed(stream: HTTPStream) -> None:
     assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
 
 
+@pytest.mark.parametrize("http_version", ["1.0", "1.1", "2"])
 @pytest.mark.asyncio
-async def test_send_response(stream: HTTPStream) -> None:
+async def test_send_response(stream: HTTPStream, http_version: str) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="1.1", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
     )
     await stream.app_send({"type": "http.response.start", "status": 200, "headers": []})
     assert stream.state == ASGIHTTPState.REQUEST
@@ -89,10 +115,11 @@ async def test_send_response(stream: HTTPStream) -> None:
     stream.config._log.access.assert_called()
 
 
+@pytest.mark.parametrize("http_version", ["1.0", "1.1", "2"])
 @pytest.mark.asyncio
-async def test_send_app_error(stream: HTTPStream) -> None:
+async def test_send_app_error(stream: HTTPStream, http_version: str) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="1.1", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
     )
     await stream.app_send(None)
     stream.send.assert_called()

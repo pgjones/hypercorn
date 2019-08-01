@@ -65,7 +65,7 @@ async def test_http_to_https_redirect_middleware_websocket_http2() -> None:
 
     scope = {
         "type": "websocket",
-        "http_version": "2.0",
+        "http_version": "2",
         "scheme": "ws",
         "path": "/abc",
         "query_string": b"a=b",
@@ -94,7 +94,7 @@ async def test_http_to_https_redirect_middleware_websocket_no_rejection() -> Non
 
     scope = {
         "type": "websocket",
-        "http_version": "2.0",
+        "http_version": "2",
         "scheme": "ws",
         "path": "/abc",
         "query_string": b"a=b",

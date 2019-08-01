@@ -42,7 +42,7 @@ class HTTPToHTTPSRedirectMiddleware:
         # scheme not wss.
 
         scheme = "wss"
-        if scope.get("http_version", "1.1") == "2.0":
+        if scope.get("http_version", "1.1") == "2":
             scheme = "https"
 
         new_url = urlunsplit((scheme, self.host, scope["path"], scope["query_string"].decode(), ""))

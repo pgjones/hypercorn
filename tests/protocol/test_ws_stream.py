@@ -87,8 +87,8 @@ def test_buffer_mixed_types(data: list) -> None:
             "1.1",
             False,
         ),
-        ([(b"sec-websocket-version", b"13")], "2.0", True),
-        ([(b"sec-websocket-version", b"12")], "2.0", False),
+        ([(b"sec-websocket-version", b"13")], "2", True),
+        ([(b"sec-websocket-version", b"12")], "2", False),
     ],
 )
 def test_handshake_validity(
@@ -118,7 +118,7 @@ def test_handshake_accept_http1() -> None:
 
 
 def test_handshake_accept_http2() -> None:
-    handshake = Handshake([(b"sec-websocket-version", b"13")], "2.0")
+    handshake = Handshake([(b"sec-websocket-version", b"13")], "2")
     status_code, headers, _ = handshake.accept(None)
     assert status_code == 200
     assert headers == []
@@ -138,7 +138,7 @@ async def test_handle_request(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/?a=b",
             method="GET",
@@ -150,7 +150,7 @@ async def test_handle_request(stream: WSStream) -> None:
         "type": "websocket",
         "asgi": {"spec_version": "2.1"},
         "scheme": "ws",
-        "http_version": "2.0",
+        "http_version": "2",
         "path": "/",
         "raw_path": b"/",
         "query_string": b"a=b",
@@ -168,7 +168,7 @@ async def test_handle_connection(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/?a=b",
             method="GET",
@@ -195,7 +195,7 @@ async def test_send_accept(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
@@ -212,7 +212,7 @@ async def test_send_reject(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
@@ -238,7 +238,7 @@ async def test_send_app_error_handshake(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
@@ -265,7 +265,7 @@ async def test_send_app_error_connected(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
@@ -287,7 +287,7 @@ async def test_send_connection(stream: WSStream) -> None:
     await stream.handle(
         Request(
             stream_id=1,
-            http_version="2.0",
+            http_version="2",
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",

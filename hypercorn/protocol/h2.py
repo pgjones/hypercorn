@@ -213,7 +213,7 @@ class H2Protocol:
             Request(
                 stream_id=request.stream_id,
                 headers=request.headers,
-                http_version="2.0",
+                http_version="2",
                 method=method,
                 raw_path=raw_path,
             )

@@ -62,7 +62,7 @@ class HTTPStream:
                 "client": self.client,
                 "server": self.server,
             }
-            if event.http_version == "2.0":
+            if event.http_version == "2":
                 self.scope["extensions"] = {"http.response.push": {}}
             self.start_time = time()
             self.app_put = await self.spawn_app(self.scope, self.app_send)
@@ -101,7 +101,7 @@ class HTTPStream:
         else:
             if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
                 self.response = message
-            elif message["type"] == "http.response.push" and self.scope["http_version"] == "2.0":
+            elif message["type"] == "http.response.push" and self.scope["http_version"] == "2":
                 if not isinstance(message["path"], str):
                     raise TypeError(f"{message['path']} should be a str")
                 headers = []
@@ -113,7 +113,7 @@ class HTTPStream:
                     Request(
                         stream_id=self.stream_id,
                         headers=headers,
-                        http_version="2.0",
+                        http_version="2",
                         method="GET",
                         raw_path=message["path"].encode(),
                     )
