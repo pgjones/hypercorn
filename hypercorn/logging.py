@@ -69,7 +69,7 @@ class AccessLogAtoms(dict):
     def __init__(self, request: dict, response: dict, request_time: float) -> None:
         for name, value in request["headers"]:
             self[f"{{{name.decode('latin1').lower()}}}i"] = value.decode("latin1")
-        for name, value in response["headers"]:
+        for name, value in response.get("headers", []):
             self[f"{{{name.decode('latin1').lower()}}}o"] = value.decode("latin1")
         for name, value in os.environ.items():
             self[f"{{{name.lower()}}}e"] = value

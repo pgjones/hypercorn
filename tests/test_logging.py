@@ -94,6 +94,19 @@ def test_access_log_header_atoms(request_scope: dict, response: dict) -> None:
     assert atoms["{X-HYPERCORN}o"] == "Hypercorn"
 
 
+@pytest.fixture(name="response_no_headers")
+def _response_no_headers_scope() -> dict:
+    return {"status": 200}
+
+
+def test_access_no_log_header_atoms(request_scope: dict, response_no_headers: dict) -> None:
+    atoms = AccessLogAtoms(request_scope, response_no_headers, 0)
+    assert atoms["{X-Hypercorn}i"] == "Hypercorn"
+    assert atoms["{X-HYPERCORN}i"] == "Hypercorn"
+    assert atoms["{not-atom}i"] == "-"
+    assert not any(key.startswith("{") and key.endswith("}o") for key in atoms.keys())
+
+
 def test_access_log_environ_atoms(request_scope: dict, response: dict) -> None:
     os.environ["Random"] = "Environ"
     atoms = AccessLogAtoms(request_scope, response, 0)
