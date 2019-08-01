@@ -21,7 +21,7 @@ async def _stream() -> HTTPStream:
 
 @pytest.mark.parametrize("http_version", ["1.0", "1.1"])
 @pytest.mark.asyncio
-async def test_handle_request_1(stream: HTTPStream, http_version: str) -> None:
+async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> None:
     await stream.handle(
         Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
     )
@@ -44,7 +44,7 @@ async def test_handle_request_1(stream: HTTPStream, http_version: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_handle_request_2(stream: HTTPStream) -> None:
+async def test_handle_request_http_2(stream: HTTPStream) -> None:
     await stream.handle(
         Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
     )
@@ -93,11 +93,10 @@ async def test_handle_closed(stream: HTTPStream) -> None:
     assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
 
 
-@pytest.mark.parametrize("http_version", ["1.0", "1.1", "2"])
 @pytest.mark.asyncio
-async def test_send_response(stream: HTTPStream, http_version: str) -> None:
+async def test_send_response(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
+        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
     )
     await stream.app_send({"type": "http.response.start", "status": 200, "headers": []})
     assert stream.state == ASGIHTTPState.REQUEST
@@ -115,11 +114,10 @@ async def test_send_response(stream: HTTPStream, http_version: str) -> None:
     stream.config._log.access.assert_called()
 
 
-@pytest.mark.parametrize("http_version", ["1.0", "1.1", "2"])
 @pytest.mark.asyncio
-async def test_send_app_error(stream: HTTPStream, http_version: str) -> None:
+async def test_send_app_error(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
+        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
     )
     await stream.app_send(None)
     stream.send.assert_called()
