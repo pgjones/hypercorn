@@ -155,10 +155,11 @@ class H2Protocol:
                 if stream_id not in self.streams:  # Stream has been cancelled
                     return
 
-            chunk_size = min(len(data), self.connection.local_flow_control_window(stream_id))
-            chunk_size = min(chunk_size, self.connection.max_outbound_frame_size)
-            if chunk_size < 1:  # Pathological client sending negative window sizes
-                continue
+            chunk_size = min(
+                len(data),
+                self.connection.local_flow_control_window(stream_id),
+                self.connection.max_outbound_frame_size,
+            )
             self.connection.send_data(stream_id, data[:chunk_size])
             await self._flush()
             data = data[chunk_size:]
