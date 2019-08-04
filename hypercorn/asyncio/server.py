@@ -121,7 +121,7 @@ class Server:
             else:
                 await self.protocol.handle(RawData(data))
                 self._update_keep_alive_timeout()
-                if data == b"":
+                if self.reader.at_eof():
                     break
 
     async def _close(self) -> None:

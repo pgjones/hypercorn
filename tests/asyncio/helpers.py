@@ -12,12 +12,18 @@ class MockSSLObject:
 class MemoryReader:
     def __init__(self) -> None:
         self.data: asyncio.Queue = asyncio.Queue()
+        self.eof = False
 
     async def send(self, data: bytes) -> None:
+        if data == b"":
+            self.eof = True
         await self.data.put(data)
 
     async def read(self, length: int) -> bytes:
         return await self.data.get()
+
+    def at_eof(self) -> bool:
+        return self.data.empty() and self.eof
 
 
 class MemoryWriter:
