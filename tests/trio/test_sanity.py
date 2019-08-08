@@ -125,7 +125,6 @@ async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
         for event in h2_events:
             if isinstance(event, h2.events.DataReceived):
                 client.acknowledge_received_data(event.flow_controlled_length, event.stream_id)
-                await client_stream.send_all(client.data_to_send())
             elif isinstance(
                 event,
                 (h2.events.ConnectionTerminated, h2.events.StreamEnded, h2.events.StreamReset),
@@ -134,6 +133,7 @@ async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
                 break
             else:
                 events.append(event)
+        await client_stream.send_all(client.data_to_send())
     assert isinstance(events[2], h2.events.ResponseReceived)
     assert events[2].headers == [
         (b":status", b"200"),

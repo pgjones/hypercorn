@@ -15,7 +15,14 @@ with open(os.path.join(PROJECT_ROOT, "hypercorn", "__about__.py")) as file_:
 with open(os.path.join(PROJECT_ROOT, "README.rst")) as file_:
     long_description = file_.read()
 
-INSTALL_REQUIRES = ["h11", "h2 >= 3.1.0", "toml", "typing_extensions", "wsproto >= 0.14.0"]
+INSTALL_REQUIRES = [
+    "h11",
+    "h2 >= 3.1.0",
+    "priority",
+    "toml",
+    "typing_extensions",
+    "wsproto >= 0.14.0",
+]
 
 TESTS_REQUIRE = ["asynctest", "hypothesis", "pytest", "pytest-asyncio"]
 

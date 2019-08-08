@@ -94,6 +94,7 @@ class Server:
             alpn_protocol,
         )
         await self.protocol.initiate()
+        self.loop.create_task(self.protocol.send_task())
         self._update_keep_alive_timeout()
         await self._read_data()
 

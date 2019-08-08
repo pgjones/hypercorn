@@ -103,6 +103,7 @@ class Server:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
+                nursery.start_soon(self.protocol.send_task)
                 await self._update_keep_alive_timeout()
                 await self._read_data()
         except (trio.MultiError, OSError):

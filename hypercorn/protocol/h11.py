@@ -99,6 +99,9 @@ class H11Protocol:
     async def initiate(self) -> None:
         pass
 
+    async def send_task(self) -> None:
+        pass
+
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
             self.connection.receive_data(event.data)
