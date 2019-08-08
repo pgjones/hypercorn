@@ -247,5 +247,5 @@ class H2Protocol:
 
     async def _close_stream(self, stream_id: int) -> None:
         if stream_id in self.streams:
-            await self.streams[stream_id].handle(StreamClosed(stream_id=stream_id))
-            del self.streams[stream_id]
+            stream = self.streams.pop(stream_id)
+            await stream.handle(StreamClosed(stream_id=stream_id))
