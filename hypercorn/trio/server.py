@@ -105,7 +105,7 @@ class Server:
                 await self.protocol.initiate()
                 await self._update_keep_alive_timeout()
                 await self._read_data()
-        except trio.MultiError:
+        except (trio.MultiError, OSError):
             pass
         finally:
             await self._close()
