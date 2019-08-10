@@ -12,7 +12,7 @@ from wsproto.events import (
     Ping,
     TextMessage,
 )
-from wsproto.extensions import PerMessageDeflate
+from wsproto.extensions import Extension, PerMessageDeflate
 from wsproto.frame_protocol import CloseReason
 from wsproto.handshake import server_extensions_handshake, WEBSOCKET_VERSION
 from wsproto.utilities import generate_accept_token, split_comma_header
@@ -87,7 +87,7 @@ class Handshake:
             else:
                 headers.append((b"sec-websocket-protocol", subprotocol.encode()))
 
-        extensions = [PerMessageDeflate()]
+        extensions: List[Extension] = [PerMessageDeflate()]
         accepts = None
         if False and self.extensions is not None:
             accepts = server_extensions_handshake(self.extensions, extensions)
