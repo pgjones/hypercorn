@@ -28,16 +28,18 @@ FilePath = Union[AnyStr, os.PathLike]
 class Sockets:
     secure_sockets: List[socket.socket]
     insecure_sockets: List[socket.socket]
+    quic_sockets: List[socket.socket]
 
 
 class Config:
     _bind = ["127.0.0.1:8000"]
     _insecure_bind: List[str] = []
+    _quic_bind: List[str] = []
     _log: Optional[Logger] = None
 
     access_log_format = "%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s"
     accesslog: Union[logging.Logger, str, None] = None
-    alpn_protocols = ["h2", "http/1.1"]
+    alpn_protocols = ["h3-22", "h2", "http/1.1"]
     application_path: str
     backlog = 100
     ca_certs: Optional[str] = None
@@ -104,6 +106,17 @@ class Config:
         else:
             self._insecure_bind = value
 
+    @property
+    def quic_bind(self) -> List[str]:
+        return self._quic_bind
+
+    @quic_bind.setter
+    def quic_bind(self, value: Union[List[str], str]) -> None:
+        if isinstance(value, str):
+            self._quic_bind = [value]
+        else:
+            self._quic_bind = value
+
     def create_ssl_context(self) -> Optional[SSLContext]:
         if not self.ssl_enabled:
             return None
@@ -138,17 +151,21 @@ class Config:
         if self.ssl_enabled:
             secure_sockets = self._create_sockets(self.bind)
             insecure_sockets = self._create_sockets(self.insecure_bind)
+            quic_sockets = self._create_sockets(self.quic_bind, socket.SOCK_DGRAM)
         else:
             secure_sockets = []
             insecure_sockets = self._create_sockets(self.bind)
-        return Sockets(secure_sockets, insecure_sockets)
+            quic_sockets = []
+        return Sockets(secure_sockets, insecure_sockets, quic_sockets)
 
-    def _create_sockets(self, binds: List[str]) -> List[socket.socket]:
+    def _create_sockets(
+        self, binds: List[str], type_: int = socket.SOCK_STREAM
+    ) -> List[socket.socket]:
         sockets: List[socket.socket] = []
         for bind in binds:
             binding: Any = None
             if bind.startswith("unix:"):
-                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                sock = socket.socket(socket.AF_UNIX, type_)
                 binding = bind[5:]
                 try:
                     if stat.S_ISSOCK(os.stat(binding).st_mode):
@@ -156,7 +173,7 @@ class Config:
                 except FileNotFoundError:
                     pass
             elif bind.startswith("fd://"):
-                sock = socket.fromfd(int(bind[5:]), socket.AF_UNIX, socket.SOCK_STREAM)
+                sock = socket.fromfd(int(bind[5:]), socket.AF_UNIX, type_)
             else:
                 bind = bind.replace("[", "").replace("]", "")
                 try:
@@ -164,9 +181,7 @@ class Config:
                     host, port = value[0], int(value[1])
                 except (ValueError, IndexError):
                     host, port = bind, 8000
-                sock = socket.socket(
-                    socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM
-                )
+                sock = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, type_)
                 if self.workers > 1:
                     try:
                         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
@@ -189,6 +204,10 @@ class Config:
         headers = [(b"date", format_date_time(time()).encode("ascii"))]
         if self.include_server_header:
             headers.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
+        for bind in self._quic_bind:
+            port = int(bind.split(":")[-1])
+            headers.append((b"alt-svc", b'quic=":%d"; ma=2592000;' % port))
+
         return headers
 
     def set_statsd_logger_class(self, statsd_logger: Type[Logger]) -> None:

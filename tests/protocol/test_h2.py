@@ -6,7 +6,7 @@ from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h2
 from asynctest.mock import CoroutineMock, Mock as AsyncMock
-from hypercorn.asyncio.server import EventWrapper
+from hypercorn.asyncio.tcp_server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, H2Protocol, StreamBuffer

@@ -42,7 +42,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         "-b",
         "--bind",
         dest="binds",
-        help=""" The host/address to bind to. Should be either host:port, host,
+        help=""" The TCP host/address to bind to. Should be either host:port, host,
         unix:path or fd://num, e.g. 127.0.0.1:5000, 127.0.0.1,
         unix:/tmp/socket or fd://33 respectively.  """,
         default=[],
@@ -91,7 +91,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--insecure-bind",
         dest="insecure_binds",
-        help="""The host/address to bind to. SSL options will not apply to these binds.
+        help="""The TCP host/address to bind to. SSL options will not apply to these binds.
         See *bind* for formatting options. Care must be taken! See HTTP -> HTTPS redirection docs.
         """,
         default=[],
@@ -102,6 +102,15 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     )
     parser.add_argument(
         "-p", "--pid", help="Location to write the PID (Program ID) to.", default=sentinel
+    )
+    parser.add_argument(
+        "--quic-bind",
+        dest="quic_binds",
+        help="""The UDP/QUIC host/address to bind to. See *bind* for formatting
+        options.
+        """,
+        default=[],
+        action="append",
     )
     parser.add_argument(
         "--reload",
@@ -195,6 +204,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.bind = args.binds
     if len(args.insecure_binds) > 0:
         config.insecure_bind = args.insecure_binds
+    if len(args.quic_binds) > 0:
+        config.quic_bind = args.quic_binds
 
     run(config)
 

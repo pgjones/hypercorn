@@ -51,7 +51,12 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     py_modules=["hypercorn"],
     install_requires=INSTALL_REQUIRES,
-    extras_require={"trio": ["trio >= 0.11.0"], "uvloop": ["uvloop"], "tests": TESTS_REQUIRE},
+    extras_require={
+        "h3": ["aioquic == 0.2.0"],
+        "tests": TESTS_REQUIRE,
+        "trio": ["trio >= 0.11.0"],
+        "uvloop": ["uvloop"],
+    },
     tests_require="hypercorn[tests]",
     entry_points={"console_scripts": ["hypercorn = hypercorn.__main__:main"]},
     include_package_data=True,

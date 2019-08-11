@@ -1,12 +1,13 @@
 import asyncio
 from functools import partial
-from typing import Any, Awaitable, Callable, Generator, Optional
+from typing import Any, Generator, Optional
 
+from .spawn_app import spawn_app
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
 from ..typing import ASGIFramework
-from ..utils import invoke_asgi, parse_socket_addr
+from ..utils import parse_socket_addr
 
 MAX_RECV = 2 ** 16
 
@@ -25,32 +26,7 @@ class EventWrapper:
         self._event.set()
 
 
-async def _handle(
-    app: ASGIFramework, config: Config, scope: dict, receive: Callable, send: Callable
-) -> None:
-    try:
-        await invoke_asgi(app, scope, receive, send)
-    except asyncio.CancelledError:
-        raise
-    except Exception:
-        await config.log.exception("Error in ASGI Framework")
-    finally:
-        await send(None)
-
-
-async def spawn_app(
-    app: ASGIFramework,
-    loop: asyncio.AbstractEventLoop,
-    config: Config,
-    scope: dict,
-    send: Callable[[dict], Awaitable[None]],
-) -> Callable[[dict], Awaitable[None]]:
-    app_queue: asyncio.Queue = asyncio.Queue(config.max_app_queue_size)
-    loop.create_task(_handle(app, config, scope, app_queue.get, send))
-    return app_queue.put
-
-
-class Server:
+class TCPServer:
     def __init__(
         self,
         app: ASGIFramework,

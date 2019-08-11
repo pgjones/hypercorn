@@ -5,7 +5,7 @@ import h11
 import pytest
 import wsproto
 
-from hypercorn.asyncio.server import Server
+from hypercorn.asyncio.tcp_server import TCPServer
 from hypercorn.config import Config
 from .helpers import MemoryReader, MemoryWriter
 from ..helpers import SANITY_BODY, sanity_framework
@@ -13,7 +13,7 @@ from ..helpers import SANITY_BODY, sanity_framework
 
 @pytest.mark.asyncio
 async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = Server(  # type: ignore
+    server = TCPServer(  # type: ignore
         sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
     )
     asyncio.ensure_future(server.run())
@@ -63,7 +63,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = Server(  # type: ignore
+    server = TCPServer(  # type: ignore
         sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
     )
     asyncio.ensure_future(server.run())
@@ -95,7 +95,7 @@ async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = Server(  # type: ignore
+    server = TCPServer(  # type: ignore
         sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter(http2=True)
     )
     asyncio.ensure_future(server.run())
@@ -147,7 +147,7 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = Server(  # type: ignore
+    server = TCPServer(  # type: ignore
         sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter(http2=True)
     )
     asyncio.ensure_future(server.run())

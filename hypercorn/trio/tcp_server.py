@@ -1,13 +1,14 @@
 from functools import partial
-from typing import Any, Awaitable, Callable, Generator, Optional
+from typing import Any, Callable, Generator, Optional
 
 import trio
 
+from .spawn_app import spawn_app
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
 from ..typing import ASGIFramework
-from ..utils import invoke_asgi, parse_socket_addr
+from ..utils import parse_socket_addr
 
 MAX_RECV = 2 ** 16
 
@@ -26,39 +27,7 @@ class EventWrapper:
         self._event.set()
 
 
-async def _handle(
-    app: ASGIFramework, config: Config, scope: dict, receive: Callable, send: Callable
-) -> None:
-    try:
-        await invoke_asgi(app, scope, receive, send)
-    except trio.Cancelled:
-        raise
-    except trio.MultiError as error:
-        errors = error.filter(lambda exc: None if isinstance(exc, trio.Cancelled) else exc)
-        if errors is not None:
-            await config.log.exception("Error in ASGI Framework")
-            await send(None)
-        else:
-            raise
-    except Exception:
-        await config.log.exception("Error in ASGI Framework")
-    finally:
-        await send(None)
-
-
-async def spawn_app(
-    nursery: trio._core._run.Nursery,
-    app: ASGIFramework,
-    config: Config,
-    scope: dict,
-    send: Callable[[dict], Awaitable[None]],
-) -> Callable[[dict], Awaitable[None]]:
-    app_send_channel, app_receive_channel = trio.open_memory_channel(config.max_app_queue_size)
-    nursery.start_soon(_handle, app, config, scope, app_receive_channel.receive, send)
-    return app_send_channel.send
-
-
-class Server:
+class TCPServer:
     def __init__(self, app: ASGIFramework, config: Config, stream: trio.abc.Stream) -> None:
         self.app = app
         self.config = config

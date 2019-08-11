@@ -3,7 +3,8 @@ from typing import Callable
 
 import pytest
 
-from hypercorn.asyncio.server import Server, spawn_app
+from hypercorn.asyncio.spawn_app import spawn_app
+from hypercorn.asyncio.tcp_server import TCPServer
 from hypercorn.config import Config
 from .helpers import MemoryReader, MemoryWriter
 from ..helpers import echo_framework
@@ -46,14 +47,14 @@ async def test_spawn_app_cancelled(event_loop: asyncio.AbstractEventLoop) -> Non
 
 
 @pytest.fixture(name="server")
-def _server(event_loop: asyncio.AbstractEventLoop) -> Server:
-    return Server(  # type: ignore
+def _server(event_loop: asyncio.AbstractEventLoop) -> TCPServer:
+    return TCPServer(  # type: ignore
         echo_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
     )
 
 
 @pytest.mark.asyncio
-async def test_initial_keep_alive_timeout(server: Server) -> None:
+async def test_initial_keep_alive_timeout(server: TCPServer) -> None:
     server.config.keep_alive_timeout = 0.01
     asyncio.ensure_future(server.run())
     await asyncio.sleep(2 * server.config.keep_alive_timeout)
@@ -61,7 +62,7 @@ async def test_initial_keep_alive_timeout(server: Server) -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_request_keep_alive_timeout(server: Server) -> None:
+async def test_post_request_keep_alive_timeout(server: TCPServer) -> None:
     server.config.keep_alive_timeout = 0.01
     asyncio.ensure_future(server.run())
     await server.reader.send(  # type: ignore
@@ -72,7 +73,7 @@ async def test_post_request_keep_alive_timeout(server: Server) -> None:
 
 
 @pytest.mark.asyncio
-async def test_completes_on_closed(server: Server) -> None:
+async def test_completes_on_closed(server: TCPServer) -> None:
     await server.reader.send(b"")  # type: ignore
     await server.run()
     # Key is that this line is reached, rather than the above line

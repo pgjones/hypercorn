@@ -6,8 +6,9 @@ from multiprocessing.synchronize import Event as EventType
 from typing import Any, Coroutine, Optional
 
 from .lifespan import Lifespan
-from .server import Server
 from .statsd import StatsdLogger
+from .tcp_server import TCPServer
+from .udp_server import UDPServer
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -92,7 +93,7 @@ async def worker_serve(
         ssl_handshake_timeout = config.ssl_handshake_timeout
 
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await Server(app, loop, config, reader, writer)
+        await TCPServer(app, loop, config, reader, writer)
 
     servers = []
     for sock in sockets.secure_sockets:
@@ -117,6 +118,11 @@ async def worker_serve(
         )
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
+
+    for sock in sockets.quic_sockets:
+        await loop.create_datagram_endpoint(lambda: UDPServer(app, loop, config), sock=sock)
+        bind = repr_socket_addr(sock.family, sock.getsockname())
+        await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
 
     reload_ = False
     try:

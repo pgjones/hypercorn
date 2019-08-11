@@ -5,8 +5,9 @@ from typing import Optional
 import trio
 
 from .lifespan import Lifespan
-from .server import Server
 from .statsd import StatsdLogger
+from .tcp_server import TCPServer
+from .udp_server import UDPServer
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -73,8 +74,12 @@ async def worker_serve(
                     binds.append(f"http://{bind}")
                     await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
+                for sock in sockets.quic_sockets:
+                    await nursery.start(UDPServer(app, config, sock, nursery).run)
+                    await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
+
                 task_status.started(binds)
-                await trio.serve_listeners(partial(Server, app, config), listeners)
+                await trio.serve_listeners(partial(TCPServer, app, config), listeners)
 
         except MustReloadException:
             reload_ = True
