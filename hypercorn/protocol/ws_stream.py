@@ -197,7 +197,11 @@ class WSStream:
         elif isinstance(event, StreamClosed) and not self.closed:
             self.closed = True
             if self.app_put is not None:
-                await self.app_put({"type": "websocket.disconnect"})
+                if self.state in {ASGIWebsocketState.HTTPCLOSED, ASGIWebsocketState.CLOSED}:
+                    code = CloseReason.NORMAL_CLOSURE.value
+                else:
+                    code = CloseReason.ABNORMAL_CLOSURE.value
+                await self.app_put({"type": "websocket.disconnect", "code": code})
 
     async def app_send(self, message: Optional[dict]) -> None:
         if self.closed:

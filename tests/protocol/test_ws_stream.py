@@ -187,7 +187,7 @@ async def test_handle_connection(stream: WSStream) -> None:
 async def test_handle_closed(stream: WSStream) -> None:
     await stream.handle(StreamClosed(stream_id=1))
     stream.app_put.assert_called()
-    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect"})]
+    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect", "code": 1006})]
 
 
 @pytest.mark.asyncio
@@ -372,7 +372,7 @@ async def test_closure(stream: WSStream) -> None:
     assert stream.closed
     # It is important that the disconnect message has only been sent
     # once.
-    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect"})]
+    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect", "code": 1006})]
 
 
 @pytest.mark.asyncio
