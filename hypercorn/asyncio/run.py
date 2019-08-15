@@ -3,6 +3,8 @@ import platform
 import signal
 import ssl
 from multiprocessing.synchronize import Event as EventType
+from os import getpid
+from socket import socket
 from typing import Any, Coroutine, Optional
 
 from .lifespan import Lifespan
@@ -36,6 +38,15 @@ async def _windows_signal_support() -> None:
     # Windows it is necessary for an IO event to happen periodically.
     while True:
         await asyncio.sleep(1)
+
+
+def _share_socket(sock: socket) -> socket:
+    # Windows requires the socket be explicitly shared across
+    # multiple workers (processes).
+    from socket import fromshare  # type: ignore
+
+    sock_data = sock.share(getpid())  # type: ignore
+    return fromshare(sock_data)
 
 
 async def worker_serve(
@@ -97,6 +108,9 @@ async def worker_serve(
 
     servers = []
     for sock in sockets.secure_sockets:
+        if config.workers > 1 and platform.system() == "Windows":
+            sock = _share_socket(sock)
+
         servers.append(
             await asyncio.start_server(
                 _server_callback,
@@ -111,6 +125,9 @@ async def worker_serve(
         await config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
 
     for sock in sockets.insecure_sockets:
+        if config.workers > 1 and platform.system() == "Windows":
+            sock = _share_socket(sock)
+
         servers.append(
             await asyncio.start_server(
                 _server_callback, backlog=config.backlog, loop=loop, sock=sock
@@ -120,6 +137,9 @@ async def worker_serve(
         await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
     for sock in sockets.quic_sockets:
+        if config.workers > 1 and platform.system() == "Windows":
+            sock = _share_socket(sock)
+
         await loop.create_datagram_endpoint(lambda: UDPServer(app, loop, config), sock=sock)
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
