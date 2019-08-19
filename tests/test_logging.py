@@ -29,7 +29,9 @@ def test_access_logger_init(
     logger = Logger(config)
     assert logger.access_log_format == "%h"
     assert logger.getEffectiveLevel() == logging.INFO
-    if expected_name is None:
+    if target is None:
+        assert logger.access_logger is None
+    elif expected_name is None:
         assert logger.access_logger.handlers == []
     else:
         assert logger.access_logger.name == expected_name

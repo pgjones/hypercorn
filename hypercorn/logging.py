@@ -13,16 +13,18 @@ def _create_logger(
 ) -> logging.Logger:
     if isinstance(target, logging.Logger):
         return target
-    else:
+    elif target is not None:
         logger = logging.getLogger(name)
         logger.propagate = False
         logger.handlers = []
         if target == "-":
             logger.addHandler(logging.StreamHandler(sys_default))
-        elif target is not None:
+        else:
             logger.addHandler(logging.FileHandler(target))
         logger.setLevel(logging.getLevelName(level.upper()))
         return logger
+    else:
+        return None
 
 
 class Logger:
@@ -36,30 +38,38 @@ class Logger:
         self.access_log_format = config.access_log_format
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
-        self.access_logger.info(
-            self.access_log_format, AccessLogAtoms(request, response, request_time)
-        )
+        if self.access_logger is not None:
+            self.access_logger.info(
+                self.access_log_format, AccessLogAtoms(request, response, request_time)
+            )
 
     async def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.critical(message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.critical(message, *args, **kwargs)
 
     async def error(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.error(message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.error(message, *args, **kwargs)
 
     async def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.warning(message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.warning(message, *args, **kwargs)
 
     async def info(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.info(message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.info(message, *args, **kwargs)
 
     async def debug(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.debug(message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.debug(message, *args, **kwargs)
 
     async def exception(self, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.exception(message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.exception(message, *args, **kwargs)
 
     async def log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
-        self.error_logger.log(level, message, *args, **kwargs)
+        if self.error_logger is not None:
+            self.error_logger.log(level, message, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.error_logger, name)
