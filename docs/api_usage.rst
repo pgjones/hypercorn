@@ -8,9 +8,18 @@ explained in the :ref:`usage` documentation. Alternatively it is
 possible to use Hypercorn programmatically via the ``serve`` function
 available for either the asyncio or trio :ref:`workers` (note the
 asyncio ``serve`` can be used with uvloop). In Python 3.7, or better,
-this can be done as follows, assuming you have an ASGI framework
-instance called ``app`` and a Hypercorn Config instance called
-``config``,
+this can be done as follows, first you need to create a Hypercorn
+Config instance,
+
+.. code-block:: python
+
+    from hypercorn.config import Config
+
+    config = Config()
+    config.bind = ["localhost:8080"]  # As an example configuration setting
+
+Then assuming you have an ASGI framework instance called ``app``,
+using asyncio,
 
 .. code-block:: python
 
