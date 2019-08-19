@@ -31,7 +31,5 @@ async def serve(
         warnings.warn("The config `debug` has no affect when using serve", Warning)
     if config.workers != 1:
         warnings.warn("The config `workers` has no affect when using serve", Warning)
-    if config.worker_class != "trio":
-        warnings.warn("The config `worker_class` has no affect when using serve", Warning)
 
     await worker_serve(app, config, task_status=task_status)
