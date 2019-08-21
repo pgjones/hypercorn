@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Awaitable, Callable, Dict
+from typing import Awaitable, Callable, Dict, Optional, Tuple
 
 from aioquic.buffer import Buffer
 from aioquic.quic.configuration import QuicConfiguration
@@ -28,6 +28,7 @@ class QuicProtocol:
     def __init__(
         self,
         config: Config,
+        server: Optional[Tuple[str, int]],
         spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
         send: Callable[[Event], Awaitable[None]],
         call_at: Callable[[float, Callable], None],
@@ -39,6 +40,7 @@ class QuicProtocol:
         self.http_connections: Dict[QuicConnection, H3Protocol] = {}
         self.now = now
         self.send = send
+        self.server = server
         self.spawn_app = spawn_app
 
         with open(config.certfile, "rb") as fp:
@@ -81,7 +83,7 @@ class QuicProtocol:
 
             if connection is not None:
                 connection.receive_datagram(event.data, event.address, now=self.now())
-                await self._handle_events(connection)
+                await self._handle_events(connection, event.address)
         elif isinstance(event, Closed):
             pass
 
@@ -89,14 +91,21 @@ class QuicProtocol:
         for data, address in connection.datagrams_to_send(now=self.now()):
             await self.send(RawData(data=data, address=address))
 
-    async def _handle_events(self, connection: QuicConnection) -> None:
+    async def _handle_events(
+        self, connection: QuicConnection, client: Optional[Tuple[str, int]] = None
+    ) -> None:
         event = connection.next_event()
         while event is not None:
             if isinstance(event, ConnectionTerminated):
                 pass
             elif isinstance(event, ProtocolNegotiated):
                 self.http_connections[connection] = H3Protocol(
-                    self.config, self.spawn_app, connection, partial(self.send_all, connection)
+                    self.config,
+                    client,
+                    self.server,
+                    self.spawn_app,
+                    connection,
+                    partial(self.send_all, connection),
                 )
             elif isinstance(event, ConnectionIdIssued):
                 self.connections[event.connection_id] = connection
@@ -117,4 +126,4 @@ class QuicProtocol:
     async def _handle_timer(self, connection: QuicConnection) -> None:
         if connection._close_at is not None:
             connection.handle_timer(now=self.now())
-            await self._handle_events(connection)
+            await self._handle_events(connection, None)

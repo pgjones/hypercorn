@@ -7,6 +7,7 @@ from .spawn_app import spawn_app
 from ..config import Config
 from ..events import Event, RawData
 from ..typing import ASGIFramework
+from ..utils import parse_socket_addr
 
 MAX_RECV = 2 ** 16
 
@@ -24,14 +25,16 @@ class UDPServer:
         self.app = app
         self.config = config
         self.nursery = nursery
+        self.socket = trio.socket.from_stdlib_socket(socket)
+        server = parse_socket_addr(socket.family, socket.getsockname())
         self.protocol = QuicProtocol(
             config,
+            server,
             partial(spawn_app, self.nursery, self.app, self.config),
             self.protocol_send,
             self._call_at,
             trio.current_time,
         )
-        self.socket = trio.socket.from_stdlib_socket(socket)
 
     async def run(
         self, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED

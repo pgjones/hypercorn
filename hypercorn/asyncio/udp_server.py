@@ -1,34 +1,44 @@
 import asyncio
 from functools import partial
-from typing import Awaitable, Callable, Optional, Tuple
+from typing import Awaitable, Callable, Optional, Tuple, TYPE_CHECKING
 
 from .spawn_app import spawn_app
 from ..config import Config
 from ..events import Closed, Event, RawData
 from ..typing import ASGIFramework
+from ..utils import parse_socket_addr
+
+if TYPE_CHECKING:
+    # h3/Quic is an optional part of Hypercorn
+    from ..protocol.quic import QuicProtocol  # noqa: F401
 
 
 class UDPServer(asyncio.DatagramProtocol):
     def __init__(self, app: ASGIFramework, loop: asyncio.AbstractEventLoop, config: Config) -> None:
-        from ..protocol.quic import QuicProtocol  # h3/Quic is an optional part of Hypercorn
-
         self.app = app
         self.config = config
         self.loop = loop
-        self.protocol = QuicProtocol(
-            config,
-            partial(spawn_app, self.app, self.loop, self.config),
-            self.protocol_send,
-            self._call_at,
-            self.loop.time,
-        )
+        self.protocol: "QuicProtocol"
         self.protocol_queue: asyncio.Queue = asyncio.Queue(10)
         self.transport: Optional[asyncio.DatagramTransport] = None
 
         self.loop.create_task(self._consume_events())
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:  # type: ignore
+        # h3/Quic is an optional part of Hypercorn
+        from ..protocol.quic import QuicProtocol  # noqa: F811
+
         self.transport = transport
+        socket = self.transport.get_extra_info("socket")
+        server = parse_socket_addr(socket.family, socket.getsockname())
+        self.protocol = QuicProtocol(
+            self.config,
+            server,
+            partial(spawn_app, self.app, self.loop, self.config),
+            self.protocol_send,
+            self._call_at,
+            self.loop.time,
+        )
 
     def datagram_received(self, data: bytes, address: Tuple[bytes, str]) -> None:  # type: ignore
         try:

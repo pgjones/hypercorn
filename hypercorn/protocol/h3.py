@@ -1,4 +1,4 @@
-from typing import Awaitable, Callable, Dict
+from typing import Awaitable, Callable, Dict, Optional, Tuple
 
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import DataReceived, RequestReceived
@@ -14,13 +14,17 @@ class H3Protocol:
     def __init__(
         self,
         config: Config,
+        client: Optional[Tuple[str, int]],
+        server: Optional[Tuple[str, int]],
         spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
         quic: QuicConnection,
         send: Callable[[], Awaitable[None]],
     ) -> None:
+        self.client = client
         self.config = config
         self.connection = H3Connection(quic)
         self.send = send
+        self.server = server
         self.spawn_app = spawn_app
         self.streams: Dict[int, HTTPStream] = {}
 
@@ -61,7 +65,13 @@ class H3Protocol:
                 raw_path = value
 
         self.streams[request.stream_id] = HTTPStream(
-            self.config, True, None, None, self.stream_send, self.spawn_app, request.stream_id
+            self.config,
+            True,
+            self.client,
+            self.server,
+            self.stream_send,
+            self.spawn_app,
+            request.stream_id,
         )
         await self.streams[request.stream_id].handle(
             Request(
