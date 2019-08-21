@@ -3,7 +3,7 @@ from typing import Awaitable, Callable, Dict, Optional, Tuple, Union
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import DataReceived, RequestReceived
 from aioquic.quic.connection import QuicConnection
-from aioquic.quic.events import Event as QuicEvent
+from aioquic.quic.events import QuicEvent
 
 from .events import (
     Body,
