@@ -61,3 +61,28 @@ The API usage assumes that you wish to control how the event loop is
 configured and where the event loop runs. Therefore the configuration
 options to change the worker class and number of workers have no
 affect when using serve.
+
+Graceful shutdown
+-----------------
+
+To shutdown the app the ``serve`` function takes an additional
+``shutdown_trigger`` argument that will be awaited by Hypercorn. If
+the ``shutdown_trigger`` returns it will trigger a graceful
+shutdown. An example use of this functionality is to shutdown on
+receipt of a TERM signal,
+
+.. code-block:: python
+
+    import asyncio
+    import signal
+
+    shutdown_event = asyncio.Event()
+
+    def _signal_handler(*_: Any) -> None:
+            shutdown_event.set()
+
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGTERM, _signal_handler)
+    loop.run_until_complete(
+        serve(app, config, shutdown_trigger=shutdown_event.wait)
+    )

@@ -2,10 +2,11 @@ import asyncio
 import platform
 import signal
 import ssl
+from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from os import getpid
 from socket import socket
-from typing import Any, Coroutine, Optional
+from typing import Any, Awaitable, Callable, Coroutine, Optional
 
 from .lifespan import Lifespan
 from .statsd import StatsdLogger
@@ -14,10 +15,11 @@ from .udp_server import UDPServer
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
-    check_shutdown,
+    check_multiprocess_shutdown_event,
     load_application,
     MustReloadException,
     observe_changes,
+    raise_shutdown,
     repr_socket_addr,
     restart,
     Shutdown,
@@ -54,7 +56,7 @@ async def worker_serve(
     config: Config,
     *,
     sockets: Optional[Sockets] = None,
-    shutdown_event: Optional[EventType] = None,
+    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 
@@ -92,8 +94,8 @@ async def worker_serve(
 
         tasks.append(loop.create_task(_check_signal()))
 
-    if shutdown_event is not None:
-        tasks.append(loop.create_task(check_shutdown(shutdown_event, asyncio.sleep)))
+    if shutdown_trigger is not None:
+        tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
 
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
@@ -172,8 +174,13 @@ def asyncio_worker(
     config: Config, sockets: Optional[Sockets] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
     app = load_application(config.application_path)
+
+    shutdown_trigger = None
+    if shutdown_event is not None:
+        shutdown_trigger = partial(check_multiprocess_shutdown_event, shutdown_event, asyncio.sleep)
+
     _run(
-        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event),
+        worker_serve(app, config, sockets=sockets, shutdown_trigger=shutdown_trigger),
         debug=config.debug,
     )
 
@@ -189,8 +196,13 @@ def uvloop_worker(
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     app = load_application(config.application_path)
+
+    shutdown_trigger = None
+    if shutdown_event is not None:
+        shutdown_trigger = partial(check_multiprocess_shutdown_event, shutdown_event, asyncio.sleep)
+
     _run(
-        worker_serve(app, config, sockets=sockets, shutdown_event=shutdown_event),
+        worker_serve(app, config, sockets=sockets, shutdown_trigger=shutdown_trigger),
         debug=config.debug,
     )
 

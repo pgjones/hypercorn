@@ -137,12 +137,17 @@ def restart() -> None:
     os.execv(executable, [executable] + args)
 
 
-async def check_shutdown(
+async def raise_shutdown(shutdown_event: Callable[..., Awaitable[None]]) -> None:
+    await shutdown_event()
+    raise Shutdown()
+
+
+async def check_multiprocess_shutdown_event(
     shutdown_event: EventType, sleep: Callable[[float], Awaitable[Any]]
 ) -> None:
     while True:
         if shutdown_event.is_set():
-            raise Shutdown()
+            return
         await sleep(0.1)
 
 

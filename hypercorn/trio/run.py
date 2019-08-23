@@ -1,6 +1,6 @@
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 import trio
 
@@ -11,10 +11,11 @@ from .udp_server import UDPServer
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
-    check_shutdown,
+    check_multiprocess_shutdown_event,
     load_application,
     MustReloadException,
     observe_changes,
+    raise_shutdown,
     repr_socket_addr,
     restart,
     Shutdown,
@@ -26,7 +27,7 @@ async def worker_serve(
     config: Config,
     *,
     sockets: Optional[Sockets] = None,
-    shutdown_event: Optional[EventType] = None,
+    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
     task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
@@ -43,8 +44,8 @@ async def worker_serve(
                 if config.use_reloader:
                     nursery.start_soon(observe_changes, trio.sleep)
 
-                if shutdown_event is not None:
-                    nursery.start_soon(check_shutdown, shutdown_event, trio.sleep)
+                if shutdown_trigger is not None:
+                    nursery.start_soon(raise_shutdown, shutdown_trigger)
 
                 if sockets is None:
                     sockets = config.create_sockets()
@@ -102,4 +103,9 @@ def trio_worker(
         for sock in sockets.insecure_sockets:
             sock.listen(config.backlog)
     app = load_application(config.application_path)
-    trio.run(partial(worker_serve, app, config, sockets=sockets, shutdown_event=shutdown_event))
+
+    shutdown_trigger = None
+    if shutdown_event is not None:
+        shutdown_trigger = check_multiprocess_shutdown_event(shutdown_event, trio.sleep)
+
+    trio.run(partial(worker_serve, app, config, sockets=sockets, shutdown_trigger=shutdown_trigger))
