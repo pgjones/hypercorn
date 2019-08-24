@@ -125,3 +125,47 @@ configured via the configuration ``ssl_handshake_timeout`` setting.
 
 The default value for ``ssl_handshake_timeout`` is 60 seconds, which
 is chosen as it is the limit used in NGINX.
+
+HTTP/2 attacks
+--------------
+
+There are a number of specific attacks against the HTTP/2 protocol
+that are designed to exhuast the server's resources. These are only
+feasible against a server serving over HTTP/2, and hence apply to
+Hypercorn by default.
+
+Flood attacks
+^^^^^^^^^^^^^
+
+This attack aims to exhaust the server's resources by requesting ack
+frames whilst not consuming them. It is conceptually similar to the
+"No response consumption" attack discussed above however this attack
+slowly consumes frames that are unrelated to the HTTP response such as
+ping, setting, and reset frames.
+
+To mitigate this Hypercorn responds to the backpressure and pauses
+(blocks) the reading data from the client. Depending on the state of
+the connection a timeout should then close the connection.
+
+Data Dribble
+^^^^^^^^^^^^
+
+This attack aims to exhaust the server's resources by requesting a
+response whilst setting the window size to a very small value e.g. 1
+byte. The server could then exhaust memory buffering the response. It
+is conceptually similar to the "No response consumption" attack
+discussed above.
+
+It is up to the framework to guard against this attack. This is to
+allow for responses that purposely take a long time, e.g. server sent
+events.
+
+Internal Data Buffering
+^^^^^^^^^^^^^^^^^^^^^^^
+
+This attack is conceptually similar to the "Flood attack" and "No
+response consumption" attack in that it requires the server to buffer
+data that it cannot send to the client.
+
+To mitigate this Hypercorn responds to the backpressure and pauses
+(blocks) the coroutine writing the response.
