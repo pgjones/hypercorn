@@ -73,6 +73,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=sentinel,
     )
     parser.add_argument(
+        "-g", "--group", help="Group to own any unix sockets.", default=sentinel, type=int
+    )
+    parser.add_argument(
         "-k",
         "--worker-class",
         dest="worker_class",
@@ -125,6 +128,16 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         "--statsd-host", help="The host:port of the statsd server", default=sentinel
     )
     parser.add_argument("--statsd-prefix", help="Prefix for all statsd messages", default="")
+    parser.add_argument(
+        "-m",
+        "--umask",
+        help="The permissions bit mask to use on any unix sockets.",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
+        "-u", "--user", help="User to own any unix sockets.", default=sentinel, type=int
+    )
 
     def _convert_verify_mode(value: str) -> ssl.VerifyMode:  # type: ignore
         try:
@@ -181,6 +194,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.errorlog = args.error_log
     if args.error_logfile is not sentinel:
         config.errorlog = args.error_log
+    if args.group is not sentinel:
+        config.group = args.group
     if args.keep_alive is not sentinel:
         config.keep_alive_timeout = args.keep_alive
     if args.keyfile is not sentinel:
@@ -195,6 +210,10 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.statsd_host = args.statsd_host
     if args.statsd_prefix is not sentinel:
         config.statsd_prefix = args.statsd_prefix
+    if args.umask is not sentinel:
+        config.umask = args.umask
+    if args.user is not sentinel:
+        config.user = args.user
     if args.worker_class is not sentinel:
         config.worker_class = args.worker_class
     if args.workers is not sentinel:

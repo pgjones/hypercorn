@@ -48,6 +48,7 @@ class Config:
     debug = False
     dogstatsd_tags = ""
     errorlog: Union[logging.Logger, str, None] = "-"
+    group: int = os.getegid()
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2 ** 16
@@ -65,7 +66,9 @@ class Config:
     startup_timeout = 60 * SECONDS
     statsd_host: Optional[str] = None
     statsd_prefix = ""
+    umask: int = 0
     use_reloader = False
+    user: int = os.geteuid()
     verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
@@ -190,8 +193,17 @@ class Config:
                 binding = (host, port)
 
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            if binding is not None:
+
+            if bind.startswith("unix:"):
+                current_umask = os.umask(self.umask)
                 sock.bind(binding)
+                os.chown(binding, self.user, self.group)
+                os.umask(current_umask)
+            elif bind.startswith("fd://"):
+                pass
+            else:
+                sock.bind(binding)
+
             sock.setblocking(False)
             try:
                 sock.set_inheritable(True)

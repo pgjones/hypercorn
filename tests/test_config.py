@@ -83,6 +83,7 @@ def test_create_sockets_ip(
 def test_create_sockets_unix(monkeypatch: MonkeyPatch) -> None:
     mock_socket = Mock()
     monkeypatch.setattr(socket, "socket", mock_socket)
+    monkeypatch.setattr(os, "chown", Mock())
     config = Config()
     config.bind = ["unix:/tmp/hypercorn.sock"]
     sockets = config.create_sockets()
@@ -110,6 +111,7 @@ def test_create_sockets_fd(monkeypatch: MonkeyPatch) -> None:
 def test_create_sockets_multiple(monkeypatch: MonkeyPatch) -> None:
     mock_socket = Mock()
     monkeypatch.setattr(socket, "socket", mock_socket)
+    monkeypatch.setattr(os, "chown", Mock())
     config = Config()
     config.bind = ["127.0.0.1", "unix:/tmp/hypercorn.sock"]
     sockets = config.create_sockets()

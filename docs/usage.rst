@@ -28,7 +28,7 @@ The following options exist with the given usage,
                         The log format for the access log, see help docs
   --backlog BACKLOG     The maximum number of pending connections
   -b BINDS, --bind BINDS
-                        The host/address to bind to. Should be either
+                        The TCP host/address to bind to. Should be either
                         host:port, host, unix:path or fd://num, e.g.
                         127.0.0.1:5000, 127.0.0.1, unix:/tmp/socket or fd://33
                         respectively.
@@ -46,6 +46,8 @@ The following options exist with the given usage,
   --error-logfile ERROR_LOGFILE, --log-file ERROR_LOGFILE
                         The target location for the error log, use `-` for
                         stderr
+  -g GROUP, --group GROUP
+                        Group to own any unix sockets.
   -k WORKER_CLASS, --worker-class WORKER_CLASS
                         The type of worker to use. Options include asyncio,
                         uvloop (pip install hypercorn[uvloop]), and trio (pip
@@ -54,13 +56,16 @@ The following options exist with the given usage,
                         Seconds to keep inactive connections alive for
   --keyfile KEYFILE     Path to the SSL key file
   --insecure-bind INSECURE_BINDS
-                        The host/address to bind to. SSL options will not
+                        The TCP host/address to bind to. SSL options will not
                         apply to these binds. See *bind* for formatting
                         options. Care must be taken! See HTTP -> HTTPS
                         redirection docs.
   --log-level LOG_LEVEL
                         The (error) log level, defaults to info
   -p PID, --pid PID     Location to write the PID (Program ID) to.
+  --quic-bind QUIC_BINDS
+                        The UDP/QUIC host/address to bind to. See *bind* for
+                        formatting options.
   --reload              Enable automatic reloads on code changes
   --root-path ROOT_PATH
                         The setting for the ASGI root_path variable
@@ -68,6 +73,9 @@ The following options exist with the given usage,
                         The host:port of the statsd server
   --statsd-prefix STATSD_PREFIX
                         Prefix for all statsd messages
+  -m UMASK, --umask UMASK
+                        The permissions bit mask to use on any unix sockets.
+  -u USER, --user USER  User to own any unix sockets.
   --verify-mode VERIFY_MODE
                         SSL verify mode for peer's certificate, see
                         ssl.VerifyMode enum for possible values.

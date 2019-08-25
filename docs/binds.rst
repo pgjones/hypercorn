@@ -18,6 +18,10 @@ specify an address. For example,
 
     $ hypercorn --bind unix:/tmp/socket.sock
 
+It is possible to control the permissions and ownership of the created
+socket using the ``umask``, ``user``, and ``group`` configurations
+respectively.
+
 File descriptor
 ---------------
 
