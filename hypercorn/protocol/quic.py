@@ -60,7 +60,10 @@ class QuicProtocol:
 
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
-            header = pull_quic_header(Buffer(data=event.data), host_cid_length=8)
+            try:
+                header = pull_quic_header(Buffer(data=event.data), host_cid_length=8)
+            except ValueError:
+                return
             if (
                 header.version is not None
                 and header.version not in self.quic_config.supported_versions
@@ -74,7 +77,11 @@ class QuicProtocol:
                 return
 
             connection = self.connections.get(header.destination_cid)
-            if connection is None and header.packet_type == PACKET_TYPE_INITIAL:
+            if (
+                connection is None
+                and len(event.data) >= 1200
+                and header.packet_type == PACKET_TYPE_INITIAL
+            ):
                 connection = QuicConnection(
                     configuration=self.quic_config, original_connection_id=None
                 )
