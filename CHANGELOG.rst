@@ -1,3 +1,9 @@
+0.8.1 2019-08-26
+----------------
+
+* Bugfix make unix socket ownership and mask optional, fixing a
+  Windows bug.
+
 0.8.0 2019-08-26
 ----------------
 
