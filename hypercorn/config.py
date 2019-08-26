@@ -48,7 +48,7 @@ class Config:
     debug = False
     dogstatsd_tags = ""
     errorlog: Union[logging.Logger, str, None] = "-"
-    group: int = os.getegid()
+    group: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2 ** 16
@@ -66,9 +66,9 @@ class Config:
     startup_timeout = 60 * SECONDS
     statsd_host: Optional[str] = None
     statsd_prefix = ""
-    umask: int = 0
+    umask: Optional[int] = None
     use_reloader = False
-    user: int = os.geteuid()
+    user: Optional[int] = None
     verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
@@ -195,10 +195,13 @@ class Config:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             if bind.startswith("unix:"):
-                current_umask = os.umask(self.umask)
+                if self.umask is not None:
+                    current_umask = os.umask(self.umask)
                 sock.bind(binding)
-                os.chown(binding, self.user, self.group)
-                os.umask(current_umask)
+                if self.user is not None and self.group is not None:
+                    os.chown(binding, self.user, self.group)
+                if self.umask is not None:
+                    os.umask(current_umask)
             elif bind.startswith("fd://"):
                 pass
             else:
