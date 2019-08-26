@@ -1,3 +1,25 @@
+0.8.0 2019-08-26
+----------------
+
+* Support HTTP/2 prioritisation, thereby ensuring Hypercorn sends data
+  according to the client's priorisation.
+* Support HTTP/3 as an optional extra (``pip install hypercorn[h3]``).
+* Support WebSockets over HTTP/3.
+* Remove worker class warnings when using serve.
+* Add a shutdown_trigger argument to serve functions.
+* Add the ability to change permissions and ownerships of unix sockets.
+* Bugfix ensure ASGI http response headers is an optional field.
+* Bugfix set the version to ``2`` rather than ``2.0`` in the scope.
+* Bugfix Catch ClosedResourceError as well and close.
+* Bugfix fix KeyError in close_stream.
+* Bugfix catch and ignore OSErrors when setting up a connection.
+* Bugfix ensure a closure code is sent with the WebSocket ASGI
+  disconnect message.
+* Bugfix WinError 10022 Invalid argument to allow multiple workers on
+  Windows.
+* Bugfix handle logger targets equal to None.
+* Bugfix don't send empty bytes (eof) to protocols.
+
 0.7.2 2019-07-28
 ----------------
 
