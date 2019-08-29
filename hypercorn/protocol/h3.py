@@ -42,6 +42,8 @@ class H3Protocol:
         for event in self.connection.handle_event(quic_event):
             if isinstance(event, RequestReceived):
                 await self._create_stream(event)
+                if event.stream_ended:
+                    await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
             elif isinstance(event, DataReceived):
                 await self.streams[event.stream_id].handle(
                     Body(stream_id=event.stream_id, data=event.data)
