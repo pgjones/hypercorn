@@ -1,3 +1,9 @@
+0.8.2 2019-08-29
+----------------
+
+* Bugfix correctly handle HTTP/3 request with no body.
+* Bugfix correct the alt-svc for HTTP/3.
+
 0.8.1 2019-08-26
 ----------------
 
