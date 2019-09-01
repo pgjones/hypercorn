@@ -193,7 +193,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         )
         config.errorlog = args.error_log
     if args.error_logfile is not sentinel:
-        config.errorlog = args.error_log
+        config.errorlog = args.error_logfile
     if args.group is not sentinel:
         config.group = args.group
     if args.keep_alive is not sentinel:
