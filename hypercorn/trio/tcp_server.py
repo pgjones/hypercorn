@@ -104,10 +104,11 @@ class TCPServer:
                 await self.protocol.handle(Closed())
                 break
             else:
-                await self._update_keep_alive_timeout()
                 if data == b"":
+                    await self._update_keep_alive_timeout()
                     break
                 await self.protocol.handle(RawData(data))
+                await self._update_keep_alive_timeout()
 
     async def _close(self) -> None:
         try:
