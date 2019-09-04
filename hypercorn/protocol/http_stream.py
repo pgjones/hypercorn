@@ -7,6 +7,8 @@ from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage
 
+PUSH_VERSIONS = {"2", "3"}
+
 
 class ASGIHTTPState(Enum):
     # The ASGI Spec is clear that a response should not start till the
@@ -62,7 +64,7 @@ class HTTPStream:
                 "client": self.client,
                 "server": self.server,
             }
-            if event.http_version == "2":
+            if event.http_version in PUSH_VERSIONS:
                 self.scope["extensions"] = {"http.response.push": {}}
             self.start_time = time()
             self.app_put = await self.spawn_app(self.scope, self.app_send)
@@ -101,7 +103,10 @@ class HTTPStream:
         else:
             if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
                 self.response = message
-            elif message["type"] == "http.response.push" and self.scope["http_version"] == "2":
+            elif (
+                message["type"] == "http.response.push"
+                and self.scope["http_version"] in PUSH_VERSIONS
+            ):
                 if not isinstance(message["path"], str):
                     raise TypeError(f"{message['path']} should be a str")
                 headers = []
@@ -113,7 +118,7 @@ class HTTPStream:
                     Request(
                         stream_id=self.stream_id,
                         headers=headers,
-                        http_version="2",
+                        http_version=self.scope["http_version"],
                         method="GET",
                         raw_path=message["path"].encode(),
                     )

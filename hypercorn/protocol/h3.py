@@ -1,7 +1,8 @@
-from typing import Awaitable, Callable, Dict, Optional, Tuple, Union
+from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import DataReceived, RequestReceived
+from aioquic.h3.exceptions import NoAvailablePushIDError
 from aioquic.quic.connection import QuicConnection
 from aioquic.quic.events import QuicEvent
 
@@ -68,6 +69,8 @@ class H3Protocol:
             await self.send()
         elif isinstance(event, StreamClosed):
             pass  # ??
+        elif isinstance(event, Request):
+            await self._create_server_push(event.stream_id, event.raw_path, event.headers)
 
     async def _create_stream(self, request: RequestReceived) -> None:
         for name, value in request.headers:
@@ -106,3 +109,24 @@ class H3Protocol:
                 raw_path=raw_path,
             )
         )
+
+    async def _create_server_push(
+        self, stream_id: int, path: bytes, headers: List[Tuple[bytes, bytes]]
+    ) -> None:
+        request_headers = [(b":method", b"GET"), (b":path", path)]
+        request_headers.extend(headers)
+        request_headers.extend(self.config.response_headers("h3"))
+        try:
+            push_stream_id = self.connection.send_push_promise(
+                stream_id=stream_id, headers=request_headers
+            )
+        except NoAvailablePushIDError:
+            # Client does not accept push promises or we are trying to
+            # push on a push promises request.
+            pass
+        else:
+            event = RequestReceived(
+                stream_id=push_stream_id, stream_ended=True, headers=request_headers
+            )
+            await self._create_stream(event)
+            await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
