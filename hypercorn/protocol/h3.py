@@ -1,7 +1,7 @@
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 from aioquic.h3.connection import H3Connection
-from aioquic.h3.events import DataReceived, RequestReceived
+from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.h3.exceptions import NoAvailablePushIDError
 from aioquic.quic.connection import QuicConnection
 from aioquic.quic.events import QuicEvent
@@ -41,7 +41,7 @@ class H3Protocol:
 
     async def handle(self, quic_event: QuicEvent) -> None:
         for event in self.connection.handle_event(quic_event):
-            if isinstance(event, RequestReceived):
+            if isinstance(event, HeadersReceived):
                 await self._create_stream(event)
                 if event.stream_ended:
                     await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
@@ -72,7 +72,7 @@ class H3Protocol:
         elif isinstance(event, Request):
             await self._create_server_push(event.stream_id, event.raw_path, event.headers)
 
-    async def _create_stream(self, request: RequestReceived) -> None:
+    async def _create_stream(self, request: HeadersReceived) -> None:
         for name, value in request.headers:
             if name == b":method":
                 method = value.decode("ascii").upper()
@@ -125,7 +125,7 @@ class H3Protocol:
             # push on a push promises request.
             pass
         else:
-            event = RequestReceived(
+            event = HeadersReceived(
                 stream_id=push_stream_id, stream_ended=True, headers=request_headers
             )
             await self._create_stream(event)
