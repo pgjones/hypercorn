@@ -82,6 +82,11 @@ def test__is_asgi_2(app: ASGIFramework, is_asgi_2: bool) -> None:
     assert hypercorn.utils._is_asgi_2(app) == is_asgi_2
 
 
+def test_build_and_validate_headers_validate() -> None:
+    with pytest.raises(TypeError):
+        hypercorn.utils.build_and_validate_headers([("string", "string")])  # type: ignore
+
+
 def test_build_and_validate_headers_pseudo() -> None:
     with pytest.raises(ValueError):
         hypercorn.utils.build_and_validate_headers([(b":authority", b"quart")])
