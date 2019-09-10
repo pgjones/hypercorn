@@ -80,3 +80,15 @@ async def asgi3_callable(scope: dict, receive: Callable, send: Callable) -> None
 )
 def test__is_asgi_2(app: ASGIFramework, is_asgi_2: bool) -> None:
     assert hypercorn.utils._is_asgi_2(app) == is_asgi_2
+
+
+def test_build_and_validate_headers_pseudo() -> None:
+    with pytest.raises(ValueError):
+        hypercorn.utils.build_and_validate_headers([(b":authority", b"quart")])
+
+
+def test_filter_pseudo_headers() -> None:
+    result = hypercorn.utils.filter_pseudo_headers(
+        [(b":authority", b"quart"), (b":path", b"/"), (b"user-agent", b"something")]
+    )
+    assert result == [(b"host", b"quart"), (b"user-agent", b"something")]

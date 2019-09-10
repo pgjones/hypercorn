@@ -19,6 +19,7 @@ from .events import (
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
+from ..utils import filter_pseudo_headers
 
 
 class H3Protocol:
@@ -103,7 +104,7 @@ class H3Protocol:
         await self.streams[request.stream_id].handle(
             Request(
                 stream_id=request.stream_id,
-                headers=request.headers,
+                headers=filter_pseudo_headers(request.headers),
                 http_version="3",
                 method=method,
                 raw_path=raw_path,

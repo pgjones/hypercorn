@@ -53,7 +53,22 @@ def suppress_body(method: str, status_code: int) -> bool:
 
 def build_and_validate_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
     # Validates that the header name and value are bytes
-    return [(bytes(name).lower().strip(), bytes(value).strip()) for name, value in headers]
+    validated_headers: List[Tuple[bytes, bytes]] = []
+    for name, value in headers:
+        if name[0] == b":"[0]:
+            raise ValueError("Pseudo headers are not valid")
+        validated_headers.append((bytes(name).lower().strip(), bytes(value).strip()))
+    return validated_headers
+
+
+def filter_pseudo_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
+    filtered_headers: List[Tuple[bytes, bytes]] = [(b"host", b"")]  # Placeholder
+    for name, value in headers:
+        if name == b":authority":  # h2 & h3 libraries validate this is present
+            filtered_headers[0] = (b"host", value)
+        elif name[0] != b":"[0]:
+            filtered_headers.append((name, value))
+    return filtered_headers
 
 
 def load_application(path: str) -> ASGIFramework:

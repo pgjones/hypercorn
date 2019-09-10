@@ -21,6 +21,7 @@ from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..typing import Event as IOEvent
+from ..utils import filter_pseudo_headers
 
 BUFFER_HIGH_WATER = 2 * 2 ** 14  # Twice the default max frame size (two frames worth)
 BUFFER_LOW_WATER = BUFFER_HIGH_WATER / 2
@@ -309,7 +310,7 @@ class H2Protocol:
         await self.streams[request.stream_id].handle(
             Request(
                 stream_id=request.stream_id,
-                headers=request.headers,
+                headers=filter_pseudo_headers(request.headers),
                 http_version="2",
                 method=method,
                 raw_path=raw_path,
