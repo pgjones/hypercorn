@@ -6,7 +6,7 @@ from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from os import getpid
 from socket import socket
-from typing import Any, Awaitable, Callable, Coroutine, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 from .lifespan import Lifespan
 from .statsd import StatsdLogger
@@ -29,10 +29,6 @@ try:
     from socket import AF_UNIX
 except ImportError:
     AF_UNIX = None
-
-
-def _raise_shutdown(*args: Any) -> None:
-    raise Shutdown()
 
 
 async def _windows_signal_support() -> None:
@@ -76,23 +72,6 @@ async def worker_serve(
     tasks = []
     if platform.system() == "Windows":
         tasks.append(loop.create_task(_windows_signal_support()))
-    else:
-        signal_event = asyncio.Event()
-
-        def _signal_handler(*_: Any) -> None:  # noqa: N803
-            signal_event.set()
-
-        try:
-            loop.add_signal_handler(signal.SIGINT, _signal_handler)
-            loop.add_signal_handler(signal.SIGTERM, _signal_handler)
-        except AttributeError:
-            pass
-
-        async def _check_signal() -> None:
-            await signal_event.wait()
-            raise Shutdown()
-
-        tasks.append(loop.create_task(_check_signal()))
 
     if shutdown_trigger is not None:
         tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
@@ -148,8 +127,11 @@ async def worker_serve(
 
     reload_ = False
     try:
-        gathered_tasks = asyncio.gather(*tasks)
-        await gathered_tasks
+        if tasks:
+            gathered_tasks = asyncio.gather(*tasks)
+            await gathered_tasks
+        else:
+            loop.run_forever()
     except MustReloadException:
         reload_ = True
     except (Shutdown, KeyboardInterrupt):
@@ -158,9 +140,11 @@ async def worker_serve(
         for server in servers:
             server.close()
             await server.wait_closed()
-        # Retrieve the Gathered Tasks Cancelled Exception, to
-        # prevent a warning that this hasn't been done.
-        gathered_tasks.exception()
+
+        if tasks:
+            # Retrieve the Gathered Tasks Cancelled Exception, to
+            # prevent a warning that this hasn't been done.
+            gathered_tasks.exception()
 
         await lifespan.wait_for_shutdown()
         lifespan_task.cancel()
@@ -180,8 +164,9 @@ def asyncio_worker(
         shutdown_trigger = partial(check_multiprocess_shutdown_event, shutdown_event, asyncio.sleep)
 
     _run(
-        worker_serve(app, config, sockets=sockets, shutdown_trigger=shutdown_trigger),
+        partial(worker_serve, app, config, sockets=sockets),
         debug=config.debug,
+        shutdown_trigger=shutdown_trigger,
     )
 
 
@@ -202,18 +187,39 @@ def uvloop_worker(
         shutdown_trigger = partial(check_multiprocess_shutdown_event, shutdown_event, asyncio.sleep)
 
     _run(
-        worker_serve(app, config, sockets=sockets, shutdown_trigger=shutdown_trigger),
+        partial(worker_serve, app, config, sockets=sockets),
         debug=config.debug,
+        shutdown_trigger=shutdown_trigger,
     )
 
 
-def _run(main: Coroutine, *, debug: bool = False) -> None:
+def _run(
+    main: Callable,
+    *,
+    debug: bool = False,
+    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+) -> None:
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.set_debug(debug)
+    loop.set_exception_handler(_exception_handler)
+
+    if shutdown_trigger is None:
+        signal_event = asyncio.Event()
+
+        def _signal_handler(*_: Any) -> None:  # noqa: N803
+            signal_event.set()
+
+        try:
+            loop.add_signal_handler(signal.SIGINT, _signal_handler)
+            loop.add_signal_handler(signal.SIGTERM, _signal_handler)
+        except AttributeError:
+            pass
+
+        shutdown_trigger = signal_event.wait  # type: ignore
+
     try:
-        asyncio.set_event_loop(loop)
-        loop.set_debug(debug)
-        loop.set_exception_handler(_exception_handler)
-        loop.run_until_complete(main)
+        loop.run_until_complete(main(shutdown_trigger=shutdown_trigger))
     finally:
         try:
             _cancel_all_tasks(loop)
