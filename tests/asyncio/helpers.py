@@ -12,18 +12,16 @@ class MockSSLObject:
 class MemoryReader:
     def __init__(self) -> None:
         self.data: asyncio.Queue = asyncio.Queue()
-        self.eof = False
 
     async def send(self, data: bytes) -> None:
-        if data == b"":
-            self.eof = True
-        await self.data.put(data)
+        if data != b"":
+            await self.data.put(data)
 
     async def read(self, length: int) -> bytes:
         return await self.data.get()
 
-    def at_eof(self) -> bool:
-        return self.data.empty() and self.eof
+    def close(self) -> None:
+        self.data.put_nowait(b"")
 
 
 class MemoryWriter:
@@ -44,6 +42,8 @@ class MemoryWriter:
         self.data.put_nowait(b"")
 
     def write(self, data: bytes) -> None:
+        if self.is_closed:
+            raise Exception()
         self.data.put_nowait(data)
 
     async def drain(self) -> None:

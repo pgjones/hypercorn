@@ -46,35 +46,12 @@ async def test_spawn_app_cancelled(event_loop: asyncio.AbstractEventLoop) -> Non
     assert app_queue.empty()
 
 
-@pytest.fixture(name="server")
-def _server(event_loop: asyncio.AbstractEventLoop) -> TCPServer:
-    return TCPServer(  # type: ignore
+@pytest.mark.asyncio
+async def test_completes_on_closed(event_loop: asyncio.AbstractEventLoop) -> None:
+    server = TCPServer(  # type: ignore
         echo_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
     )
-
-
-@pytest.mark.asyncio
-async def test_initial_keep_alive_timeout(server: TCPServer) -> None:
-    server.config.keep_alive_timeout = 0.01
-    asyncio.ensure_future(server.run())
-    await asyncio.sleep(2 * server.config.keep_alive_timeout)
-    assert server.writer.is_closed  # type: ignore
-
-
-@pytest.mark.asyncio
-async def test_post_request_keep_alive_timeout(server: TCPServer) -> None:
-    server.config.keep_alive_timeout = 0.01
-    asyncio.ensure_future(server.run())
-    await server.reader.send(  # type: ignore
-        b"GET / HTTP/1.1\r\nHost: hypercorn\r\nconnection: keep-alive\r\n\r\n"
-    )
-    await asyncio.sleep(2 * server.config.keep_alive_timeout)
-    assert server.writer.is_closed  # type: ignore
-
-
-@pytest.mark.asyncio
-async def test_completes_on_closed(server: TCPServer) -> None:
-    await server.reader.send(b"")  # type: ignore
+    server.reader.close()  # type: ignore
     await server.run()
     # Key is that this line is reached, rather than the above line
     # hanging.
