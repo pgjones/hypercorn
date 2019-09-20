@@ -24,7 +24,9 @@ INSTALL_REQUIRES = [
     "wsproto >= 0.14.0",
 ]
 
-TESTS_REQUIRE = ["asynctest", "hypothesis", "pytest", "pytest-asyncio"]
+TESTS_REQUIRE = [
+    "asynctest", "hypothesis", "pytest", "pytest-asyncio", "pytest-cov", "pytest-trio", "trio"
+]
 
 setup(
     name="Hypercorn",
