@@ -221,7 +221,7 @@ class Config:
             headers.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
         for bind in self._quic_bind:
             port = int(bind.split(":")[-1])
-            headers.append((b"alt-svc", b'h3=":%d"' % port))
+            headers.append((b"alt-svc", b'h3-23=":%d"; ma=3600' % port))
 
         return headers
 
