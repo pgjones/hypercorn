@@ -73,8 +73,9 @@ async def worker_serve(
     if platform.system() == "Windows":
         tasks.append(loop.create_task(_windows_signal_support()))
 
-    if shutdown_trigger is not None:
-        tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
+    if shutdown_trigger is None:
+        shutdown_trigger = asyncio.Future
+    tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
 
     if config.use_reloader:
         tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
@@ -127,11 +128,9 @@ async def worker_serve(
 
     reload_ = False
     try:
-        if tasks:
-            gathered_tasks = asyncio.gather(*tasks)
-            await gathered_tasks
-        else:
-            loop.run_forever()
+        gathered_tasks = asyncio.gather(*tasks)
+        await gathered_tasks
+
     except MustReloadException:
         reload_ = True
     except (Shutdown, KeyboardInterrupt):
@@ -141,10 +140,9 @@ async def worker_serve(
             server.close()
             await server.wait_closed()
 
-        if tasks:
-            # Retrieve the Gathered Tasks Cancelled Exception, to
-            # prevent a warning that this hasn't been done.
-            gathered_tasks.exception()
+        # Retrieve the Gathered Tasks Cancelled Exception, to
+        # prevent a warning that this hasn't been done.
+        gathered_tasks.exception()
 
         await lifespan.wait_for_shutdown()
         lifespan_task.cancel()
