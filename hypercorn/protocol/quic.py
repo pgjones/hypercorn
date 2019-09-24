@@ -15,9 +15,6 @@ from aioquic.quic.packet import (
     PACKET_TYPE_INITIAL,
     pull_quic_header,
 )
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 
 from .h3 import H3Protocol
 from ..config import Config
@@ -43,20 +40,8 @@ class QuicProtocol:
         self.server = server
         self.spawn_app = spawn_app
 
-        with open(config.certfile, "rb") as fp:
-            certificate = x509.load_pem_x509_certificate(fp.read(), backend=default_backend())
-
-        with open(config.keyfile, "rb") as fp:
-            private_key = serialization.load_pem_private_key(
-                fp.read(), password=None, backend=default_backend()
-            )
-
-        self.quic_config = QuicConfiguration(
-            alpn_protocols=["h3-22"],
-            certificate=certificate,
-            is_client=False,
-            private_key=private_key,
-        )
+        self.quic_config = QuicConfiguration(alpn_protocols=["h3-22"], is_client=False)
+        self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
 
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
