@@ -39,7 +39,7 @@ class Config:
 
     access_log_format = "%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s"
     accesslog: Union[logging.Logger, str, None] = None
-    alpn_protocols = ["h3-22", "h2", "http/1.1"]
+    alpn_protocols = ["h2", "http/1.1"]
     application_path: str
     backlog = 100
     ca_certs: Optional[str] = None
