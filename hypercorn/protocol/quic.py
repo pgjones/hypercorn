@@ -40,7 +40,7 @@ class QuicProtocol:
         self.server = server
         self.spawn_app = spawn_app
 
-        self.quic_config = QuicConfiguration(alpn_protocols=["h3-22"], is_client=False)
+        self.quic_config = QuicConfiguration(alpn_protocols=["h3-23"], is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
 
     async def handle(self, event: Event) -> None:
