@@ -1,3 +1,19 @@
+0.8.3 2019-09-26
+----------------
+
+* Bugfix ``--error-logfile`` to work when used.
+* Bugfix Update keep alive after handling data (to ensure the
+  connection isn't mistakenly considered idle).
+* Bugfix follow the ASGI specification by filtering and rejecting
+  Pseudo headers sent to and received from any ASGI application.
+* Bugfix ensure keep alive timeout is not active when pipelining.
+* Bugfix clarify lifespan error messages.
+* Bugfix remove signal handling from worker_serve - this allows the
+  ``serve`` functions to be used as advertised i.e. on the non-main
+  thread.
+* Support HTTP/3 draft 23 and server push (HTTP/3 support is an
+  experimental optional extra).
+
 0.8.2 2019-08-29
 ----------------
 
