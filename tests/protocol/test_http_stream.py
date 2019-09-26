@@ -115,6 +115,24 @@ async def test_send_response(stream: HTTPStream) -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_push(stream: HTTPStream) -> None:
+    stream.scope = {"scheme": "https", "headers": [(b"host", b"hypercorn")], "http_version": "2"}
+    stream.stream_id = 1
+    await stream.app_send({"type": "http.response.push", "path": "/push", "headers": []})
+    assert stream.send.call_args_list == [
+        call(
+            Request(
+                stream_id=1,
+                headers=[(b":scheme", b"https"), (b":authority", b"hypercorn")],
+                http_version="2",
+                method="GET",
+                raw_path=b"/push",
+            )
+        )
+    ]
+
+
+@pytest.mark.asyncio
 async def test_send_app_error(stream: HTTPStream) -> None:
     await stream.handle(
         Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")

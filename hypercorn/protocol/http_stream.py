@@ -109,10 +109,10 @@ class HTTPStream:
             ):
                 if not isinstance(message["path"], str):
                     raise TypeError(f"{message['path']} should be a str")
-                headers = []
+                headers = [(b":scheme", self.scope["scheme"].encode())]
                 for name, value in self.scope["headers"]:
-                    if name == b":authority" or name == b":scheme":
-                        headers.append((name, value))
+                    if name == b"host":
+                        headers.append((b":authority", value))
                 headers.extend(build_and_validate_headers(message["headers"]))
                 await self.send(
                     Request(
