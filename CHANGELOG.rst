@@ -1,3 +1,9 @@
+0.8.4 2019-09-26
+----------------
+
+* Bugfix server push pseudo headers - the bug would result in HTTP/2
+  connections failing if server push was attempted.
+
 0.8.3 2019-09-26
 ----------------
 
