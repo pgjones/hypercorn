@@ -48,8 +48,8 @@ async def test_spawn_app_cancelled(event_loop: asyncio.AbstractEventLoop) -> Non
 
 @pytest.mark.asyncio
 async def test_completes_on_closed(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = TCPServer(  # type: ignore
-        echo_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
+    server = TCPServer(
+        echo_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
     )
     server.reader.close()  # type: ignore
     await server.run()

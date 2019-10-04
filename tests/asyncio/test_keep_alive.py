@@ -38,8 +38,8 @@ async def slow_framework(scope: dict, receive: Callable, send: Callable) -> None
 def _server(event_loop: asyncio.AbstractEventLoop) -> Generator[TCPServer, None, None]:
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
-    server = TCPServer(  # type: ignore
-        slow_framework, event_loop, config, MemoryReader(), MemoryWriter()
+    server = TCPServer(
+        slow_framework, event_loop, config, MemoryReader(), MemoryWriter()  # type: ignore
     )
     task = event_loop.create_task(server.run())
     yield server

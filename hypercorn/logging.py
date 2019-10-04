@@ -86,8 +86,8 @@ class Logger:
             defaults = CONFIG_DEFAULTS.copy()
             defaults["__file__"] = config.logconfig
             defaults["here"] = os.path.dirname(config.logconfig)
-            fileConfig(  # type: ignore
-                config.logconfig, defaults=defaults, disable_existing_loggers=False
+            fileConfig(
+                config.logconfig, defaults=defaults, disable_existing_loggers=False  # type: ignore
             )
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:

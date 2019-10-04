@@ -13,8 +13,8 @@ from ..helpers import SANITY_BODY, sanity_framework
 
 @pytest.mark.asyncio
 async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = TCPServer(  # type: ignore
-        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
+    server = TCPServer(
+        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
     )
     asyncio.ensure_future(server.run())
     client = h11.Connection(h11.CLIENT)
@@ -63,8 +63,8 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = TCPServer(  # type: ignore
-        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()
+    server = TCPServer(
+        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
     )
     asyncio.ensure_future(server.run())
     client = wsproto.WSConnection(wsproto.ConnectionType.CLIENT)
@@ -95,8 +95,12 @@ async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = TCPServer(  # type: ignore
-        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter(http2=True)
+    server = TCPServer(
+        sanity_framework,
+        event_loop,
+        Config(),
+        MemoryReader(),  # type: ignore
+        MemoryWriter(http2=True),  # type: ignore
     )
     asyncio.ensure_future(server.run())
     client = h2.connection.H2Connection()
@@ -147,8 +151,12 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
 
 @pytest.mark.asyncio
 async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
-    server = TCPServer(  # type: ignore
-        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter(http2=True)
+    server = TCPServer(
+        sanity_framework,
+        event_loop,
+        Config(),
+        MemoryReader(),  # type: ignore
+        MemoryWriter(http2=True),  # type: ignore
     )
     asyncio.ensure_future(server.run())
     h2_client = h2.connection.H2Connection()
