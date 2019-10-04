@@ -60,6 +60,8 @@ The following options exist with the given usage,
                         apply to these binds. See *bind* for formatting
                         options. Care must be taken! See HTTP -> HTTPS
                         redirection docs.
+  --log-config LOG_CONFIG
+                        A Python logging configuration file.
   --log-level LOG_LEVEL
                         The (error) log level, defaults to info
   -p PID, --pid PID     Location to write the PID (Program ID) to.

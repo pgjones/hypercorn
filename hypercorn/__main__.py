@@ -101,6 +101,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         action="append",
     )
     parser.add_argument(
+        "--log-config", help="A Python logging configuration file.", default=sentinel
+    )
+    parser.add_argument(
         "--log-level", help="The (error) log level, defaults to info", default="info"
     )
     parser.add_argument(
@@ -200,6 +203,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.keep_alive_timeout = args.keep_alive
     if args.keyfile is not sentinel:
         config.keyfile = args.keyfile
+    if args.log_config is not sentinel:
+        config.logconfig = args.log_config
     if args.pid is not sentinel:
         config.pid_path = args.pid
     if args.root_path is not sentinel:

@@ -2,10 +2,51 @@ import logging
 import os
 import sys
 import time
+from logging.config import dictConfig, fileConfig
 from typing import Any, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .config import Config
+
+
+CONFIG_DEFAULTS = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "root": {"level": "INFO", "handlers": ["console"]},
+    "loggers": {
+        "hypercorn.error": {
+            "level": "INFO",
+            "handlers": ["error_console"],
+            "propagate": True,
+            "qualname": "hypercorn.error",
+        },
+        "hypercorn.access": {
+            "level": "INFO",
+            "handlers": ["console"],
+            "propagate": True,
+            "qualname": "hypercorn.access",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "generic",
+            "stream": "ext://sys.stdout",
+        },
+        "error_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "generic",
+            "stream": "ext://sys.stderr",
+        },
+    },
+    "formatters": {
+        "generic": {
+            "format": "%(asctime)s [%(process)d] [%(levelname)s] %(message)s",
+            "datefmt": "[%Y-%m-%d %H:%M:%S %z]",
+            "class": "logging.Formatter",
+        }
+    },
+}
 
 
 def _create_logger(
@@ -36,6 +77,18 @@ class Logger:
             "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
         )
         self.access_log_format = config.access_log_format
+
+        if config.logconfig_dict is not None:
+            log_config = CONFIG_DEFAULTS.copy()
+            log_config.update(config.logconfig_dict)
+            dictConfig(log_config)
+        elif config.logconfig is not None:
+            defaults = CONFIG_DEFAULTS.copy()
+            defaults["__file__"] = config.logconfig
+            defaults["here"] = os.path.dirname(config.logconfig)
+            fileConfig(  # type: ignore
+                config.logconfig, defaults=defaults, disable_existing_loggers=False
+            )
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
         if self.access_logger is not None:

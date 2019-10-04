@@ -56,6 +56,8 @@ class Config:
     include_server_header = True
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
+    logconfig: Optional[str] = None
+    logconfig_dict: Optional[dict] = None
     logger_class = Logger
     loglevel: str = "info"
     max_app_queue_size: int = 10
