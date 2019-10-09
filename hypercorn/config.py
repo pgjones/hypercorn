@@ -40,6 +40,7 @@ class Config:
     access_log_format = '%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
     accesslog: Union[logging.Logger, str, None] = None
     alpn_protocols = ["h2", "http/1.1"]
+    alt_svc_headers: List[str] = []
     application_path: str
     backlog = 100
     ca_certs: Optional[str] = None
@@ -221,9 +222,13 @@ class Config:
         headers = [(b"date", format_date_time(time()).encode("ascii"))]
         if self.include_server_header:
             headers.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
-        for bind in self._quic_bind:
-            port = int(bind.split(":")[-1])
-            headers.append((b"alt-svc", b'h3-23=":%d"; ma=3600' % port))
+
+        for alt_svc_header in self.alt_svc_headers:
+            headers.append((b"alt-svc", alt_svc_header.encode()))
+        if len(self.alt_svc_headers) == 0:
+            for bind in self._quic_bind:
+                port = int(bind.split(":")[-1])
+                headers.append((b"alt-svc", b'h3-23=":%d"; ma=3600' % port))
 
         return headers
 
