@@ -1,3 +1,14 @@
+0.9.0 2019-10-09
+----------------
+
+* Update development status classifier to Beta.
+* Allow the Alt-Svc headers to be configured.
+* Add dispatcher middleware, allowing multiple apps to be mounted and
+  served depending on the root path.
+* Support logging configuration setup.
+* Switch the access log format to be the same as Gunicorn's. The
+  previous format was ``%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s``.
+
 0.8.4 2019-09-26
 ----------------
 
