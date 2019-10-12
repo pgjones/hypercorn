@@ -211,7 +211,7 @@ def _run(
         try:
             loop.add_signal_handler(signal.SIGINT, _signal_handler)
             loop.add_signal_handler(signal.SIGTERM, _signal_handler)
-        except AttributeError:
+        except (AttributeError, NotImplementedError):
             pass
 
         shutdown_trigger = signal_event.wait  # type: ignore
