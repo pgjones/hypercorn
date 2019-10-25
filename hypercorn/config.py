@@ -8,7 +8,7 @@ import stat
 import types
 import warnings
 from dataclasses import dataclass
-from ssl import SSLContext, VerifyFlags, VerifyMode  # type: ignore
+from ssl import SSLContext, VerifyFlags, VerifyMode
 from time import time
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Tuple, Type, Union
 from wsgiref.handlers import format_date_time

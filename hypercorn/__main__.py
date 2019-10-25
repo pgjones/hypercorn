@@ -142,9 +142,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         "-u", "--user", help="User to own any unix sockets.", default=sentinel, type=int
     )
 
-    def _convert_verify_mode(value: str) -> ssl.VerifyMode:  # type: ignore
+    def _convert_verify_mode(value: str) -> ssl.VerifyMode:
         try:
-            return ssl.VerifyMode[value]  # type: ignore
+            return ssl.VerifyMode[value]
         except KeyError:
             raise argparse.ArgumentTypeError("Not a valid verify mode")
 
