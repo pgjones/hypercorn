@@ -3,7 +3,7 @@ import os
 import sys
 import time
 from logging.config import dictConfig, fileConfig
-from typing import Any, TYPE_CHECKING, Union
+from typing import Any, Mapping, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .config import Config
@@ -93,7 +93,7 @@ class Logger:
     async def access(self, request: dict, response: dict, request_time: float) -> None:
         if self.access_logger is not None:
             self.access_logger.info(
-                self.access_log_format, AccessLogAtoms(request, response, request_time)
+                self.access_log_format, self.atoms(request, response, request_time)
             )
 
     async def critical(self, message: str, *args: Any, **kwargs: Any) -> None:
@@ -123,6 +123,14 @@ class Logger:
     async def log(self, level: int, message: str, *args: Any, **kwargs: Any) -> None:
         if self.error_logger is not None:
             self.error_logger.log(level, message, *args, **kwargs)
+
+    def atoms(self, request: dict, response: dict, request_time: float) -> Mapping[str, str]:
+        """Create and return an access log atoms dictionary.
+
+        This can be overidden and customised if desired. It should
+        return a mapping between an access log format key and a value.
+        """
+        return AccessLogAtoms(request, response, request_time)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.error_logger, name)
