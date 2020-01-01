@@ -131,9 +131,10 @@ async def test_dispatcher_middleware() -> None:
         nonlocal sent_events
         sent_events.append(message)
 
-    await app({"path": "/api/x/b", "asgi": {"version": "3.0"}}, None, send)
-    await app({"path": "/api/b", "asgi": {"version": "3.0"}}, None, send)
-    await app({"path": "/", "asgi": {"version": "3.0"}}, None, send)
+    scope = {"type": "http", "asgi": {"version": "3.0"}}
+    await app(dict(path="/api/x/b", **scope), None, send)
+    await app(dict(path="/api/b", **scope), None, send)
+    await app(dict(path="/", **scope), None, send)
     assert sent_events == [
         {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"7")]},
         {"type": "http.response.body", "body": b"apix-/b"},
