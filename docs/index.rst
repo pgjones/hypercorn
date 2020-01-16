@@ -47,6 +47,7 @@ How-To Guides
    dispatch_apps.rst
    http_https_redirect.rst
    logging.rst
+   statsd.rst
 
 Discussion Points
 -----------------
