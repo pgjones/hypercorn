@@ -9,7 +9,7 @@ if sys.version_info < (3, 7):
 PROJECT_ROOT = os.path.dirname(__file__)
 
 about = {}
-with open(os.path.join(PROJECT_ROOT, "hypercorn", "__about__.py")) as file_:
+with open(os.path.join(PROJECT_ROOT, "src", "hypercorn", "__about__.py")) as file_:
     exec(file_.read(), about)
 
 with open(os.path.join(PROJECT_ROOT, "README.rst")) as file_:
@@ -57,7 +57,8 @@ setup(
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    packages=find_packages(exclude=["tests", "tests.*"]),
+    packages=find_packages("src"),
+    package_dir={"": "src"},
     py_modules=["hypercorn"],
     install_requires=INSTALL_REQUIRES,
     extras_require={
