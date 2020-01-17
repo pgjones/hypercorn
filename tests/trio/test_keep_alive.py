@@ -36,7 +36,7 @@ async def slow_framework(scope: dict, receive: Callable, send: Callable) -> None
 
 @pytest.fixture(name="client_stream", scope="function")
 def _client_stream(
-    nursery: trio._core._run.Nursery
+    nursery: trio._core._run.Nursery,
 ) -> Generator[trio.testing._memory_streams.MemorySendStream, None, None]:
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
@@ -49,7 +49,7 @@ def _client_stream(
 
 @pytest.mark.trio
 async def test_http1_keep_alive_pre_request(
-    client_stream: trio.testing._memory_streams.MemorySendStream
+    client_stream: trio.testing._memory_streams.MemorySendStream,
 ) -> None:
     await client_stream.send_all(b"GET")
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
@@ -60,7 +60,7 @@ async def test_http1_keep_alive_pre_request(
 
 @pytest.mark.trio
 async def test_http1_keep_alive_during(
-    client_stream: trio.testing._memory_streams.MemorySendStream
+    client_stream: trio.testing._memory_streams.MemorySendStream,
 ) -> None:
     client = h11.Connection(h11.CLIENT)
     await client_stream.send_all(client.send(REQUEST))
@@ -71,7 +71,7 @@ async def test_http1_keep_alive_during(
 
 @pytest.mark.trio
 async def test_http1_keep_alive(
-    client_stream: trio.testing._memory_streams.MemorySendStream
+    client_stream: trio.testing._memory_streams.MemorySendStream,
 ) -> None:
     client = h11.Connection(h11.CLIENT)
     await client_stream.send_all(client.send(REQUEST))
@@ -93,7 +93,7 @@ async def test_http1_keep_alive(
 
 @pytest.mark.trio
 async def test_http1_keep_alive_pipelining(
-    client_stream: trio.testing._memory_streams.MemorySendStream
+    client_stream: trio.testing._memory_streams.MemorySendStream,
 ) -> None:
     await client_stream.send_all(
         b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\nGET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n"
