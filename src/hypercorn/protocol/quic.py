@@ -2,6 +2,7 @@ from functools import partial
 from typing import Awaitable, Callable, Dict, Optional, Tuple
 
 from aioquic.buffer import Buffer
+from aioquic.h3.connection import H3_ALPN
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
 from aioquic.quic.events import (
@@ -40,7 +41,7 @@ class QuicProtocol:
         self.server = server
         self.spawn_app = spawn_app
 
-        self.quic_config = QuicConfiguration(alpn_protocols=["h3-23"], is_client=False)
+        self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
 
     async def handle(self, event: Event) -> None:
