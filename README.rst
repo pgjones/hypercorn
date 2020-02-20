@@ -81,7 +81,7 @@ if you still can't find an answer please `open an issue
 <https://gitlab.com/pgjones/hypercorn/issues>`_.
 
 
-.. |Build Status| image:: https://gitlab.com/pgjones/hypercorn/badges/master/build.svg
+.. |Build Status| image:: https://gitlab.com/pgjones/hypercorn/badges/master/pipeline.svg
    :target: https://gitlab.com/pgjones/hypercorn/commits/master
 
 .. |docs| image:: https://img.shields.io/badge/docs-passing-brightgreen.svg
