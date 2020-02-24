@@ -228,10 +228,10 @@ class Config:
         if len(self.alt_svc_headers) == 0 and self._quic_bind:
             from aioquic.h3.connection import H3_ALPN
 
-            version = H3_ALPN[0].encode()
-            for bind in self._quic_bind:
-                port = int(bind.split(":")[-1])
-                headers.append((b"alt-svc", b'%s=":%d"; ma=3600' % (version, port)))
+            for version in H3_ALPN:
+                for bind in self._quic_bind:
+                    port = int(bind.split(":")[-1])
+                    headers.append((b"alt-svc", b'%s=":%d"; ma=3600' % (version.encode(), port)))
 
         return headers
 
