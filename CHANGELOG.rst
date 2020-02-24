@@ -1,3 +1,15 @@
+0.9.1 2020-02-24
+----------------
+
+* Bugfix catch NotImplementedError alongside AttributeError for
+  Windows support.
+* Allow the access log atoms to be customised (follows the Gunicorn
+  API expectations).
+* Support Python 3.8 (formally, already worked with Python 3.8).
+* Bugfix add scope check in DispatcherMiddleware.
+* Utilise the H3_ALPN constant to ensure the correct h3 draft versions
+  are advertised.
+
 0.9.0 2019-10-09
 ----------------
 
