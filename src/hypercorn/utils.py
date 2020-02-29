@@ -109,7 +109,7 @@ async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
                 continue
             try:
                 mtime = Path(filename).stat().st_mtime
-            except FileNotFoundError:
+            except (FileNotFoundError, NotADirectoryError):
                 continue
             else:
                 if mtime > last_updates.get(module, mtime):
