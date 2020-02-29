@@ -89,6 +89,19 @@ async def test_protocol_send_stream_closed(
 
 
 @pytest.mark.asyncio
+async def test_protocol_instant_recycle(protocol: H11Protocol) -> None:
+    data = b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n"
+    await protocol.handle(RawData(data=data))
+    assert protocol.stream is not None
+    await protocol.stream_send(Response(stream_id=1, status_code=200, headers=[]))
+    await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.handle(RawData(data=data))
+    await protocol.stream_send(StreamClosed(stream_id=1))
+    # Should have recycled, i.e. a stream should exist
+    assert protocol.stream is not None
+
+
+@pytest.mark.asyncio
 async def test_protocol_send_end_data(protocol: H11Protocol) -> None:
     protocol.stream = AsyncMock()
     await protocol.stream_send(EndData(stream_id=1))
