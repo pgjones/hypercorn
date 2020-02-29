@@ -161,6 +161,9 @@ def asyncio_worker(
     if shutdown_event is not None:
         shutdown_trigger = partial(check_multiprocess_shutdown_event, shutdown_event, asyncio.sleep)
 
+    if config.workers > 1 and platform.system() == "Windows":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore
+
     _run(
         partial(worker_serve, app, config, sockets=sockets),
         debug=config.debug,
