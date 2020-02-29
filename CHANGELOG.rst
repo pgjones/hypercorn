@@ -1,3 +1,12 @@
+0.9.2 2020-02-29
+----------------
+
+* Bugfix HTTP/1 connection recycling. This should also result in
+  better performance under high load.
+* Bugfix trio syntax error, (MultiError filter usage).
+* Bugfix catch NotADirectoryError alongside FileNotFoundError.
+* Bugfix support multiple workers on Windows for Python 3.8.
+
 0.9.1 2020-02-24
 ----------------
 
