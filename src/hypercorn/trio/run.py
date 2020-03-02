@@ -106,6 +106,6 @@ def trio_worker(
 
     shutdown_trigger = None
     if shutdown_event is not None:
-        shutdown_trigger = check_multiprocess_shutdown_event(shutdown_event, trio.sleep)
+        shutdown_trigger = partial(check_multiprocess_shutdown_event, shutdown_event, trio.sleep)
 
     trio.run(partial(worker_serve, app, config, sockets=sockets, shutdown_trigger=shutdown_trigger))
