@@ -346,3 +346,4 @@ class H2Protocol:
         if stream_id in self.streams:
             stream = self.streams.pop(stream_id)
             await stream.handle(StreamClosed(stream_id=stream_id))
+            await self.has_data.set()
