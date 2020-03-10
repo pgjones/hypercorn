@@ -13,9 +13,9 @@ py38:
 pages:
   image: python:3.7
   script:
-  - pip install sphinx solar_theme
+  - pip install sphinx git+https://github.com/pandas-dev/pandas-sphinx-theme.git@master
   - python setup.py install
-  - rm -rf docs/source && sphinx-apidoc -e -f -o docs/source/ src/hypercorn/
+  - rm -rf docs/source && sphinx-apidoc -e -f -o docs/reference/source/ src/hypercorn/
   - cd docs/ && make html && cd ../
   - mv docs/_build/html/ public/
   artifacts:

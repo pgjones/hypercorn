@@ -26,46 +26,13 @@ open `issues <https://gitlab.com/pgjones/hypercorn/issues>`_ or
 propose `merge requests
 <https://gitlab.com/pgjones/hypercorn/merge_requests>`_.
 
-Tutorials
----------
+Contents
+--------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   installation.rst
-   quickstart.rst
-   usage.rst
-
-How-To Guides
--------------
-
-.. toctree::
-   :maxdepth: 1
-
-   api_usage.rst
-   binds.rst
-   dispatch_apps.rst
-   http_https_redirect.rst
-   logging.rst
-   statsd.rst
-
-Discussion Points
------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   backpressure.rst
-   closing.rst
-   design_choices.rst
-   dos_mitigations.rst
-   http2.rst
-   workers.rst
-
-Reference
----------
-
-.. toctree::
-   :maxdepth: 1
-
-   api.rst
+   tutorials/index.rst
+   how_to_guides/index.rst
+   discussion/index.rst
+   reference/index.rst
