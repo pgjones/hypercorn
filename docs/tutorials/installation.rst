@@ -3,7 +3,7 @@
 Installation
 ============
 
-Hypercorn is only compatible with Python 3.6 or higher and can be
+Hypercorn is only compatible with Python 3.7 or higher and can be
 installed using pipenv or your favorite python package manager.
 
 .. code-block:: sh
