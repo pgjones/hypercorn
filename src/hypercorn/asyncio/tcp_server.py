@@ -49,30 +49,35 @@ class TCPServer:
 
     async def run(self) -> None:
         socket = self.writer.get_extra_info("socket")
-        client = parse_socket_addr(socket.family, socket.getpeername())
-        server = parse_socket_addr(socket.family, socket.getsockname())
-        ssl_object = self.writer.get_extra_info("ssl_object")
-        if ssl_object is not None:
-            ssl = True
-            alpn_protocol = ssl_object.selected_alpn_protocol()
-        else:
-            ssl = False
-            alpn_protocol = "http/1.1"
+        try:
+            client = parse_socket_addr(socket.family, socket.getpeername())
+            server = parse_socket_addr(socket.family, socket.getsockname())
+            ssl_object = self.writer.get_extra_info("ssl_object")
+            if ssl_object is not None:
+                ssl = True
+                alpn_protocol = ssl_object.selected_alpn_protocol()
+            else:
+                ssl = False
+                alpn_protocol = "http/1.1"
 
-        self.protocol = ProtocolWrapper(
-            self.config,
-            ssl,
-            client,
-            server,
-            self.protocol_send,
-            partial(spawn_app, self.app, self.loop, self.config),
-            EventWrapper,
-            alpn_protocol,
-        )
-        await self.protocol.initiate()
-        self.loop.create_task(self.protocol.send_task())
-        self._update_keep_alive_timeout()
-        await self._read_data()
+            self.protocol = ProtocolWrapper(
+                self.config,
+                ssl,
+                client,
+                server,
+                self.protocol_send,
+                partial(spawn_app, self.app, self.loop, self.config),
+                EventWrapper,
+                alpn_protocol,
+            )
+            await self.protocol.initiate()
+            self.loop.create_task(self.protocol.send_task())
+            self._update_keep_alive_timeout()
+            await self._read_data()
+        except OSError:
+            pass
+        finally:
+            await self._close()
 
     async def protocol_send(self, event: Event) -> None:
         if isinstance(event, RawData):
