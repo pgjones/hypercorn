@@ -18,7 +18,7 @@ class EventWrapper:
         self._event = trio.Event()
 
     async def clear(self) -> None:
-        self._event.clear()
+        self._event = trio.Event()
 
     async def wait(self) -> None:
         await self._event.wait()
