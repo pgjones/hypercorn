@@ -41,6 +41,7 @@ class TCPServer:
         self.protocol: ProtocolWrapper
         self.reader = reader
         self.writer = writer
+        self.timeout_lock = asyncio.Lock()
 
         self._keep_alive_timeout_handle: Optional[asyncio.TimerHandle] = None
 
@@ -72,7 +73,7 @@ class TCPServer:
             )
             await self.protocol.initiate()
             self.loop.create_task(self.protocol.send_task())
-            self._update_keep_alive_timeout()
+            await self._update_keep_alive_timeout()
             await self._read_data()
         except OSError:
             pass
@@ -91,7 +92,7 @@ class TCPServer:
             await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
             pass  # Triggers the keep alive timeout update
-        self._update_keep_alive_timeout()
+        await self._update_keep_alive_timeout()
 
     async def _read_data(self) -> None:
         while True:
@@ -108,10 +109,10 @@ class TCPServer:
                 break
             else:
                 if data == b"":
-                    self._update_keep_alive_timeout()
+                    await self._update_keep_alive_timeout()
                     break
                 await self.protocol.handle(RawData(data))
-                self._update_keep_alive_timeout()
+                await self._update_keep_alive_timeout()
 
     async def _close(self) -> None:
         try:
@@ -125,11 +126,12 @@ class TCPServer:
         except (BrokenPipeError, ConnectionResetError):
             pass  # Already closed
 
-    def _update_keep_alive_timeout(self) -> None:
-        if self._keep_alive_timeout_handle is not None:
-            self._keep_alive_timeout_handle.cancel()
-        self._keep_alive_timeout_handle = None
-        if self.protocol.idle:
-            self._keep_alive_timeout_handle = self.loop.call_later(
-                self.config.keep_alive_timeout, self.writer.close
-            )
+    async def _update_keep_alive_timeout(self) -> None:
+        async with self.timeout_lock:
+            if self._keep_alive_timeout_handle is not None:
+                self._keep_alive_timeout_handle.cancel()
+            self._keep_alive_timeout_handle = None
+            if self.protocol.idle:
+                self._keep_alive_timeout_handle = self.loop.call_later(
+                    self.config.keep_alive_timeout, self.write.close
+                )

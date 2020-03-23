@@ -33,6 +33,7 @@ class TCPServer:
         self.config = config
         self.protocol: ProtocolWrapper
         self.send_lock = trio.Lock()
+        self.timeout_lock = trio.Lock()
         self.stream = stream
 
         self._keep_alive_timeout_handle: Optional[trio.CancelScope] = None
@@ -125,13 +126,14 @@ class TCPServer:
         await self.stream.aclose()
 
     async def _update_keep_alive_timeout(self) -> None:
-        if self._keep_alive_timeout_handle is not None:
-            self._keep_alive_timeout_handle.cancel()
-        self._keep_alive_timeout_handle = None
-        if self.protocol.idle:
-            self._keep_alive_timeout_handle = await self.nursery.start(
-                _call_later, self.config.keep_alive_timeout, self.stream.aclose
-            )
+        async with self.timeout_lock:
+            if self._keep_alive_timeout_handle is not None:
+                self._keep_alive_timeout_handle.cancel()
+            self._keep_alive_timeout_handle = None
+            if self.protocol.idle:
+                self._keep_alive_timeout_handle = await self.nursery.start(
+                    _call_later, self.config.keep_alive_timeout, self.stream.aclose
+                )
 
 
 async def _call_later(
