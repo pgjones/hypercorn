@@ -1,3 +1,17 @@
+0.9.3 2020-03-23
+----------------
+
+* Bugfix trio worker with multiple workers.
+* Bugfix unblock sending when the connection closes.
+* Bugfix Trio HTTP/1 keep alive handling.
+* Bugfix catch TimeoutError.
+* Bugfix cope with quick disconnection.
+* Bugfix HTTP->HTTPS redirect middleware path encoding.
+* Bugfix catch ConnectionRefusedError and OSError when reading.
+* Bugfix Ensure there is only a single timeout.
+* Bugfix ensure the send_task completes on timeout.
+* Bugfix trio has deprecated event.clear.
+
 0.9.2 2020-02-29
 ----------------
 
