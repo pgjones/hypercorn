@@ -1,6 +1,6 @@
 import asyncio
 from functools import partial
-from typing import Any, Generator, Optional
+from typing import Any, Callable, Generator, Optional
 
 from .spawn_app import spawn_app
 from ..config import Config
@@ -43,7 +43,7 @@ class TCPServer:
         self.writer = writer
         self.timeout_lock = asyncio.Lock()
 
-        self._keep_alive_timeout_handle: Optional[asyncio.TimerHandle] = None
+        self._keep_alive_timeout_handle: Optional[asyncio.Task] = None
 
     def __await__(self) -> Generator[Any, None, None]:
         return self.run().__await__()
@@ -132,6 +132,15 @@ class TCPServer:
                 self._keep_alive_timeout_handle.cancel()
             self._keep_alive_timeout_handle = None
             if self.protocol.idle:
-                self._keep_alive_timeout_handle = self.loop.call_later(
-                    self.config.keep_alive_timeout, self.write.close
+                self._keep_alive_timeout_handle = self.loop.create_task(
+                    _call_later(self.config.keep_alive_timeout, self._timeout)
                 )
+
+    async def _timeout(self) -> None:
+        await self.protocol.handle(Closed())
+        self.writer.close()
+
+
+async def _call_later(timeout: float, callback: Callable) -> None:
+    await asyncio.sleep(timeout)
+    await asyncio.shield(callback())

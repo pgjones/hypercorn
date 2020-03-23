@@ -132,8 +132,12 @@ class TCPServer:
             self._keep_alive_timeout_handle = None
             if self.protocol.idle:
                 self._keep_alive_timeout_handle = await self.nursery.start(
-                    _call_later, self.config.keep_alive_timeout, self.stream.aclose
+                    _call_later, self.config.keep_alive_timeout, self._timeout
                 )
+
+    async def _timeout(self) -> None:
+        await self.protocol.handle(Closed())
+        await self.stream.aclose()
 
 
 async def _call_later(

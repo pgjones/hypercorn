@@ -181,6 +181,7 @@ class H2Protocol:
             stream_ids = list(self.streams.keys())
             for stream_id in stream_ids:
                 await self._close_stream(stream_id)
+            await self.has_data.set()
 
     async def stream_send(self, event: StreamEvent) -> None:
         try:
