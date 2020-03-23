@@ -97,7 +97,13 @@ class TCPServer:
         while True:
             try:
                 data = await self.reader.read(MAX_RECV)
-            except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            except (
+                BrokenPipeError,
+                ConnectionRefusedError,
+                ConnectionResetError,
+                OSError,
+                TimeoutError,
+            ):
                 await self.protocol.handle(Closed())
                 break
             else:
