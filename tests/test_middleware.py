@@ -7,7 +7,10 @@ from .helpers import empty_framework
 
 
 @pytest.mark.asyncio
-async def test_http_to_https_redirect_middleware_http() -> None:
+@pytest.mark.parametrize(
+    "raw_path", [b"/abc", b"/abc%3C"],
+)
+async def test_http_to_https_redirect_middleware_http(raw_path: bytes) -> None:
     app = HTTPToHTTPSRedirectMiddleware(empty_framework, "localhost")
     sent_events = []
 
@@ -15,21 +18,24 @@ async def test_http_to_https_redirect_middleware_http() -> None:
         nonlocal sent_events
         sent_events.append(message)
 
-    scope = {"type": "http", "scheme": "http", "path": "/abc", "query_string": b"a=b"}
+    scope = {"type": "http", "scheme": "http", "raw_path": raw_path, "query_string": b"a=b"}
     await app(scope, None, send)
 
     assert sent_events == [
         {
             "type": "http.response.start",
             "status": 307,
-            "headers": [(b"location", b"https://localhost/abc?a=b")],
+            "headers": [(b"location", b"https://localhost%s?a=b" % raw_path)],
         },
         {"type": "http.response.body"},
     ]
 
 
 @pytest.mark.asyncio
-async def test_http_to_https_redirect_middleware_websocket() -> None:
+@pytest.mark.parametrize(
+    "raw_path", [b"/abc", b"/abc%3C"],
+)
+async def test_http_to_https_redirect_middleware_websocket(raw_path: bytes) -> None:
     app = HTTPToHTTPSRedirectMiddleware(empty_framework, "localhost")
     sent_events = []
 
@@ -40,7 +46,7 @@ async def test_http_to_https_redirect_middleware_websocket() -> None:
     scope = {
         "type": "websocket",
         "scheme": "ws",
-        "path": "/abc",
+        "raw_path": raw_path,
         "query_string": b"a=b",
         "extensions": {"websocket.http.response": {}},
     }
@@ -50,7 +56,7 @@ async def test_http_to_https_redirect_middleware_websocket() -> None:
         {
             "type": "websocket.http.response.start",
             "status": 307,
-            "headers": [(b"location", b"wss://localhost/abc?a=b")],
+            "headers": [(b"location", b"wss://localhost%s?a=b" % raw_path)],
         },
         {"type": "websocket.http.response.body"},
     ]
@@ -69,7 +75,7 @@ async def test_http_to_https_redirect_middleware_websocket_http2() -> None:
         "type": "websocket",
         "http_version": "2",
         "scheme": "ws",
-        "path": "/abc",
+        "raw_path": b"/abc",
         "query_string": b"a=b",
         "extensions": {"websocket.http.response": {}},
     }
@@ -98,7 +104,7 @@ async def test_http_to_https_redirect_middleware_websocket_no_rejection() -> Non
         "type": "websocket",
         "http_version": "2",
         "scheme": "ws",
-        "path": "/abc",
+        "raw_path": b"/abc",
         "query_string": b"a=b",
     }
     await app(scope, None, send)

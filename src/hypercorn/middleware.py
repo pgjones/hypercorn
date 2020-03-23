@@ -26,7 +26,7 @@ class HTTPToHTTPSRedirectMiddleware:
 
     async def _send_http_redirect(self, scope: dict, send: Callable) -> None:
         new_url = urlunsplit(
-            ("https", self.host, scope["path"], scope["query_string"].decode(), "")
+            ("https", self.host, scope["raw_path"].decode(), scope["query_string"].decode(), "")
         )
         await send(
             {
@@ -45,7 +45,9 @@ class HTTPToHTTPSRedirectMiddleware:
         if scope.get("http_version", "1.1") == "2":
             scheme = "https"
 
-        new_url = urlunsplit((scheme, self.host, scope["path"], scope["query_string"].decode(), ""))
+        new_url = urlunsplit(
+            (scheme, self.host, scope["raw_path"].decode(), scope["query_string"].decode(), "")
+        )
         await send(
             {
                 "type": "websocket.http.response.start",
