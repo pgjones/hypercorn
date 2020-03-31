@@ -1,3 +1,9 @@
+0.9.4 2020-03-31
+----------------
+
+* Bugfix AssertionError when draining.
+* Bugfix catch the correct timeout error.
+
 0.9.3 2020-03-23
 ----------------
 
