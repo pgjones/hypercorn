@@ -41,6 +41,7 @@ class TCPServer:
         self.protocol: ProtocolWrapper
         self.reader = reader
         self.writer = writer
+        self.send_lock = asyncio.Lock()
         self.timeout_lock = asyncio.Lock()
 
         self._keep_alive_timeout_handle: Optional[asyncio.Task] = None
@@ -82,11 +83,12 @@ class TCPServer:
 
     async def protocol_send(self, event: Event) -> None:
         if isinstance(event, RawData):
-            try:
-                self.writer.write(event.data)
-                await self.writer.drain()
-            except (BrokenPipeError, ConnectionResetError):
-                await self.protocol.handle(Closed())
+            async with self.send_lock:
+                try:
+                    self.writer.write(event.data)
+                    await self.writer.drain()
+                except (BrokenPipeError, ConnectionResetError):
+                    await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
             await self.protocol.handle(Closed())
