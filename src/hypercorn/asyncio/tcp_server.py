@@ -105,7 +105,7 @@ class TCPServer:
                 ConnectionRefusedError,
                 ConnectionResetError,
                 OSError,
-                TimeoutError,
+                asyncio.TimeoutError,
             ):
                 await self.protocol.handle(Closed())
                 break
