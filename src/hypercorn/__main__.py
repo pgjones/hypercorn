@@ -146,7 +146,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         try:
             return ssl.VerifyMode[value]
         except KeyError:
-            raise argparse.ArgumentTypeError("Not a valid verify mode")
+            raise argparse.ArgumentTypeError(f"'{value}' is not a valid verify mode")
 
     parser.add_argument(
         "--verify-mode",
@@ -221,6 +221,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.user = args.user
     if args.worker_class is not sentinel:
         config.worker_class = args.worker_class
+    if args.verify_mode is not sentinel:
+        config.verify_mode = args.verify_mode
     if args.workers is not sentinel:
         config.workers = args.workers
 
