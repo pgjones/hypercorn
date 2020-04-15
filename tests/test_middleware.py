@@ -7,9 +7,7 @@ from .helpers import empty_framework
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "raw_path", [b"/abc", b"/abc%3C"],
-)
+@pytest.mark.parametrize("raw_path", [b"/abc", b"/abc%3C"])
 async def test_http_to_https_redirect_middleware_http(raw_path: bytes) -> None:
     app = HTTPToHTTPSRedirectMiddleware(empty_framework, "localhost")
     sent_events = []
@@ -32,9 +30,7 @@ async def test_http_to_https_redirect_middleware_http(raw_path: bytes) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "raw_path", [b"/abc", b"/abc%3C"],
-)
+@pytest.mark.parametrize("raw_path", [b"/abc", b"/abc%3C"])
 async def test_http_to_https_redirect_middleware_websocket(raw_path: bytes) -> None:
     app = HTTPToHTTPSRedirectMiddleware(empty_framework, "localhost")
     sent_events = []

@@ -3,6 +3,7 @@ from functools import partial
 from typing import Any, Callable, Generator, Optional
 
 from .spawn_app import spawn_app
+from .task_group import TaskGroup
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
@@ -62,20 +63,21 @@ class TCPServer:
                 ssl = False
                 alpn_protocol = "http/1.1"
 
-            self.protocol = ProtocolWrapper(
-                self.config,
-                ssl,
-                client,
-                server,
-                self.protocol_send,
-                partial(spawn_app, self.app, self.loop, self.config),
-                EventWrapper,
-                alpn_protocol,
-            )
-            await self.protocol.initiate()
-            self.loop.create_task(self.protocol.send_task())
-            await self._update_keep_alive_timeout()
-            await self._read_data()
+            async with TaskGroup(self.loop) as task_group:
+                self.protocol = ProtocolWrapper(
+                    self.config,
+                    ssl,
+                    client,
+                    server,
+                    self.protocol_send,
+                    partial(spawn_app, task_group, self.app, self.config),
+                    EventWrapper,
+                    alpn_protocol,
+                )
+                await self.protocol.initiate()
+                task_group.spawn(self.protocol.send_task())
+                await self._update_keep_alive_timeout()
+                await self._read_data()
         except OSError:
             pass
         finally:
