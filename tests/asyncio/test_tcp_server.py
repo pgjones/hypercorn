@@ -69,7 +69,7 @@ async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> 
     )
     asyncio.ensure_future(server.run())
     await server.reader.send(b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n")  # type: ignore
-    await server.reader.send(b"")  # type: ignore
+    server.reader.close()  # type: ignore
     await asyncio.sleep(0)
     data = await server.writer.receive()  # type: ignore
     assert (

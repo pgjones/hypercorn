@@ -14,7 +14,8 @@ class MemoryReader:
         self.data: asyncio.Queue = asyncio.Queue()
 
     async def send(self, data: bytes) -> None:
-        await self.data.put(data)
+        if data != b"":
+            await self.data.put(data)
 
     async def read(self, length: int) -> bytes:
         return await self.data.get()

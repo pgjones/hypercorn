@@ -21,6 +21,13 @@ raise an exception. This exception is caught and a Closed event is
 sent to the protocol. The protocol should then send each stream a
 StreamClosed event and delete the stream.
 
+.. note::
+
+   When testing with the h11 connecion a EndOfMessage event generates
+   an empty bytestring - this should not be sent as it would usually
+   be ignored by the socket code. Hence why the helpers in the test
+   code ignore empty bytestrings on send.
+
 Server disconnection
 --------------------
 

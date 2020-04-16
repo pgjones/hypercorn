@@ -68,9 +68,7 @@ async def test_http1_keep_alive(server: TCPServer) -> None:
     await server.reader.send(client.send(REQUEST))  # type: ignore
     await asyncio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     assert not server.writer.is_closed  # type: ignore
-    # See https://github.com/python-hyper/h11/issues/100 for why this
-    # next line is not sent.
-    client.send(h11.EndOfMessage())
+    await server.reader.send(client.send(h11.EndOfMessage()))  # type: ignore
     while True:
         event = client.next_event()
         if event == h11.NEED_DATA:
