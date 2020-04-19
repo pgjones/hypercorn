@@ -1,3 +1,12 @@
+0.9.5 2020-04-19
+----------------
+
+* Bugfix also catch RuntimeError for uvloop workers.
+* Bugfix correct handling of verify-flag argument and improved error
+  message on bad values.
+* Bugfix correctly cope with TCP half closes via asyncio.
+* Bugfix handle MissingStreamError and KeyError (HTTP/2).
+
 0.9.4 2020-03-31
 ----------------
 
