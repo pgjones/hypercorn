@@ -207,7 +207,7 @@ class H2Protocol:
                 await self.send(Updated())
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
-        except h2.exceptions.ProtocolError:
+        except (KeyError, priority.MissingStreamError, h2.exceptions.ProtocolError):
             # Connection has closed whilst blocked on flow control or
             # connection has advanced ahead of the last emitted event.
             return
