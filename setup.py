@@ -62,7 +62,7 @@ setup(
     py_modules=["hypercorn"],
     install_requires=INSTALL_REQUIRES,
     extras_require={
-        "h3": ["aioquic >= 0.8.1, < 1.0"],
+        "h3": ["aioquic >= 0.9.0, < 1.0"],
         "tests": TESTS_REQUIRE,
         "trio": ["trio >= 0.11.0"],
         "uvloop": ["uvloop"],

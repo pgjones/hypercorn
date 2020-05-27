@@ -69,7 +69,8 @@ class QuicProtocol:
                 and header.packet_type == PACKET_TYPE_INITIAL
             ):
                 connection = QuicConnection(
-                    configuration=self.quic_config, original_connection_id=None
+                    configuration=self.quic_config,
+                    original_destination_connection_id=header.destination_cid,
                 )
                 self.connections[header.destination_cid] = connection
                 self.connections[connection.host_cid] = connection
