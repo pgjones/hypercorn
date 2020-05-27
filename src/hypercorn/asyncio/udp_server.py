@@ -3,6 +3,7 @@ from functools import partial
 from typing import Awaitable, Callable, Optional, Tuple, TYPE_CHECKING
 
 from .spawn_app import spawn_app
+from .task_group import TaskGroup
 from ..config import Config
 from ..events import Closed, Event, RawData
 from ..typing import ASGIFramework
@@ -31,10 +32,11 @@ class UDPServer(asyncio.DatagramProtocol):
         self.transport = transport
         socket = self.transport.get_extra_info("socket")
         server = parse_socket_addr(socket.family, socket.getsockname())
+        task_group = TaskGroup(self.loop)
         self.protocol = QuicProtocol(
             self.config,
             server,
-            partial(spawn_app, self.app, self.loop, self.config),
+            partial(spawn_app, task_group, self.app, self.loop, self.config),
             self.protocol_send,
             self._call_at,
             self.loop.time,
