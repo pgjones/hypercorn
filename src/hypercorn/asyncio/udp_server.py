@@ -36,7 +36,7 @@ class UDPServer(asyncio.DatagramProtocol):
         self.protocol = QuicProtocol(
             self.config,
             server,
-            partial(spawn_app, task_group, self.app, self.loop, self.config),
+            partial(spawn_app, task_group, self.app, self.config),
             self.protocol_send,
             self._call_at,
             self.loop.time,
