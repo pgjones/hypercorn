@@ -177,6 +177,17 @@ async def test_protocol_handle_protocol_error(protocol: H11Protocol) -> None:
 
 
 @pytest.mark.asyncio
+async def test_protocol_handle_send_client_error(protocol: H11Protocol) -> None:
+    client = h11.Connection(h11.CLIENT)
+    await protocol.handle(
+        RawData(data=client.send(h11.Request(method="GET", target="/?a=b", headers=BASIC_HEADERS)))
+    )
+    await protocol.handle(RawData(data=b"some body"))
+    # This next line should not cause an error
+    await protocol.stream_send(Response(stream_id=1, status_code=200, headers=[]))
+
+
+@pytest.mark.asyncio
 async def test_protocol_handle_pipelining(protocol: H11Protocol) -> None:
     protocol.can_read.wait.side_effect = Exception()
     with pytest.raises(Exception):

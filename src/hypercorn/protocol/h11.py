@@ -218,8 +218,13 @@ class H11Protocol:
         )
 
     async def _send_h11_event(self, event: H11SendableEvent) -> None:
-        data = self.connection.send(event)
-        await self.send(RawData(data=data))
+        try:
+            data = self.connection.send(event)
+        except h11.LocalProtocolError:
+            if self.connection.their_state != h11.ERROR:
+                raise
+        else:
+            await self.send(RawData(data=data))
 
     async def _send_error_response(self, status_code: int) -> None:
         await self._send_h11_event(
