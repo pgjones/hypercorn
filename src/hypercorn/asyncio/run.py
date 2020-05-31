@@ -211,11 +211,12 @@ def _run(
         def _signal_handler(*_: Any) -> None:  # noqa: N803
             signal_event.set()
 
-        try:
-            loop.add_signal_handler(signal.SIGINT, _signal_handler)
-            loop.add_signal_handler(signal.SIGTERM, _signal_handler)
-        except (AttributeError, NotImplementedError):
-            pass
+        for signal_ in [signal.SIGINT, signal.SIGTERM]:
+            try:
+                loop.add_signal_handler(signal_, _signal_handler)
+            except NotImplementedError:
+                # Add signal handler may not be implemented on Windows
+                signal.signal(signal_, _signal_handler)
 
         shutdown_trigger = signal_event.wait  # type: ignore
 
