@@ -8,7 +8,7 @@ import hypercorn.protocol.h2
 from hypercorn.asyncio.tcp_server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
-from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, H2Protocol, StreamBuffer
+from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer
 from hypercorn.protocol.http_stream import HTTPStream
 
 try:
@@ -56,7 +56,7 @@ async def test_stream_buffer_closed(event_loop: asyncio.AbstractEventLoop) -> No
     await stream_buffer._is_empty.wait()
     await stream_buffer._paused.wait()
     assert True
-    with pytest.raises(RuntimeError):
+    with pytest.raises(BufferCompleteError):
         await stream_buffer.push(b"a")
 
 

@@ -27,6 +27,10 @@ BUFFER_HIGH_WATER = 2 * 2 ** 14  # Twice the default max frame size (two frames 
 BUFFER_LOW_WATER = BUFFER_HIGH_WATER / 2
 
 
+class BufferCompleteError(Exception):
+    pass
+
+
 class StreamBuffer:
     def __init__(self, event_class: Type[IOEvent]) -> None:
         self.buffer = bytearray()
@@ -52,7 +56,7 @@ class StreamBuffer:
 
     async def push(self, data: bytes) -> None:
         if self._complete:
-            raise RuntimeError("Push to completed StreamBuffer")
+            raise BufferCompleteError()
         self.buffer.extend(data)
         await self._is_empty.clear()
         if len(self.buffer) >= BUFFER_HIGH_WATER:
@@ -207,7 +211,12 @@ class H2Protocol:
                 await self.send(Updated())
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
-        except (KeyError, priority.MissingStreamError, h2.exceptions.ProtocolError):
+        except (
+            BufferCompleteError,
+            KeyError,
+            priority.MissingStreamError,
+            h2.exceptions.ProtocolError,
+        ):
             # Connection has closed whilst blocked on flow control or
             # connection has advanced ahead of the last emitted event.
             return
