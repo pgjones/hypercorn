@@ -25,8 +25,8 @@ INSTALL_REQUIRES = [
 ]
 
 TESTS_REQUIRE = [
-    "asynctest",
     "hypothesis",
+    "mock",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",

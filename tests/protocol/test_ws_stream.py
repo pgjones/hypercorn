@@ -4,7 +4,6 @@ from unittest.mock import call, Mock
 import pytest
 from wsproto.events import BytesMessage, TextMessage
 
-from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
 from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
@@ -16,6 +15,12 @@ from hypercorn.protocol.ws_stream import (
     WSStream,
 )
 from hypercorn.utils import UnexpectedMessage
+
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    # Python < 3.8
+    from mock import AsyncMock
 
 
 def test_buffer() -> None:
@@ -126,9 +131,9 @@ def test_handshake_accept_http2() -> None:
 
 @pytest.fixture(name="stream")
 async def _stream() -> WSStream:
-    stream = WSStream(Config(), False, None, None, CoroutineMock(), CoroutineMock(), 1)
-    stream.spawn_app.return_value = CoroutineMock()
-    stream.app_put = CoroutineMock()
+    stream = WSStream(Config(), False, None, None, AsyncMock(), AsyncMock(), 1)
+    stream.spawn_app.return_value = AsyncMock()
+    stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
     return stream
 
@@ -175,7 +180,7 @@ async def test_handle_connection(stream: WSStream) -> None:
         )
     )
     await stream.app_send({"type": "websocket.accept"})
-    stream.app_put = CoroutineMock()
+    stream.app_put = AsyncMock()
     await stream.handle(Data(stream_id=1, data=b"\x81\x85&`\x13\x0eN\x05\x7fbI"))
     stream.app_put.assert_called()
     assert stream.app_put.call_args_list == [

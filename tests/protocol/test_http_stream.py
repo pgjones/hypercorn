@@ -3,18 +3,23 @@ from unittest.mock import call
 
 import pytest
 
-from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.config import Config
 from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, EndBody, Request, Response, StreamClosed
 from hypercorn.protocol.http_stream import ASGIHTTPState, HTTPStream
 from hypercorn.utils import UnexpectedMessage
 
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    # Python < 3.8
+    from mock import AsyncMock
+
 
 @pytest.fixture(name="stream")
 async def _stream() -> HTTPStream:
-    stream = HTTPStream(Config(), False, None, None, CoroutineMock(), CoroutineMock(), 1)
-    stream.app_put = CoroutineMock()
+    stream = HTTPStream(Config(), False, None, None, AsyncMock(), AsyncMock(), 1)
+    stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
     return stream
 
@@ -78,7 +83,7 @@ async def test_handle_body(stream: HTTPStream) -> None:
 
 @pytest.mark.asyncio
 async def test_handle_end_body(stream: HTTPStream) -> None:
-    stream.app_put = CoroutineMock()
+    stream.app_put = AsyncMock()
     await stream.handle(EndBody(stream_id=1))
     stream.app_put.assert_called()
     assert stream.app_put.call_args_list == [

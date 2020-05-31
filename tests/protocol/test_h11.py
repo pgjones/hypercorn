@@ -1,13 +1,12 @@
 import asyncio
 from typing import Any
-from unittest.mock import call
+from unittest.mock import call, Mock
 
 import h11
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h11
-from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.asyncio.tcp_server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData, Updated
@@ -16,17 +15,24 @@ from hypercorn.protocol.h11 import H2CProtocolRequired, H2ProtocolAssumed, H11Pr
 from hypercorn.protocol.http_stream import HTTPStream
 from hypercorn.typing import Event as IOEvent
 
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    # Python < 3.8
+    from mock import AsyncMock
+
+
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 
 
 @pytest.fixture(name="protocol")
 async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
-    MockHTTPStream = AsyncMock()  # noqa: N806
+    MockHTTPStream = Mock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    MockEvent = AsyncMock()  # noqa: N806
+    MockEvent = Mock()  # noqa: N806
     MockEvent.return_value = AsyncMock(spec=IOEvent)
-    return H11Protocol(Config(), False, None, None, CoroutineMock(), CoroutineMock(), MockEvent)
+    return H11Protocol(Config(), False, None, None, AsyncMock(), AsyncMock(), MockEvent)
 
 
 @pytest.mark.asyncio
@@ -228,9 +234,9 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
     MockHTTPStream = AsyncMock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    MockEvent = AsyncMock()  # noqa: N806
+    MockEvent = Mock()  # noqa: N806
     MockEvent.return_value = AsyncMock(spec=IOEvent)
-    protocol = H11Protocol(config, False, None, None, CoroutineMock(), CoroutineMock(), MockEvent)
+    protocol = H11Protocol(config, False, None, None, AsyncMock(), AsyncMock(), MockEvent)
     await protocol.handle(RawData(data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"))
     protocol.send.assert_called()
     assert protocol.send.call_args_list == [

@@ -1,16 +1,21 @@
 import asyncio
-from unittest.mock import call
+from unittest.mock import call, Mock
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h2
-from asynctest.mock import CoroutineMock, Mock as AsyncMock
 from hypercorn.asyncio.tcp_server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, H2Protocol, StreamBuffer
 from hypercorn.protocol.http_stream import HTTPStream
+
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    # Python < 3.8
+    from mock import AsyncMock
 
 
 @pytest.mark.asyncio
@@ -68,10 +73,10 @@ async def test_stream_buffer_complete(event_loop: asyncio.AbstractEventLoop) -> 
 
 @pytest.fixture(name="protocol")
 async def _protocol(monkeypatch: MonkeyPatch) -> H2Protocol:
-    MockHTTPStream = AsyncMock()  # noqa: N806
+    MockHTTPStream = Mock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    return H2Protocol(Config(), False, None, None, CoroutineMock(), CoroutineMock(), EventWrapper)
+    return H2Protocol(Config(), False, None, None, AsyncMock(), AsyncMock(), EventWrapper)
 
 
 @pytest.mark.asyncio
