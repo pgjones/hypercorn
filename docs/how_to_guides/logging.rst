@@ -14,9 +14,9 @@ Configuring access logs
 
 The access log format can be configured by specifying the atoms (see
 below) to include in a specific format. By default hypercorn will
-choose ``%(h)s %(S)s %(r)s %(s)s %(b)s %(D)s`` as the format. The
-configuration variable ``access_log_format`` specifies the format
-used.
+choose ``%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"``
+as the format. The configuration variable ``access_log_format``
+specifies the format used.
 
 
 Access log atoms
