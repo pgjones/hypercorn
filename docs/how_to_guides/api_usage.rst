@@ -86,3 +86,24 @@ receipt of a TERM signal,
     loop.run_until_complete(
         serve(app, config, shutdown_trigger=shutdown_event.wait)
     )
+
+SSL Error reporting
+-------------------
+
+SSLErrors can be raised during the SSL handshake with the connecting
+client. These errors are handled by the event loop and reported via
+the loop's exception handler. Using Hypercorn via the command line
+will mean that these errors are ignored. To ignore (or otherwise
+handle) these errors when using the API configure the event loop
+exception handler,
+
+.. code-block:: python
+
+    def _exception_handler(loop, context):
+        exception = context.get("exception")
+        if isinstance(exception, ssl.SSLError):
+            pass  # Handshake failure
+        else:
+            loop.default_exception_handler(context)
+
+    loop.set_exception_handler(_exception_handler)
