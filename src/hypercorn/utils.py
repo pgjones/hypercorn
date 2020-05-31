@@ -7,7 +7,6 @@ from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
-from types import ModuleType
 from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple
 
 from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework
@@ -100,22 +99,35 @@ def load_application(path: str) -> ASGIFramework:
 
 
 async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
-    last_updates: Dict[ModuleType, float] = {}
+    last_updates: Dict[Path, float] = {}
+    for module in list(sys.modules.values()):
+        filename = getattr(module, "__file__", None)
+        if filename is None:
+            continue
+        path = Path(filename)
+        try:
+            last_updates[Path(filename)] = path.stat().st_mtime
+        except (FileNotFoundError, NotADirectoryError):
+            pass
+
     while True:
-        for module in list(sys.modules.values()):
-            await sleep(0)
-            filename = getattr(module, "__file__", None)
-            if filename is None:
-                continue
-            try:
-                mtime = Path(filename).stat().st_mtime
-            except (FileNotFoundError, NotADirectoryError):
-                continue
-            else:
-                if mtime > last_updates.get(module, mtime):
-                    raise MustReloadException()
-                last_updates[module] = mtime
         await sleep(1)
+
+        for index, (path, last_mtime) in enumerate(last_updates.items()):
+            if index % 10 == 0:
+                # Yield to the event loop
+                await sleep(0)
+
+            try:
+                mtime = path.stat().st_mtime
+            except FileNotFoundError:
+                # File deleted
+                raise MustReloadException()
+            else:
+                if mtime > last_mtime:
+                    raise MustReloadException()
+                else:
+                    last_updates[path] = mtime
 
 
 def restart() -> None:
