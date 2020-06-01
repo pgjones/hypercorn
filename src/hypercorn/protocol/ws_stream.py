@@ -19,7 +19,7 @@ from wsproto.utilities import generate_accept_token, split_comma_header
 
 from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
-from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage
+from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 
 class ASGIWebsocketState(Enum):
@@ -168,6 +168,7 @@ class WSStream:
 
     async def handle(self, event: Event) -> None:
         if isinstance(event, Request):
+            self.start_time = time()
             self.handshake = Handshake(event.headers, event.http_version)
             path, _, query_string = event.raw_path.partition(b"?")
             self.scope = {
@@ -185,8 +186,10 @@ class WSStream:
                 "subprotocols": self.handshake.subprotocols or [],
                 "extensions": {"websocket.http.response": {}},
             }
-            self.start_time = time()
-            if not self.handshake.is_valid():
+
+            if not valid_server_name(self.config, event):
+                await self._send_error_response(404)
+            elif not self.handshake.is_valid():
                 await self._send_error_response(400)
             else:
                 self.app_put = await self.spawn_app(self.scope, self.app_send)

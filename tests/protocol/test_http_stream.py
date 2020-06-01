@@ -120,6 +120,30 @@ async def test_send_response(stream: HTTPStream) -> None:
 
 
 @pytest.mark.asyncio
+async def test_invalid_server_name(stream: HTTPStream) -> None:
+    stream.config.server_names = ["hypercorn"]
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"host", b"example.com")],
+            raw_path=b"/",
+            method="GET",
+        )
+    )
+    assert stream.send.call_args_list == [
+        call(
+            Response(
+                stream_id=1,
+                headers=[(b"content-length", b"0"), (b"connection", b"close")],
+                status_code=404,
+            )
+        ),
+        call(EndBody(stream_id=1)),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_send_push(stream: HTTPStream) -> None:
     stream.scope = {"scheme": "https", "headers": [(b"host", b"hypercorn")], "http_version": "2"}
     stream.stream_id = 1

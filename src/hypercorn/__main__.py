@@ -128,6 +128,15 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         "--root-path", help="The setting for the ASGI root_path variable", default=sentinel
     )
     parser.add_argument(
+        "--server-name",
+        dest="server_names",
+        help="""The hostnames that can be served, requests to different hosts
+        will be responded to with 404s.
+        """,
+        default=[],
+        action="append",
+    )
+    parser.add_argument(
         "--statsd-host", help="The host:port of the statsd server", default=sentinel
     )
     parser.add_argument("--statsd-prefix", help="Prefix for all statsd messages", default="")
@@ -232,6 +241,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.insecure_bind = args.insecure_binds
     if len(args.quic_binds) > 0:
         config.quic_bind = args.quic_binds
+    if len(args.server_names) > 0:
+        config.server_names = args.server_names
 
     run(config)
 

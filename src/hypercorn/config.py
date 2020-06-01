@@ -64,6 +64,7 @@ class Config:
     max_app_queue_size: int = 10
     pid_path: Optional[str] = None
     root_path = ""
+    server_names: List[str] = []
     shutdown_timeout = 60 * SECONDS
     ssl_handshake_timeout = 60 * SECONDS
     startup_timeout = 60 * SECONDS

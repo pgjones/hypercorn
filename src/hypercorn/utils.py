@@ -7,9 +7,13 @@ from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
-from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+from .config import Config
 from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework
+
+if TYPE_CHECKING:
+    from .protocol.events import Request
 
 
 class Shutdown(Exception):
@@ -223,3 +227,14 @@ def _is_asgi_2(app: ASGIFramework) -> bool:
         return False
 
     return not inspect.iscoroutinefunction(app)
+
+
+def valid_server_name(config: Config, request: "Request") -> bool:
+    if len(config.server_names) == 0:
+        return True
+
+    host = ""
+    for name, value in request.headers:
+        if name.lower() == b"host":
+            host = value.decode()
+    return host in config.server_names

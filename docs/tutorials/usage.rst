@@ -71,6 +71,10 @@ The following options exist with the given usage,
   --reload              Enable automatic reloads on code changes
   --root-path ROOT_PATH
                         The setting for the ASGI root_path variable
+  --server-name SERVER_NAMES
+                        The hostnames that can be served, requests to
+                        different hosts will be responded to with
+                        404s.
   --statsd-host STATSD_HOST
                         The host:port of the statsd server
   --statsd-prefix STATSD_PREFIX
