@@ -12,3 +12,4 @@ How to guides
    logging.rst
    server_names.rst
    statsd.rst
+   wsgi_apps.rst
