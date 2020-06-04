@@ -81,13 +81,20 @@ async def worker_serve(
                     await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
 
                 task_status.started(binds)
-                await trio.serve_listeners(partial(TCPServer, app, config), listeners)
+                await trio.serve_listeners(
+                    partial(TCPServer, app, config), listeners, handler_nursery=lifespan_nursery
+                )
 
         except MustReloadException:
             reload_ = True
         except (Shutdown, KeyboardInterrupt):
             pass
         finally:
+            try:
+                await trio.sleep(config.graceful_timeout)
+            except (Shutdown, KeyboardInterrupt):
+                pass
+
             await lifespan.wait_for_shutdown()
             lifespan_nursery.cancel_scope.cancel()
 

@@ -73,6 +73,13 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=sentinel,
     )
     parser.add_argument(
+        "--graceful-timeout",
+        help="""Time to wait after SIGTERM or Ctrl-C for any remaining requests (tasks)
+        to complete.""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
         "-g", "--group", help="Group to own any unix sockets.", default=sentinel, type=int
     )
     parser.add_argument(
@@ -213,6 +220,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.errorlog = args.error_log
     if args.error_logfile is not sentinel:
         config.errorlog = args.error_logfile
+    if args.graceful_timeout is not sentinel:
+        config.graceful_timeout = args.graceful_timeout
     if args.group is not sentinel:
         config.group = args.group
     if args.keep_alive is not sentinel:

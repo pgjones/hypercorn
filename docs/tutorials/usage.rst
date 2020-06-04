@@ -46,6 +46,9 @@ The following options exist with the given usage,
   --error-logfile ERROR_LOGFILE, --log-file ERROR_LOGFILE
                         The target location for the error log, use `-` for
                         stderr
+  --graceful-timeout GRACEFUL_TIMEOUT
+                        Time to wait after SIGTERM or Ctrl-C for any
+                        remaining requests (tasks) to complete.
   -g GROUP, --group GROUP
                         Group to own any unix sockets.
   -k WORKER_CLASS, --worker-class WORKER_CLASS

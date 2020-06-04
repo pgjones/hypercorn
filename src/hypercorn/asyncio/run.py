@@ -140,6 +140,11 @@ async def worker_serve(
             server.close()
             await server.wait_closed()
 
+        try:
+            await asyncio.sleep(config.graceful_timeout)
+        except (Shutdown, KeyboardInterrupt):
+            pass
+
         # Retrieve the Gathered Tasks Cancelled Exception, to
         # prevent a warning that this hasn't been done.
         gathered_tasks.exception()
