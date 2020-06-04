@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Awaitable, Callable, Optional, Tuple, Type, Union
+from typing import Awaitable, Callable, Optional, Tuple, Union
 
 import h11
 
@@ -17,7 +17,7 @@ from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
-from ..typing import Event as IOEvent, H11SendableEvent
+from ..typing import ASGIFramework, Context, H11SendableEvent
 
 STREAM_ID = 1
 
@@ -72,23 +72,24 @@ class H11WSConnection:
 class H11Protocol:
     def __init__(
         self,
+        app: ASGIFramework,
         config: Config,
+        context: Context,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
-        spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
-        event_class: Type[IOEvent],
     ) -> None:
-        self.can_read = event_class()
+        self.app = app
+        self.can_read = context.event_class()
         self.client = client
         self.config = config
         self.connection = h11.Connection(
             h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size
         )
+        self.context = context
         self.send = send
         self.server = server
-        self.spawn_app = spawn_app
         self.ssl = ssl
         self.stream: Optional[Union[HTTPStream, WSStream]] = None
 
@@ -188,23 +189,25 @@ class H11Protocol:
             and request.method.decode("ascii").upper() == "GET"
         ):
             self.stream = WSStream(
+                self.app,
                 self.config,
+                self.context,
                 self.ssl,
                 self.client,
                 self.server,
                 self.stream_send,
-                self.spawn_app,
                 STREAM_ID,
             )
             self.connection = H11WSConnection(self.connection)
         else:
             self.stream = HTTPStream(
+                self.app,
                 self.config,
+                self.context,
                 self.ssl,
                 self.client,
                 self.server,
                 self.stream_send,
-                self.spawn_app,
                 STREAM_ID,
             )
         await self.stream.handle(

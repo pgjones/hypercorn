@@ -19,25 +19,28 @@ from .events import (
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
+from ..typing import ASGIFramework, Context
 from ..utils import filter_pseudo_headers
 
 
 class H3Protocol:
     def __init__(
         self,
+        app: ASGIFramework,
         config: Config,
+        context: Context,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
-        spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
         quic: QuicConnection,
         send: Callable[[], Awaitable[None]],
     ) -> None:
+        self.app = app
         self.client = client
         self.config = config
+        self.context = context
         self.connection = H3Connection(quic)
         self.send = send
         self.server = server
-        self.spawn_app = spawn_app
         self.streams: Dict[int, Union[HTTPStream, WSStream]] = {}
 
     async def handle(self, quic_event: QuicEvent) -> None:
@@ -82,22 +85,24 @@ class H3Protocol:
 
         if method == "CONNECT":
             self.streams[request.stream_id] = WSStream(
+                self.app,
                 self.config,
+                self.context,
                 True,
                 self.client,
                 self.server,
                 self.stream_send,
-                self.spawn_app,
                 request.stream_id,
             )
         else:
             self.streams[request.stream_id] = HTTPStream(
+                self.app,
                 self.config,
+                self.context,
                 True,
                 self.client,
                 self.server,
                 self.stream_send,
-                self.spawn_app,
                 request.stream_id,
             )
 

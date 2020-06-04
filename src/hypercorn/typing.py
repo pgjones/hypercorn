@@ -1,5 +1,5 @@
 from multiprocessing.synchronize import Event as EventType
-from typing import Awaitable, Callable, Optional, Tuple, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Tuple, Type, Union
 
 import h2.events
 import h11
@@ -88,4 +88,28 @@ class Event(Protocol):
         ...
 
     async def wait(self) -> None:
+        ...
+
+
+class Context(Protocol):
+    event_class: Type[Event]
+
+    async def spawn_app(
+        self,
+        app: ASGIFramework,
+        config: Config,
+        scope: dict,
+        send: Callable[[dict], Awaitable[None]],
+    ) -> Callable[[dict], Awaitable[None]]:
+        ...
+
+    def spawn(self, func: Callable, *args: Any) -> None:
+        ...
+
+    @staticmethod
+    async def sleep(wait: Union[float, int]) -> None:
+        ...
+
+    @staticmethod
+    def time() -> float:
         ...

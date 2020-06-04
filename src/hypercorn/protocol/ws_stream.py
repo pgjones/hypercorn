@@ -19,6 +19,7 @@ from wsproto.utilities import generate_accept_token, split_comma_header
 
 from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
+from ..typing import ASGIFramework, Context
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 
@@ -135,26 +136,28 @@ class WebsocketBuffer:
 class WSStream:
     def __init__(
         self,
+        app: ASGIFramework,
         config: Config,
+        context: Context,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
-        spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
         stream_id: int,
     ) -> None:
+        self.app = app
         self.app_put: Optional[Callable] = None
         self.buffer = WebsocketBuffer(config.websocket_max_message_size)
         self.client = client
         self.closed = False
         self.config = config
+        self.context = context
         self.response: dict
         self.scope: dict
         self.send = send
         # RFC 8441 for HTTP/2 says use http or https, ASGI says ws or wss
         self.scheme = "wss" if ssl else "ws"
         self.server = server
-        self.spawn_app = spawn_app
         self.start_time: float
         self.state = ASGIWebsocketState.HANDSHAKE
         self.stream_id = stream_id
@@ -192,7 +195,9 @@ class WSStream:
             elif not self.handshake.is_valid():
                 await self._send_error_response(400)
             else:
-                self.app_put = await self.spawn_app(self.scope, self.app_send)
+                self.app_put = await self.context.spawn_app(
+                    self.app, self.config, self.scope, self.app_send
+                )
                 await self.app_put({"type": "websocket.connect"})
         elif isinstance(event, (Body, Data)):
             self.connection.receive_data(event.data)

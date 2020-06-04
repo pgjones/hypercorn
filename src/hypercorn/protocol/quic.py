@@ -20,26 +20,25 @@ from aioquic.quic.packet import (
 from .h3 import H3Protocol
 from ..config import Config
 from ..events import Closed, Event, RawData
+from ..typing import ASGIFramework, Context
 
 
 class QuicProtocol:
     def __init__(
         self,
+        app: ASGIFramework,
         config: Config,
+        context: Context,
         server: Optional[Tuple[str, int]],
-        spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
         send: Callable[[Event], Awaitable[None]],
-        call_at: Callable[[float, Callable], None],
-        now: Callable[[], float],
     ) -> None:
-        self.call_at = call_at
+        self.app = app
         self.config = config
+        self.context = context
         self.connections: Dict[bytes, QuicConnection] = {}
         self.http_connections: Dict[QuicConnection, H3Protocol] = {}
-        self.now = now
         self.send = send
         self.server = server
-        self.spawn_app = spawn_app
 
         self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
@@ -76,13 +75,13 @@ class QuicProtocol:
                 self.connections[connection.host_cid] = connection
 
             if connection is not None:
-                connection.receive_datagram(event.data, event.address, now=self.now())
+                connection.receive_datagram(event.data, event.address, now=self.context.time())
                 await self._handle_events(connection, event.address)
         elif isinstance(event, Closed):
             pass
 
     async def send_all(self, connection: QuicConnection) -> None:
-        for data, address in connection.datagrams_to_send(now=self.now()):
+        for data, address in connection.datagrams_to_send(now=self.context.time()):
             await self.send(RawData(data=data, address=address))
 
     async def _handle_events(
@@ -94,10 +93,11 @@ class QuicProtocol:
                 pass
             elif isinstance(event, ProtocolNegotiated):
                 self.http_connections[connection] = H3Protocol(
+                    self.app,
                     self.config,
+                    self.context,
                     client,
                     self.server,
-                    self.spawn_app,
                     connection,
                     partial(self.send_all, connection),
                 )
@@ -115,9 +115,11 @@ class QuicProtocol:
 
         timer = connection.get_timer()
         if timer is not None:
-            self.call_at(timer, partial(self._handle_timer, connection))
+            self.context.spawn(self._handle_timer, timer, connection)
 
-    async def _handle_timer(self, connection: QuicConnection) -> None:
+    async def _handle_timer(self, timer: float, connection: QuicConnection) -> None:
+        wait = max(0, timer - self.context.time())
+        await self.context.sleep(wait)
         if connection._close_at is not None:
-            connection.handle_timer(now=self.now())
+            connection.handle_timer(now=self.context.time())
             await self._handle_events(connection, None)

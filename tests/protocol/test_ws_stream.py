@@ -131,8 +131,8 @@ def test_handshake_accept_http2() -> None:
 
 @pytest.fixture(name="stream")
 async def _stream() -> WSStream:
-    stream = WSStream(Config(), False, None, None, AsyncMock(), AsyncMock(), 1)
-    stream.spawn_app.return_value = AsyncMock()
+    stream = WSStream(AsyncMock(), Config(), AsyncMock(), False, None, None, AsyncMock(), 1)
+    stream.context.spawn_app.return_value = AsyncMock()
     stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
     return stream
@@ -149,8 +149,8 @@ async def test_handle_request(stream: WSStream) -> None:
             method="GET",
         )
     )
-    stream.spawn_app.assert_called()
-    scope = stream.spawn_app.call_args[0][0]
+    stream.context.spawn_app.assert_called()
+    scope = stream.context.spawn_app.call_args[0][2]
     assert scope == {
         "type": "websocket",
         "asgi": {"spec_version": "2.1"},

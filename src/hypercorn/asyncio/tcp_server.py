@@ -1,8 +1,7 @@
 import asyncio
-from functools import partial
-from typing import Any, Callable, Generator, Optional
+from typing import Any, Callable, cast, Generator, Optional
 
-from .spawn_app import spawn_app
+from .context import Context
 from .task_group import TaskGroup
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
@@ -64,14 +63,15 @@ class TCPServer:
                 alpn_protocol = "http/1.1"
 
             async with TaskGroup(self.loop) as task_group:
+                context = Context(task_group)
                 self.protocol = ProtocolWrapper(
+                    self.app,
                     self.config,
+                    cast(Any, context),
                     ssl,
                     client,
                     server,
                     self.protocol_send,
-                    partial(spawn_app, task_group, self.app, self.config),
-                    EventWrapper,
                     alpn_protocol,
                 )
                 await self.protocol.initiate()

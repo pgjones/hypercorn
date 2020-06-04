@@ -76,7 +76,7 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H2Protocol:
     MockHTTPStream = Mock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    return H2Protocol(Config(), False, None, None, AsyncMock(), AsyncMock(), EventWrapper)
+    return H2Protocol(AsyncMock(), Config(), AsyncMock(), False, None, None, AsyncMock())
 
 
 @pytest.mark.asyncio

@@ -18,7 +18,7 @@ except ImportError:
 
 @pytest.fixture(name="stream")
 async def _stream() -> HTTPStream:
-    stream = HTTPStream(Config(), False, None, None, AsyncMock(), AsyncMock(), 1)
+    stream = HTTPStream(AsyncMock(), Config(), AsyncMock(), False, None, None, AsyncMock(), 1)
     stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
     return stream
@@ -30,8 +30,8 @@ async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> N
     await stream.handle(
         Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
     )
-    stream.spawn_app.assert_called()
-    scope = stream.spawn_app.call_args[0][0]
+    stream.context.spawn_app.assert_called()
+    scope = stream.context.spawn_app.call_args[0][2]
     assert scope == {
         "type": "http",
         "http_version": http_version,
@@ -53,8 +53,8 @@ async def test_handle_request_http_2(stream: HTTPStream) -> None:
     await stream.handle(
         Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
     )
-    stream.spawn_app.assert_called()
-    scope = stream.spawn_app.call_args[0][0]
+    stream.context.spawn_app.assert_called()
+    scope = stream.context.spawn_app.call_args[0][2]
     assert scope == {
         "type": "http",
         "http_version": "2",

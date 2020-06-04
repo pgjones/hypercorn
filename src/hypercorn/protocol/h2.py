@@ -20,7 +20,7 @@ from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
-from ..typing import Event as IOEvent
+from ..typing import ASGIFramework, Context, Event as IOEvent
 from ..utils import filter_pseudo_headers
 
 BUFFER_HIGH_WATER = 2 * 2 ** 14  # Twice the default max frame size (two frames worth)
@@ -77,17 +77,19 @@ class StreamBuffer:
 class H2Protocol:
     def __init__(
         self,
+        app: ASGIFramework,
         config: Config,
+        context: Context,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
-        spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
-        event_class: Type[IOEvent],
     ) -> None:
+        self.app = app
         self.client = client
         self.closed = False
         self.config = config
+        self.context = context
 
         self.connection = h2.connection.H2Connection(
             config=h2.config.H2Configuration(client_side=False, header_encoding=None)
@@ -102,14 +104,12 @@ class H2Protocol:
             },
         )
 
-        self.event_class = event_class
         self.send = send
         self.server = server
-        self.spawn_app = spawn_app
         self.ssl = ssl
         self.streams: Dict[int, Union[HTTPStream, WSStream]] = {}
         # The below are used by the sending task
-        self.has_data = event_class()
+        self.has_data = self.context.event_class()
         self.priority = priority.PriorityTree()
         self.stream_buffers: Dict[int, StreamBuffer] = {}
 
@@ -290,25 +290,27 @@ class H2Protocol:
 
         if method == "CONNECT":
             self.streams[request.stream_id] = WSStream(
+                self.app,
                 self.config,
+                self.context,
                 self.ssl,
                 self.client,
                 self.server,
                 self.stream_send,
-                self.spawn_app,
                 request.stream_id,
             )
         else:
             self.streams[request.stream_id] = HTTPStream(
+                self.app,
                 self.config,
+                self.context,
                 self.ssl,
                 self.client,
                 self.server,
                 self.stream_send,
-                self.spawn_app,
                 request.stream_id,
             )
-        self.stream_buffers[request.stream_id] = StreamBuffer(self.event_class)
+        self.stream_buffers[request.stream_id] = StreamBuffer(self.context.event_class)
         try:
             self.priority.insert_stream(request.stream_id)
         except priority.DuplicateStreamError:

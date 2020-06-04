@@ -1,9 +1,8 @@
-from functools import partial
 from typing import Any, Callable, Generator, Optional
 
 import trio
 
-from .spawn_app import spawn_app
+from .context import Context
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
@@ -62,14 +61,15 @@ class TCPServer:
 
             async with trio.open_nursery() as nursery:
                 self.nursery = nursery
+                context = Context(nursery)
                 self.protocol = ProtocolWrapper(
+                    self.app,
                     self.config,
+                    context,
                     ssl,
                     client,
                     server,
                     self.protocol_send,
-                    partial(spawn_app, nursery, self.app, self.config),
-                    EventWrapper,
                     alpn_protocol,
                 )
                 await self.protocol.initiate()

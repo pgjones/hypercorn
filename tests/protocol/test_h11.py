@@ -30,9 +30,9 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     MockHTTPStream = Mock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    MockEvent = Mock()  # noqa: N806
-    MockEvent.return_value = AsyncMock(spec=IOEvent)
-    return H11Protocol(Config(), False, None, None, AsyncMock(), AsyncMock(), MockEvent)
+    context = Mock()
+    context.event_class.return_value = AsyncMock(spec=IOEvent)
+    return H11Protocol(AsyncMock(), Config(), context, False, None, None, AsyncMock())
 
 
 @pytest.mark.asyncio
@@ -234,9 +234,9 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
     MockHTTPStream = AsyncMock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    MockEvent = Mock()  # noqa: N806
-    MockEvent.return_value = AsyncMock(spec=IOEvent)
-    protocol = H11Protocol(config, False, None, None, AsyncMock(), AsyncMock(), MockEvent)
+    context = Mock()
+    context.event_class.return_value = AsyncMock(spec=IOEvent)
+    protocol = H11Protocol(AsyncMock(), config, context, False, None, None, AsyncMock())
     await protocol.handle(RawData(data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"))
     protocol.send.assert_called()
     assert protocol.send.call_args_list == [

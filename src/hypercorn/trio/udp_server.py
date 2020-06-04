@@ -1,9 +1,6 @@
-from functools import partial
-from typing import Awaitable, Callable
-
 import trio
 
-from .spawn_app import spawn_app
+from .context import Context
 from ..config import Config
 from ..events import Event, RawData
 from ..typing import ASGIFramework
@@ -26,15 +23,9 @@ class UDPServer:
         self.config = config
         self.nursery = nursery
         self.socket = trio.socket.from_stdlib_socket(socket)
+        context = Context(nursery)
         server = parse_socket_addr(socket.family, socket.getsockname())
-        self.protocol = QuicProtocol(
-            config,
-            server,
-            partial(spawn_app, self.nursery, self.app, self.config),
-            self.protocol_send,
-            self._call_at,
-            trio.current_time,
-        )
+        self.protocol = QuicProtocol(self.app, self.config, context, server, self.protocol_send)
 
     async def run(
         self, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
@@ -47,12 +38,3 @@ class UDPServer:
     async def protocol_send(self, event: Event) -> None:
         if isinstance(event, RawData):
             await self.socket.sendto(event.data, event.address)
-
-    def _call_at(self, time: float, func: Callable[[], Awaitable[None]]) -> None:
-        wait = max(0, time - trio.current_time())
-
-        async def _call_at() -> None:
-            await trio.sleep(wait)
-            await func()
-
-        self.nursery.start_soon(_call_at)

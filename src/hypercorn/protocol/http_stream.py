@@ -5,6 +5,7 @@ from urllib.parse import unquote
 
 from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
+from ..typing import ASGIFramework, Context
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 PUSH_VERSIONS = {"2", "3"}
@@ -22,23 +23,25 @@ class ASGIHTTPState(Enum):
 class HTTPStream:
     def __init__(
         self,
+        app: ASGIFramework,
         config: Config,
+        context: Context,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
-        spawn_app: Callable[[dict, Callable], Awaitable[Callable]],
         stream_id: int,
     ) -> None:
+        self.app = app
         self.client = client
         self.closed = False
         self.config = config
+        self.context = context
         self.response: dict
         self.scope: dict
         self.send = send
         self.scheme = "https" if ssl else "http"
         self.server = server
-        self.spawn_app = spawn_app
         self.start_time: float
         self.state = ASGIHTTPState.REQUEST
         self.stream_id = stream_id
@@ -69,7 +72,9 @@ class HTTPStream:
                 self.scope["extensions"] = {"http.response.push": {}}
 
             if valid_server_name(self.config, event):
-                self.app_put = await self.spawn_app(self.scope, self.app_send)
+                self.app_put = await self.context.spawn_app(
+                    self.app, self.config, self.scope, self.app_send
+                )
             else:
                 await self._send_error_response(404)
 

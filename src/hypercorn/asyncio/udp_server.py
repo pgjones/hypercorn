@@ -1,8 +1,7 @@
 import asyncio
-from functools import partial
-from typing import Awaitable, Callable, Optional, Tuple, TYPE_CHECKING
+from typing import Any, cast, Optional, Tuple, TYPE_CHECKING
 
-from .spawn_app import spawn_app
+from .context import Context
 from .task_group import TaskGroup
 from ..config import Config
 from ..events import Closed, Event, RawData
@@ -33,13 +32,9 @@ class UDPServer(asyncio.DatagramProtocol):
         socket = self.transport.get_extra_info("socket")
         server = parse_socket_addr(socket.family, socket.getsockname())
         task_group = TaskGroup(self.loop)
+        context = Context(task_group)
         self.protocol = QuicProtocol(
-            self.config,
-            server,
-            partial(spawn_app, task_group, self.app, self.config),
-            self.protocol_send,
-            self._call_at,
-            self.loop.time,
+            self.app, self.config, cast(Any, context), server, self.protocol_send
         )
 
     def datagram_received(self, data: bytes, address: Tuple[bytes, str]) -> None:  # type: ignore
@@ -58,12 +53,3 @@ class UDPServer(asyncio.DatagramProtocol):
             await self.protocol.handle(event)
             if isinstance(event, Closed):
                 break
-
-    def _call_at(self, time: float, func: Callable[[], Awaitable[None]]) -> None:
-        wait = max(0, time - self.loop.time())
-
-        async def _call_at() -> None:
-            await asyncio.sleep(wait)
-            await func()
-
-        self.loop.create_task(_call_at())
