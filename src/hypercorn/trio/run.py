@@ -77,6 +77,7 @@ async def worker_serve(
 
                 for sock in sockets.quic_sockets:
                     await nursery.start(UDPServer(app, config, sock, nursery).run)
+                    bind = repr_socket_addr(sock.family, sock.getsockname())
                     await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
 
                 task_status.started(binds)
