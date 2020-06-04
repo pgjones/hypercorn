@@ -164,6 +164,13 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=sentinel,
     )
     parser.add_argument(
+        "--websocket-ping-interval",
+        help="""If set this is the time in seconds between pings sent to the client.
+        This can be used to keep the websocket connection alive.""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
         "-w",
         "--workers",
         dest="workers",
@@ -232,6 +239,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.worker_class = args.worker_class
     if args.verify_mode is not sentinel:
         config.verify_mode = args.verify_mode
+    if args.websocket_ping_interval is not sentinel:
+        config.websocket_ping_interval = args.websocket_ping_interval
     if args.workers is not sentinel:
         config.workers = args.workers
 

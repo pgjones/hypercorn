@@ -85,5 +85,9 @@ The following options exist with the given usage,
   --verify-mode VERIFY_MODE
                         SSL verify mode for peer's certificate, see
                         ssl.VerifyMode enum for possible values.
+  --websocket-ping-interval WEBSOCKET_PING_INTERVAL
+                        If set this is the time in seconds between
+                        pings sent to the client. This can be used to
+                        keep the websocket connection alive.
   -w WORKERS, --workers WORKERS
                         The number of workers to spawn and use

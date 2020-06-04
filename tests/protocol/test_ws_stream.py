@@ -1,9 +1,12 @@
+import asyncio
 from typing import Any, List, Tuple
 from unittest.mock import call, Mock
 
 import pytest
 from wsproto.events import BytesMessage, TextMessage
 
+from hypercorn.asyncio.context import Context
+from hypercorn.asyncio.task_group import TaskGroup
 from hypercorn.config import Config
 from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
@@ -332,6 +335,31 @@ async def test_send_connection(stream: WSStream) -> None:
         call(Data(stream_id=1, data=b"\x88\x02\x03\xe8")),
         call(EndData(stream_id=1)),
     ]
+
+
+@pytest.mark.asyncio
+async def test_pings(stream: WSStream, event_loop: asyncio.AbstractEventLoop) -> None:
+    stream.config.websocket_ping_interval = 0.1
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"sec-websocket-version", b"13")],
+            raw_path=b"/?a=b",
+            method="GET",
+        )
+    )
+    async with TaskGroup(event_loop) as task_group:
+        stream.context = Context(task_group)
+        await stream.app_send({"type": "websocket.accept"})
+        stream.app_put = AsyncMock()
+        await asyncio.sleep(0.15)
+        assert stream.send.call_args_list == [
+            call(Response(stream_id=1, headers=[], status_code=200)),
+            call(Data(stream_id=1, data=b"\x89\x00")),
+            call(Data(stream_id=1, data=b"\x89\x00")),
+        ]
+        await stream.handle(StreamClosed(stream_id=1))
 
 
 @pytest.mark.asyncio

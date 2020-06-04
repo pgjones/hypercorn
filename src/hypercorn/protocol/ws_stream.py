@@ -228,16 +228,7 @@ class WSStream:
             await self.send(StreamClosed(stream_id=self.stream_id))
         else:
             if message["type"] == "websocket.accept" and self.state == ASGIWebsocketState.HANDSHAKE:
-                self.state = ASGIWebsocketState.CONNECTED
-                status_code, headers, self.connection = self.handshake.accept(
-                    message.get("subprotocol")
-                )
-                await self.send(
-                    Response(stream_id=self.stream_id, status_code=status_code, headers=headers)
-                )
-                await self.config.log.access(
-                    self.scope, {"status": status_code, "headers": []}, time() - self.start_time
-                )
+                await self._accept(message)
             elif (
                 message["type"] == "websocket.http.response.start"
                 and self.state == ASGIWebsocketState.HANDSHAKE
@@ -309,6 +300,18 @@ class WSStream:
         data = self.connection.send(event)
         await self.send(Data(stream_id=self.stream_id, data=data))
 
+    async def _accept(self, message: dict) -> None:
+        self.state = ASGIWebsocketState.CONNECTED
+        status_code, headers, self.connection = self.handshake.accept(message.get("subprotocol"))
+        await self.send(
+            Response(stream_id=self.stream_id, status_code=status_code, headers=headers)
+        )
+        await self.config.log.access(
+            self.scope, {"status": status_code, "headers": []}, time() - self.start_time
+        )
+        if self.config.websocket_ping_interval is not None:
+            self.context.spawn(self._send_pings)
+
     async def _send_rejection(self, message: dict) -> None:
         body_suppressed = suppress_body("GET", self.response["status"])
         if self.state == ASGIWebsocketState.HANDSHAKE:
@@ -327,3 +330,8 @@ class WSStream:
             self.state = ASGIWebsocketState.HTTPCLOSED
             await self.send(EndBody(stream_id=self.stream_id))
             await self.config.log.access(self.scope, self.response, time() - self.start_time)
+
+    async def _send_pings(self) -> None:
+        while not self.closed:
+            await self._send_wsproto_event(Ping())
+            await self.context.sleep(self.config.websocket_ping_interval)
