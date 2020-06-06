@@ -1,3 +1,19 @@
+0.10.0 2020-06-06
+-----------------
+
+* Bugfix spawn_app usage for asyncio UDP servers.
+* Update HTTP/3 code for aioquic >= 0.9.0, this supports draft 28.
+* Bugfix don't error if send to a h11 errored client.
+* Bugfix handle SIGINT/SIGTERM on Windows.
+* Improve the reloader efficiency.
+* Bugfix ignore BufferCompleteErrors when trying to send.
+* Add support for server names to ensure Hypercorn only responds to
+  valid requests (by host header).
+* Add WSGI middleware.
+* Add the ability to send websocket pings to keep a WebSocket
+  connection alive.
+* Add a graceful timeout on shutdown.
+
 0.9.5 2020-04-19
 ----------------
 
