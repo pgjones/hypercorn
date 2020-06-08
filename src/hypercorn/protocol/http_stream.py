@@ -77,12 +77,13 @@ class HTTPStream:
                 )
             else:
                 await self._send_error_response(404)
+                self.closed = True
 
-        elif isinstance(event, Body):
+        elif isinstance(event, Body) and not self.closed:
             await self.app_put(
                 {"type": "http.request", "body": bytes(event.data), "more_body": True}
             )
-        elif isinstance(event, EndBody):
+        elif isinstance(event, EndBody) and not self.closed:
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
         elif isinstance(event, StreamClosed) and not self.closed:
             self.closed = True

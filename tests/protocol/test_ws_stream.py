@@ -263,6 +263,8 @@ async def test_invalid_server_name(stream: WSStream) -> None:
         ),
         call(EndBody(stream_id=1)),
     ]
+    # This shouldn't error
+    await stream.handle(Body(stream_id=1, data=b"Body"))
 
 
 @pytest.mark.asyncio

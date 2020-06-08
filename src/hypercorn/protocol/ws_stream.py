@@ -192,14 +192,16 @@ class WSStream:
 
             if not valid_server_name(self.config, event):
                 await self._send_error_response(404)
+                self.closed = True
             elif not self.handshake.is_valid():
                 await self._send_error_response(400)
+                self.closed = True
             else:
                 self.app_put = await self.context.spawn_app(
                     self.app, self.config, self.scope, self.app_send
                 )
                 await self.app_put({"type": "websocket.connect"})
-        elif isinstance(event, (Body, Data)):
+        elif isinstance(event, (Body, Data)) and not self.closed:
             self.connection.receive_data(event.data)
             await self._handle_events()
         elif isinstance(event, StreamClosed) and not self.closed:
