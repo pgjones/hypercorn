@@ -51,7 +51,9 @@ class HTTPStream:
         return False
 
     async def handle(self, event: Event) -> None:
-        if isinstance(event, Request):
+        if self.closed:
+            return
+        elif isinstance(event, Request):
             self.start_time = time()
             path, _, query_string = event.raw_path.partition(b"?")
             self.scope = {
@@ -79,13 +81,13 @@ class HTTPStream:
                 await self._send_error_response(404)
                 self.closed = True
 
-        elif isinstance(event, Body) and not self.closed:
+        elif isinstance(event, Body):
             await self.app_put(
                 {"type": "http.request", "body": bytes(event.data), "more_body": True}
             )
-        elif isinstance(event, EndBody) and not self.closed:
+        elif isinstance(event, EndBody):
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
-        elif isinstance(event, StreamClosed) and not self.closed:
+        elif isinstance(event, StreamClosed):
             self.closed = True
             if self.app_put is not None:
                 await self.app_put({"type": "http.disconnect"})

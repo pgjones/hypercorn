@@ -170,7 +170,9 @@ class WSStream:
         return self.state in {ASGIWebsocketState.CLOSED, ASGIWebsocketState.HTTPCLOSED}
 
     async def handle(self, event: Event) -> None:
-        if isinstance(event, Request):
+        if self.closed:
+            return
+        elif isinstance(event, Request):
             self.start_time = time()
             self.handshake = Handshake(event.headers, event.http_version)
             path, _, query_string = event.raw_path.partition(b"?")
@@ -201,10 +203,10 @@ class WSStream:
                     self.app, self.config, self.scope, self.app_send
                 )
                 await self.app_put({"type": "websocket.connect"})
-        elif isinstance(event, (Body, Data)) and not self.closed:
+        elif isinstance(event, (Body, Data)):
             self.connection.receive_data(event.data)
             await self._handle_events()
-        elif isinstance(event, StreamClosed) and not self.closed:
+        elif isinstance(event, StreamClosed):
             self.closed = True
             if self.app_put is not None:
                 if self.state in {ASGIWebsocketState.HTTPCLOSED, ASGIWebsocketState.CLOSED}:
