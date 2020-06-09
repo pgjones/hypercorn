@@ -27,7 +27,7 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
     await client_stream.send_all(
         client.send(
             h11.Request(
-                method="GET",
+                method="POST",
                 target="/",
                 headers=[
                     (b"host", b"hypercorn"),
