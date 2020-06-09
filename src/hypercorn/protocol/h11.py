@@ -158,6 +158,14 @@ class H11Protocol:
                 if isinstance(event, h11.Request):
                     await self._check_protocol(event)
                     await self._create_stream(event)
+                elif event is h11.PAUSED:
+                    await self.send(Updated())
+                    await self.can_read.clear()
+                    await self.can_read.wait()
+                elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
+                    break
+                elif self.stream is None:
+                    break
                 elif isinstance(event, h11.Data):
                     await self.stream.handle(Body(stream_id=STREAM_ID, data=event.data))
                 elif isinstance(event, h11.EndOfMessage):
@@ -165,12 +173,6 @@ class H11Protocol:
                 elif isinstance(event, Data):
                     # WebSocket pass through
                     await self.stream.handle(event)
-                elif event is h11.PAUSED:
-                    await self.send(Updated())
-                    await self.can_read.clear()
-                    await self.can_read.wait()
-                elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
-                    break
 
     async def _create_stream(self, request: h11.Request) -> None:
         upgrade_value = ""
