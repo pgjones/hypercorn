@@ -30,13 +30,11 @@ standalone ASGI server. Hypercorn forked from version 0.5.0 of Quart.
 Quickstart
 ----------
 
-Hypercorn can be installed via `pipenv
-<https://docs.pipenv.org/install/#installing-packages-for-your-project>`_ or
-`pip <https://docs.python.org/3/installing/index.html>`_,
+Hypercorn can be installed via `pip
+<https://docs.python.org/3/installing/index.html>`_,
 
 .. code-block:: console
 
-    $ pipenv install hypercorn
     $ pip install hypercorn
 
 and requires Python 3.7.0 or higher.
