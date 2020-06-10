@@ -1,3 +1,9 @@
+0.10.1 2020-06-10
+-----------------
+
+* Bugfix close streams on server name rejection.
+* Bugfix handle receiving data after stream closure.
+
 0.10.0 2020-06-06
 -----------------
 
