@@ -46,6 +46,22 @@ Hypercorn via the command line,
 
     $ hypercorn module:app
 
+Alternatively Hypercorn can be used programatically,
+
+.. code-block:: python
+
+    import asyncio
+    from hypercorn.config import Config
+    from hypercorn.asyncio import serve
+
+    from module import app
+
+    asyncio.run(serve(app, Config()))
+
+learn more (including a Trio example of the above) in the `API usage
+<https://pgjones.gitlab.io/hypercorn/how_to_guides/api_usage.html>`_
+docs.
+
 Contributing
 ------------
 
