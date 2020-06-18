@@ -265,8 +265,12 @@ async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
     assert protocol.send.call_args_list == [
         call(
             RawData(
-                b"HTTP/1.1 101 \r\nupgrade: h2c\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\n"
-                b"server: hypercorn-h11\r\n\r\n"
+                b"HTTP/1.1 101 \r\n"
+                b"date: Thu, 01 Jan 1970 01:23:20 GMT\r\n"
+                b"server: hypercorn-h11\r\n"
+                b"connection: upgrade\r\n"
+                b"upgrade: h2c\r\n"
+                b"\r\n"
             )
         )
     ]
