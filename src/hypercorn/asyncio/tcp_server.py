@@ -75,7 +75,6 @@ class TCPServer:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
-                task_group.spawn(self.protocol.send_task())
                 await self._update_keep_alive_timeout()
                 await self._read_data()
         except OSError:

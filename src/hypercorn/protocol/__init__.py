@@ -43,9 +43,6 @@ class ProtocolWrapper:
     async def initiate(self) -> None:
         return await self.protocol.initiate()
 
-    async def send_task(self) -> None:
-        return await self.protocol.send_task()
-
     async def handle(self, event: Event) -> None:
         try:
             return await self.protocol.handle(event)

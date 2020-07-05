@@ -131,6 +131,7 @@ class H2Protocol:
             event.headers = headers
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
+        self.context.spawn(self.send_task)
 
     async def send_task(self) -> None:
         # This should be run in a seperate task to the rest of this
