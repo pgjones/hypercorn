@@ -21,7 +21,7 @@ class _WSGIMiddleware:
         elif scope["type"] == "websocket":
             await send({"type": "websocket.close"})
         else:
-            pass  # Nothing to do/can be done
+            raise Exception(f"Unknown scope type, {scope['type']}")
 
     async def _handle_http(
         self, scope: dict, receive: Callable, send: Callable
