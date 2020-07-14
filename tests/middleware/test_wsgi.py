@@ -5,6 +5,7 @@ import pytest
 import trio
 
 from hypercorn.middleware import AsyncioWSGIMiddleware, TrioWSGIMiddleware
+from hypercorn.middleware.wsgi import _build_environ
 
 
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
@@ -107,3 +108,18 @@ async def test_max_body_size() -> None:
         {"headers": [], "status": 400, "type": "http.response.start"},
         {"body": bytearray(b""), "type": "http.response.body"},
     ]
+
+
+def test_build_environ_encoding() -> None:
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/中文",
+        "root_path": "/中国",
+        "query_string": b"bar=baz",
+        "headers": [],
+    }
+    environ = _build_environ(scope, b"")
+    assert environ["SCRIPT_NAME"] == "/中国".encode("utf8").decode("latin-1")
+    assert environ["PATH_INFO"] == "/中文".encode("utf8").decode("latin-1")

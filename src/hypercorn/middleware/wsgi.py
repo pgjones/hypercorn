@@ -94,8 +94,8 @@ def _build_environ(scope: dict, body: bytes) -> dict:
     server = scope.get("server") or ("localhost", 80)
     environ = {
         "REQUEST_METHOD": scope["method"],
-        "SCRIPT_NAME": scope.get("root_path", ""),
-        "PATH_INFO": scope["path"],
+        "SCRIPT_NAME": scope.get("root_path", "").encode("utf8").decode("latin1"),
+        "PATH_INFO": scope["path"].encode("utf8").decode("latin1"),
         "QUERY_STRING": scope["query_string"].decode("ascii"),
         "SERVER_NAME": server[0],
         "SERVER_PORT": server[1],
