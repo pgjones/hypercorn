@@ -42,3 +42,27 @@ async def test_dispatcher_middleware() -> None:
         {"type": "http.response.start", "status": 404, "headers": [(b"content-length", b"0")]},
         {"type": "http.response.body"},
     ]
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_lifespan() -> None:
+    class ScopeFramework:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+            await send({"name": self.name, "scope_type": scope["type"]})
+
+    app = DispatcherMiddleware({"/apix": ScopeFramework("apix"), "/api": ScopeFramework("api")})
+
+    sent_events = []
+
+    async def send(message: dict) -> None:
+        nonlocal sent_events
+        sent_events.append(message)
+
+    await app({"type": "lifespan", "asgi": {"version": "3.0"}}, None, send)
+    assert sent_events == [
+        {"name": "apix", "scope_type": "lifespan"},
+        {"name": "api", "scope_type": "lifespan"},
+    ]
