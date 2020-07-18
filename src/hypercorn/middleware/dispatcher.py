@@ -1,17 +1,21 @@
+import asyncio
+from functools import partial
 from typing import Callable, Dict
 
+from ..asyncio.task_group import TaskGroup
 from ..typing import ASGIFramework
 from ..utils import invoke_asgi
 
+MAX_QUEUE_SIZE = 10
 
-class DispatcherMiddleware:
+
+class _DispatcherMiddleware:
     def __init__(self, mounts: Dict[str, ASGIFramework]) -> None:
         self.mounts = mounts
 
     async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
-        if scope["type"] not in {"http", "websocket"}:
-            for app in self.mounts.values():
-                await invoke_asgi(app, scope, receive, send)
+        if scope["type"] == "lifespan":
+            await self._handle_lifespan(scope, receive, send)
         else:
             for path, app in self.mounts.items():
                 if scope["path"].startswith(path):
@@ -25,3 +29,79 @@ class DispatcherMiddleware:
                 }
             )
             await send({"type": "http.response.body"})
+
+    async def _handle_lifespan(self, scope: dict, receive: Callable, send: Callable) -> None:
+        pass
+
+
+class AsyncioDispatcherMiddleware(_DispatcherMiddleware):
+    async def _handle_lifespan(self, scope: dict, receive: Callable, send: Callable) -> None:
+        self.app_queues: Dict[str, asyncio.Queue] = {
+            path: asyncio.Queue(MAX_QUEUE_SIZE) for path in self.mounts
+        }
+        self.startup_complete = {path: False for path in self.mounts}
+        self.shutdown_complete = {path: False for path in self.mounts}
+
+        async with TaskGroup(asyncio.get_event_loop()) as task_group:
+            for path, app in self.mounts.items():
+                task_group.spawn(
+                    invoke_asgi(
+                        app, scope, self.app_queues[path].get, partial(self.send, path, send)
+                    )
+                )
+
+            while True:
+                message = await receive()
+                for queue in self.app_queues.values():
+                    await queue.put(message)
+                if message["type"] == "lifespan.shutdown":
+                    break
+
+    async def send(self, path: str, send: Callable, message: dict) -> None:
+        if message["type"] == "lifespan.startup.complete":
+            self.startup_complete[path] = True
+            if all(self.startup_complete.values()):
+                await send({"type": "lifespan.startup.complete"})
+        elif message["type"] == "lifespan.shutdown.complete":
+            self.shutdown_complete[path] = True
+            if all(self.shutdown_complete.values()):
+                await send({"type": "lifespan.shutdown.complete"})
+
+
+class TrioDispatcherMiddleware(_DispatcherMiddleware):
+    async def _handle_lifespan(self, scope: dict, receive: Callable, send: Callable) -> None:
+        import trio
+
+        self.app_queues = {path: trio.open_memory_channel(MAX_QUEUE_SIZE) for path in self.mounts}
+        self.startup_complete = {path: False for path in self.mounts}
+        self.shutdown_complete = {path: False for path in self.mounts}
+
+        async with trio.open_nursery as nursery:
+            for path, app in self.mounts.items():
+                nursery.start_soon(
+                    invoke_asgi,
+                    app,
+                    scope,
+                    self.app_queues[path][1].receive,
+                    partial(self.send, path, send),
+                )
+
+            while True:
+                message = await receive()
+                for channels in self.app_queues.values():
+                    await channels[0].send(message)
+                if message == "lifespan.shutdown":
+                    break
+
+    async def send(self, path: str, send: Callable, message: dict) -> None:
+        if message["type"] == "lifespan.startup.complete":
+            self.startup_complete[path] = True
+            if all(self.startup_complete.values()):
+                await send({"type": "lifespan.startup.complete"})
+        elif message["type"] == "lifespan.shutdown.complete":
+            self.shutdown_complete[path] = True
+            if all(self.shutdown_complete.values()):
+                await send({"type": "lifespan.shutdown.complete"})
+
+
+DispatcherMiddleware = AsyncioDispatcherMiddleware  # Remove with version 0.11

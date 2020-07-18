@@ -51,7 +51,7 @@ async def test_dispatcher_lifespan() -> None:
             self.name = name
 
         async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
-            await send({"name": self.name, "scope_type": scope["type"]})
+            await send({"type": "lifespan.startup.complete"})
 
     app = DispatcherMiddleware({"/apix": ScopeFramework("apix"), "/api": ScopeFramework("api")})
 
@@ -61,8 +61,8 @@ async def test_dispatcher_lifespan() -> None:
         nonlocal sent_events
         sent_events.append(message)
 
-    await app({"type": "lifespan", "asgi": {"version": "3.0"}}, None, send)
-    assert sent_events == [
-        {"name": "apix", "scope_type": "lifespan"},
-        {"name": "api", "scope_type": "lifespan"},
-    ]
+    async def receive() -> dict:
+        return {"type": "lifespan.shutdown"}
+
+    await app({"type": "lifespan", "asgi": {"version": "3.0"}}, receive, send)
+    assert sent_events == [{"type": "lifespan.startup.complete"}]
