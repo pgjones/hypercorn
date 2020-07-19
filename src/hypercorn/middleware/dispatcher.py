@@ -76,7 +76,7 @@ class TrioDispatcherMiddleware(_DispatcherMiddleware):
         self.startup_complete = {path: False for path in self.mounts}
         self.shutdown_complete = {path: False for path in self.mounts}
 
-        async with trio.open_nursery as nursery:
+        async with trio.open_nursery() as nursery:
             for path, app in self.mounts.items():
                 nursery.start_soon(
                     invoke_asgi,
@@ -90,7 +90,7 @@ class TrioDispatcherMiddleware(_DispatcherMiddleware):
                 message = await receive()
                 for channels in self.app_queues.values():
                     await channels[0].send(message)
-                if message == "lifespan.shutdown":
+                if message["type"] == "lifespan.shutdown":
                     break
 
     async def send(self, path: str, send: Callable, message: dict) -> None:
