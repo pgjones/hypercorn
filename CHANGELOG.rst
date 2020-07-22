@@ -1,3 +1,13 @@
+0.10.2 2020-07-22
+-----------------
+
+* Bugfix add missing h2c Connection header field.
+* Bugfix raise an exception for unknown scopes to WSGI middleware.
+* Bugfix ensure HTTP/2 sending is active after upgrades.
+* Bugfix WSGI PATH_INFO and SCRIPT_NAME encoding.
+* Bugfix dispatcher middleware with non http/websocket scopes.
+* Bugfix dispatcher lifespan handling,
+
 0.10.1 2020-06-10
 -----------------
 
