@@ -23,7 +23,7 @@ CONFIG_DEFAULTS = {
         "hypercorn.access": {
             "level": "INFO",
             "handlers": ["console"],
-            "propagate": True,
+            "propagate": False,
             "qualname": "hypercorn.access",
         },
     },
