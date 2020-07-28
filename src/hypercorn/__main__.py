@@ -110,9 +110,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--log-config", help="A Python logging configuration file.", default=sentinel
     )
-    parser.add_argument(
-        "--log-level", help="The (error) log level, defaults to info", default="info"
-    )
+    parser.add_argument("--log-level", help="The (error) log level, defaults to info")
     parser.add_argument(
         "-p", "--pid", help="Location to write the PID (Program ID) to.", default=sentinel
     )
