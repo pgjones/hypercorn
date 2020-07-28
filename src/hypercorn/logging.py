@@ -78,17 +78,18 @@ class Logger:
         )
         self.access_log_format = config.access_log_format
 
-        if config.logconfig_dict is not None:
-            log_config = CONFIG_DEFAULTS.copy()
-            log_config.update(config.logconfig_dict)
-            dictConfig(log_config)
-        elif config.logconfig is not None:
-            defaults = CONFIG_DEFAULTS.copy()
-            defaults["__file__"] = config.logconfig
-            defaults["here"] = os.path.dirname(config.logconfig)
+        log_config = CONFIG_DEFAULTS.copy()
+
+        if config.logconfig is not None:
+            log_config["__file__"] = config.logconfig
+            log_config["here"] = os.path.dirname(config.logconfig)
             fileConfig(
-                config.logconfig, defaults=defaults, disable_existing_loggers=False  # type: ignore
+                config.logconfig, defaults=log_config, disable_existing_loggers=False  # type: ignore
             )
+        else:
+            if config.logconfig_dict is not None:
+                log_config.update(config.logconfig_dict)
+            dictConfig(log_config)
 
         if config.loglevel:
             logging.getLogger().setLevel(logging.getLevelName(config.loglevel.upper()))
