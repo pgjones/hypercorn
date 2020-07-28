@@ -156,8 +156,8 @@ class H11Protocol:
                     await self._check_protocol(event)
                     await self._create_stream(event)
                 elif event is h11.PAUSED:
-                    await self.send(Updated())
                     await self.can_read.clear()
+                    await self.send(Updated())
                     await self.can_read.wait()
                 elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
                     break
