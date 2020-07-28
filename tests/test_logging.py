@@ -41,6 +41,17 @@ def test_access_logger_init(
             assert isinstance(logger.access_logger.handlers[0], expected_handler_type)
 
 
+@pytest.mark.parametrize(
+    "level, expected",
+    [(logging.getLevelName(ln), ln) for ln in range(logging.NOTSET, logging.CRITICAL + 1, 10)],
+)
+def test_loglevel_option(level: Optional[str], expected: int) -> None:
+    config = Config()
+    config.loglevel = level
+    logger = Logger(config)
+    assert logger.getEffectiveLevel() == expected
+
+
 @pytest.fixture(name="request_scope")
 def _request_scope() -> dict:
     return {
