@@ -3,7 +3,7 @@ import os
 import sys
 import time
 from logging.config import dictConfig, fileConfig
-from typing import Any, Mapping, Optional, TYPE_CHECKING, Union
+from typing import Any, IO, Mapping, Optional, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .config import Config
@@ -49,23 +49,19 @@ CONFIG_DEFAULTS = {
 
 
 def _create_logger(
-    name: str, target: Union[logging.Logger, str, None], level: Optional[str], sys_default: Any
-) -> logging.Logger:
+    name: str, target: Union[logging.Logger, str, None], sys_default: IO
+) -> Optional[logging.Logger]:
     if isinstance(target, logging.Logger):
         return target
-    elif target is not None:
-        logger = logging.getLogger(name)
-        logger.propagate = False
-        logger.handlers = []
-        if target == "-":
-            logger.addHandler(logging.StreamHandler(sys_default))
-        else:
-            logger.addHandler(logging.FileHandler(target))
-        if level:
-            logger.setLevel(logging.getLevelName(level.upper()))
-        return logger
-    else:
-        return None
+
+    logger = logging.getLogger(name)
+    if target:
+        logger.handlers = [
+            logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)
+        ]
+
+    # hasHandlers() here will allow logger configuration from dict/file
+    return logger if logger.hasHandlers() else None
 
 
 class Logger:
