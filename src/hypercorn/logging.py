@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 CONFIG_DEFAULTS = {
     "version": 1,
-    "root": {"level": "INFO", "handlers": ["console"]},
+    "root": {"level": "INFO", "handlers": ["error_console"]},
     "loggers": {
         "hypercorn.error": {
             "handlers": ["error_console"],
