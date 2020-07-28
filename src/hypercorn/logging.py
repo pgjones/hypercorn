@@ -17,11 +17,6 @@ CONFIG_DEFAULTS = {
         "hypercorn.access": {"level": "INFO", "propagate": False, "qualname": "hypercorn.access"},
     },
     "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "generic",
-            "stream": "ext://sys.stdout",
-        },
         "error_console": {
             "class": "logging.StreamHandler",
             "formatter": "generic",
