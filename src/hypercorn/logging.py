@@ -13,14 +13,8 @@ CONFIG_DEFAULTS = {
     "version": 1,
     "root": {"level": "INFO", "handlers": ["error_console"]},
     "loggers": {
-        "hypercorn.error": {
-            "qualname": "hypercorn.error",
-        },
-        "hypercorn.access": {
-            "level": "INFO",
-            "propagate": False,
-            "qualname": "hypercorn.access",
-        },
+        "hypercorn.error": {"qualname": "hypercorn.error"},
+        "hypercorn.access": {"level": "INFO", "propagate": False, "qualname": "hypercorn.access"},
     },
     "handlers": {
         "console": {
