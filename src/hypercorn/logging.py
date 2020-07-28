@@ -3,7 +3,7 @@ import os
 import sys
 import time
 from logging.config import dictConfig, fileConfig
-from typing import Any, Mapping, TYPE_CHECKING, Union
+from typing import Any, Mapping, Optional, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .config import Config
@@ -50,7 +50,7 @@ CONFIG_DEFAULTS = {
 
 
 def _create_logger(
-    name: str, target: Union[logging.Logger, str, None], level: str, sys_default: Any
+    name: str, target: Union[logging.Logger, str, None], level: Optional[str], sys_default: Any
 ) -> logging.Logger:
     if isinstance(target, logging.Logger):
         return target
@@ -62,7 +62,8 @@ def _create_logger(
             logger.addHandler(logging.StreamHandler(sys_default))
         else:
             logger.addHandler(logging.FileHandler(target))
-        logger.setLevel(logging.getLevelName(level.upper()))
+        if level:
+            logger.setLevel(logging.getLevelName(level.upper()))
         return logger
     else:
         return None
@@ -89,6 +90,9 @@ class Logger:
             fileConfig(
                 config.logconfig, defaults=defaults, disable_existing_loggers=False  # type: ignore
             )
+
+        if config.loglevel:
+            logging.getLogger().setLevel(logging.getLevelName(config.loglevel.upper()))
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
         if self.access_logger is not None:
