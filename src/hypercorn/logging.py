@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from http import HTTPStatus
 from logging.config import dictConfig, fileConfig
 from typing import Any, IO, Mapping, Optional, TYPE_CHECKING, Union
 
@@ -135,17 +136,22 @@ class AccessLogAtoms(dict):
         else:  # make sure not to throw UnboundLocalError
             remote_addr = f"<???{client}???>"
         method = request.get("method", "GET")
+        query_string = request["query_string"].decode()
+        path_with_qs = request["path"] + ("?" + query_string if query_string else "")
         self.update(
             {
                 "h": remote_addr,
                 "l": "-",
                 "t": time.strftime("[%d/%b/%Y:%H:%M:%S %z]"),
                 "r": f"{method} {request['path']} {protocol}",
+                "R": f"{method} {path_with_qs} {protocol}",
                 "s": response["status"],
+                "st": HTTPStatus(response["status"]).phrase,
                 "S": request["scheme"],
                 "m": method,
                 "U": request["path"],
-                "q": request["query_string"].decode(),
+                "Uq": path_with_qs,
+                "q": query_string,
                 "H": protocol,
                 "b": self["{Content-Length}o"],
                 "B": self["{Content-Length}o"],

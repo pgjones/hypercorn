@@ -99,6 +99,10 @@ def test_access_log_standard_atoms(request_scope: dict, response: dict) -> None:
     assert int(atoms["T"]) == 0
     assert int(atoms["D"]) == 23
     assert atoms["L"] == "0.000023"
+    assert atoms["r"] == "GET / 2"
+    assert atoms["R"] == "GET /?a=b 2"
+    assert atoms["Uq"] == "/?a=b"
+    assert atoms["st"] == "OK"
 
 
 def test_access_log_header_atoms(request_scope: dict, response: dict) -> None:

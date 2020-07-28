@@ -32,12 +32,15 @@ h            remote address
 l            ``'-'``
 u            user name
 t            date of the request
-r            status line (e.g. ``GET / h11``)
+r            status line without query string (e.g. ``GET / h11``)
+R            status line with query string (e.g. ``GET /?a=b h11``)
 m            request method
 U            URL path without query string
+Uq           URL path with query string
 q            query string
 H            protocol
 s            status
+st           status phrase (e.g. ``OK``, ``Forbidden``, ``Not Found``)
 S            scheme {http, https, ws, wss}
 B            response length
 b            response length or ``'-'`` (CLF format)
