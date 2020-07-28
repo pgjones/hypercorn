@@ -66,12 +66,6 @@ def _create_logger(
 
 class Logger:
     def __init__(self, config: "Config") -> None:
-        self.access_logger = _create_logger(
-            "hypercorn.access", config.accesslog, "info", sys.stdout
-        )
-        self.error_logger = _create_logger(
-            "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
-        )
         self.access_log_format = config.access_log_format
 
         log_config = CONFIG_DEFAULTS.copy()
@@ -86,6 +80,9 @@ class Logger:
             if config.logconfig_dict is not None:
                 log_config.update(config.logconfig_dict)
             dictConfig(log_config)
+
+        self.access_logger = _create_logger("hypercorn.access", config.accesslog, sys.stdout)
+        self.error_logger = _create_logger("hypercorn.error", config.errorlog, sys.stderr)
 
         if config.loglevel:
             logging.getLogger().setLevel(logging.getLevelName(config.loglevel.upper()))
