@@ -21,8 +21,8 @@ pages:
   artifacts:
     paths:
     - public
-  only:
-  - master
+  rules:
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 .h2spec-script: &h2spec-script
   image: python:3.8
