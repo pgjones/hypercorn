@@ -255,7 +255,6 @@ class H11Protocol:
         else:
             await self.can_read.set()
             await self.send(Closed())
-        await self._handle_events()
 
     async def _close_stream(self) -> None:
         if self.stream is not None:
