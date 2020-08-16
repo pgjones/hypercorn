@@ -24,6 +24,10 @@ class TaskGroup:
             await task
         finally:
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     def _cancel_tasks(self) -> None:
         for task in self._tasks:

@@ -134,6 +134,11 @@ class TCPServer:
         async with self.timeout_lock:
             if self._keep_alive_timeout_handle is not None:
                 self._keep_alive_timeout_handle.cancel()
+                try:
+                    await self._keep_alive_timeout_handle
+                except asyncio.CancelledError:
+                    pass
+
             self._keep_alive_timeout_handle = None
             if self.protocol.idle:
                 self._keep_alive_timeout_handle = self.loop.create_task(
