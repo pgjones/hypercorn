@@ -132,7 +132,7 @@ async def worker_serve(
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
-    tasks.extend(server.serve_forever() for server in servers)
+    tasks.extend(server.serve_forever() for server in servers)  # type: ignore
 
     for sock in sockets.quic_sockets:
         if config.workers > 1 and platform.system() == "Windows":
