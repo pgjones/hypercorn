@@ -74,7 +74,21 @@ async def worker_serve(
         tasks.append(loop.create_task(_windows_signal_support()))
 
     if shutdown_trigger is None:
-        shutdown_trigger = asyncio.Future
+        signal_event = asyncio.Event()
+
+        def _signal_handler(*_: Any) -> None:  # noqa: N803
+            signal_event.set()
+
+        for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
+            if hasattr(signal, signal_name):
+                try:
+                    loop.add_signal_handler(getattr(signal, signal_name), _signal_handler)
+                except NotImplementedError:
+                    # Add signal handler may not be implemented on Windows
+                    signal.signal(getattr(signal, signal_name), _signal_handler)
+
+        shutdown_trigger = signal_event.wait  # type: ignore
+
     tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
 
     if config.use_reloader:
@@ -209,21 +223,6 @@ def _run(
     asyncio.set_event_loop(loop)
     loop.set_debug(debug)
     loop.set_exception_handler(_exception_handler)
-
-    if shutdown_trigger is None:
-        signal_event = asyncio.Event()
-
-        def _signal_handler(*_: Any) -> None:  # noqa: N803
-            signal_event.set()
-
-        for signal_ in [signal.SIGINT, signal.SIGTERM]:
-            try:
-                loop.add_signal_handler(signal_, _signal_handler)
-            except NotImplementedError:
-                # Add signal handler may not be implemented on Windows
-                signal.signal(signal_, _signal_handler)
-
-        shutdown_trigger = signal_event.wait  # type: ignore
 
     try:
         loop.run_until_complete(main(shutdown_trigger=shutdown_trigger))
