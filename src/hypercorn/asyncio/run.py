@@ -132,6 +132,8 @@ async def worker_serve(
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
 
+    tasks.extend(server.serve_forever() for server in servers)
+
     for sock in sockets.quic_sockets:
         if config.workers > 1 and platform.system() == "Windows":
             sock = _share_socket(sock)
@@ -144,7 +146,6 @@ async def worker_serve(
     try:
         gathered_tasks = asyncio.gather(*tasks)
         await gathered_tasks
-
     except MustReloadException:
         reload_ = True
     except (Shutdown, KeyboardInterrupt):
