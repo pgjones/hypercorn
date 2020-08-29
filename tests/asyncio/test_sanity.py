@@ -85,9 +85,7 @@ async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     )
     client.receive_data(await server.writer.receive())  # type: ignore
     assert list(client.events()) == [wsproto.events.TextMessage(data="Hello & Goodbye")]
-    await server.reader.send(  # type: ignore
-        client.send(wsproto.events.CloseConnection(code=1000))
-    )
+    await server.reader.send(client.send(wsproto.events.CloseConnection(code=1000)))  # type: ignore
     client.receive_data(await server.writer.receive())  # type: ignore
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
     assert server.writer.is_closed  # type: ignore

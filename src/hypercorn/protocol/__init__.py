@@ -29,11 +29,23 @@ class ProtocolWrapper:
         self.protocol: Union[H11Protocol, H2Protocol]
         if alpn_protocol == "h2":
             self.protocol = H2Protocol(
-                self.app, self.config, self.context, self.ssl, self.client, self.server, self.send,
+                self.app,
+                self.config,
+                self.context,
+                self.ssl,
+                self.client,
+                self.server,
+                self.send,
             )
         else:
             self.protocol = H11Protocol(
-                self.app, self.config, self.context, self.ssl, self.client, self.server, self.send,
+                self.app,
+                self.config,
+                self.context,
+                self.ssl,
+                self.client,
+                self.server,
+                self.send,
             )
 
     @property
@@ -48,14 +60,26 @@ class ProtocolWrapper:
             return await self.protocol.handle(event)
         except H2ProtocolAssumed as error:
             self.protocol = H2Protocol(
-                self.app, self.config, self.context, self.ssl, self.client, self.server, self.send,
+                self.app,
+                self.config,
+                self.context,
+                self.ssl,
+                self.client,
+                self.server,
+                self.send,
             )
             await self.protocol.initiate()
             if error.data != b"":
                 return await self.protocol.handle(RawData(data=error.data))
         except H2CProtocolRequired as error:
             self.protocol = H2Protocol(
-                self.app, self.config, self.context, self.ssl, self.client, self.server, self.send,
+                self.app,
+                self.config,
+                self.context,
+                self.ssl,
+                self.client,
+                self.server,
+                self.send,
             )
             await self.protocol.initiate(error.headers, error.settings)
             if error.data != b"":
