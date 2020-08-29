@@ -43,7 +43,10 @@ def test_access_logger_init(
 
 @pytest.mark.parametrize(
     "level, expected",
-    [(logging.getLevelName(ln), ln) for ln in range(logging.NOTSET, logging.CRITICAL + 1, 10)],
+    [
+        (logging.getLevelName(level_name), level_name)
+        for level_name in range(logging.NOTSET, logging.CRITICAL + 1, 10)
+    ],
 )
 def test_loglevel_option(level: Optional[str], expected: int) -> None:
     config = Config()

@@ -67,7 +67,7 @@ class Logger:
         self.access_logger = _create_logger("hypercorn.access", config.accesslog, sys.stdout)
         self.error_logger = _create_logger("hypercorn.error", config.errorlog, sys.stderr)
 
-        if config.loglevel:
+        if config.loglevel is not None:
             logging.getLogger().setLevel(logging.getLevelName(config.loglevel.upper()))
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
