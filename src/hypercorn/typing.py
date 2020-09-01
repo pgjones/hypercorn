@@ -3,7 +3,12 @@ from typing import Any, Awaitable, Callable, Optional, Tuple, Type, Union
 
 import h2.events
 import h11
-from typing_extensions import Protocol  # Till PEP 544 is accepted
+
+# Till PEP 544 is accepted
+try:
+    from typing import Protocol
+except:
+    from typing_extensions import Protocol  
 
 from .config import Config, Sockets
 
