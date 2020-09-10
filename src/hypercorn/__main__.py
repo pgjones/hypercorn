@@ -13,8 +13,8 @@ sentinel = object()
 def _load_config(config_path: Optional[str]) -> Config:
     if config_path is None:
         return Config()
-    elif config_path.startswith("python:"):
-        return Config.from_pyfile(config_path[len("python:") :])
+    elif config_path.endswith(".py"):
+        return Config.from_pyfile(config_path)
     else:
         return Config.from_toml(config_path)
 
