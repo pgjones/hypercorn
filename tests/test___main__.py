@@ -16,8 +16,15 @@ def test_load_config_none() -> None:
 def test_load_config_pyfile(monkeypatch: MonkeyPatch) -> None:
     mock_config = Mock()
     monkeypatch.setattr(hypercorn.__main__, "Config", mock_config)
-    hypercorn.__main__._load_config("python:assets/config.py")
+    hypercorn.__main__._load_config("file:assets/config.py")
     mock_config.from_pyfile.assert_called()
+
+
+def test_load_config_pymodule(monkeypatch: MonkeyPatch) -> None:
+    mock_config = Mock()
+    monkeypatch.setattr(hypercorn.__main__, "Config", mock_config)
+    hypercorn.__main__._load_config("python:assets.config")
+    mock_config.from_object.assert_called()
 
 
 def test_load_config(monkeypatch: MonkeyPatch) -> None:
@@ -51,7 +58,7 @@ def test_main_cli_override(
     path = os.path.join(os.path.dirname(__file__), "assets/config_ssl.py")
     raw_config = Config.from_pyfile(path)
 
-    hypercorn.__main__.main(["--config", f"python:{path}", flag, str(set_value), "asgi:App"])
+    hypercorn.__main__.main(["--config", f"file:{path}", flag, str(set_value), "asgi:App"])
     run_multiple.assert_called()
     config = run_multiple.call_args_list[0][0][0]
 

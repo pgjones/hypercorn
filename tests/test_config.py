@@ -1,6 +1,7 @@
 import os
 import socket
 import ssl
+import sys
 from typing import Tuple
 from unittest.mock import Mock
 
@@ -23,6 +24,13 @@ def _check_standard_config(config: Config) -> None:
 def test_config_from_pyfile() -> None:
     path = os.path.join(os.path.dirname(__file__), "assets/config.py")
     config = Config.from_pyfile(path)
+    _check_standard_config(config)
+
+
+def test_config_from_object() -> None:
+    sys.path.append(os.path.join(os.path.dirname(__file__)))
+
+    config = Config.from_object("assets.config")
     _check_standard_config(config)
 
 

@@ -14,7 +14,9 @@ def _load_config(config_path: Optional[str]) -> Config:
     if config_path is None:
         return Config()
     elif config_path.startswith("python:"):
-        return Config.from_pyfile(config_path[len("python:") :])
+        return Config.from_object(config_path[len("python:") :])
+    elif config_path.startswith("file:"):
+        return Config.from_pyfile(config_path[len("file:") :])
     else:
         return Config.from_toml(config_path)
 
@@ -55,7 +57,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "-c",
         "--config",
-        help="Location of a TOML config file or when prefixed with `python:` a Python file.",
+        help="Location of a TOML config file, or when prefixed with `file:` a Python file, or when prefixed with `python:` a Python module.",  # noqa: E501
         default=None,
     )
     parser.add_argument(

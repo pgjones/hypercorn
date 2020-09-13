@@ -333,11 +333,9 @@ class Config:
         """
         if isinstance(instance, str):
             try:
-                path, config = instance.rsplit(".", 1)
-            except ValueError:
-                path = instance
                 instance = importlib.import_module(instance)
-            else:
+            except ImportError:
+                path, config = instance.rsplit(".", 1)  # type: ignore
                 module = importlib.import_module(path)
                 instance = getattr(module, config)
 
