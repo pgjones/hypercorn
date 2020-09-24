@@ -44,6 +44,7 @@ class Config:
     _bind = ["127.0.0.1:8000"]
     _insecure_bind: List[str] = []
     _quic_bind: List[str] = []
+    _quic_addresses: List[Tuple] = []
     _log: Optional[Logger] = None
 
     access_log_format = '%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
@@ -170,11 +171,19 @@ class Config:
             secure_sockets = self._create_sockets(self.bind)
             insecure_sockets = self._create_sockets(self.insecure_bind)
             quic_sockets = self._create_sockets(self.quic_bind, socket.SOCK_DGRAM)
+            self._set_quic_addresses(quic_sockets)
         else:
             secure_sockets = []
             insecure_sockets = self._create_sockets(self.bind)
             quic_sockets = []
         return Sockets(secure_sockets, insecure_sockets, quic_sockets)
+
+    def _set_quic_addresses(self, sockets: List[socket.socket]) -> None:
+        self._quic_addresses = []
+        for sock in sockets:
+            name = sock.getsockname()
+            if type(name) is not str and len(name) >= 2:
+                self._quic_addresses.append(name)
 
     def _create_sockets(
         self, binds: List[str], type_: int = socket.SOCK_STREAM
@@ -240,12 +249,12 @@ class Config:
 
         for alt_svc_header in self.alt_svc_headers:
             headers.append((b"alt-svc", alt_svc_header.encode()))
-        if len(self.alt_svc_headers) == 0 and self._quic_bind:
+        if len(self.alt_svc_headers) == 0 and self._quic_addresses:
             from aioquic.h3.connection import H3_ALPN
 
             for version in H3_ALPN:
-                for bind in self._quic_bind:
-                    port = int(bind.split(":")[-1])
+                for addr in self._quic_addresses:
+                    port = addr[1]
                     headers.append((b"alt-svc", b'%s=":%d"; ma=3600' % (version.encode(), port)))
 
         return headers
