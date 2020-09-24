@@ -3,7 +3,7 @@ import socket
 import ssl
 import sys
 from typing import Tuple
-from unittest.mock import Mock
+from unittest.mock import Mock, NonCallableMock
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -104,13 +104,13 @@ def test_create_sockets_unix(monkeypatch: MonkeyPatch) -> None:
 
 
 def test_create_sockets_fd(monkeypatch: MonkeyPatch) -> None:
-    mock_fromfd = Mock()
-    monkeypatch.setattr(socket, "fromfd", mock_fromfd)
+    mock_sock_class = Mock(return_result=NonCallableMock())
+    monkeypatch.setattr(socket, "socket", mock_sock_class)
     config = Config()
     config.bind = ["fd://2"]
     sockets = config.create_sockets()
     sock = sockets.insecure_sockets[0]
-    mock_fromfd.assert_called_with(2, socket.AF_UNIX, socket.SOCK_STREAM)
+    mock_sock_class.assert_called_with(fileno=2)
     sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # type: ignore
     sock.setblocking.assert_called_with(False)  # type: ignore
     sock.set_inheritable.assert_called_with(True)  # type: ignore

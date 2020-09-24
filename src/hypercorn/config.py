@@ -182,7 +182,7 @@ class Config:
                 except FileNotFoundError:
                     pass
             elif bind.startswith("fd://"):
-                sock = socket.fromfd(int(bind[5:]), socket.AF_UNIX, type_)
+                sock = socket.socket(fileno=int(bind[5:]))
             else:
                 bind = bind.replace("[", "").replace("]", "")
                 try:
