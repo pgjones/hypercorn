@@ -184,6 +184,11 @@ class Config:
             name = sock.getsockname()
             if type(name) is not str and len(name) >= 2:
                 self._quic_addresses.append(name)
+            else:
+                warnings.warn(
+                    f'Cannot create a alt-svc header for the QUIC socket with address "{name}"',
+                    Warning,
+                )
 
     def _create_sockets(
         self, binds: List[str], type_: int = socket.SOCK_STREAM
