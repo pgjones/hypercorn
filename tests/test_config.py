@@ -104,13 +104,16 @@ def test_create_sockets_unix(monkeypatch: MonkeyPatch) -> None:
 
 
 def test_create_sockets_fd(monkeypatch: MonkeyPatch) -> None:
-    mock_sock_class = Mock(return_result=NonCallableMock())
+    mock_sock_class = Mock(
+        return_value=NonCallableMock(**{"getsockopt.return_value": socket.SOCK_STREAM})
+    )
     monkeypatch.setattr(socket, "socket", mock_sock_class)
     config = Config()
     config.bind = ["fd://2"]
     sockets = config.create_sockets()
     sock = sockets.insecure_sockets[0]
     mock_sock_class.assert_called_with(fileno=2)
+    sock.getsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_TYPE)  # type: ignore
     sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # type: ignore
     sock.setblocking.assert_called_with(False)  # type: ignore
     sock.set_inheritable.assert_called_with(True)  # type: ignore

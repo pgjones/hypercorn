@@ -22,6 +22,7 @@ OCTETS = 1
 SECONDS = 1.0
 
 FilePath = Union[AnyStr, os.PathLike]
+SocketKind = Union[int, socket.SocketKind]
 
 
 @dataclass
@@ -29,6 +30,14 @@ class Sockets:
     secure_sockets: List[socket.socket]
     insecure_sockets: List[socket.socket]
     quic_sockets: List[socket.socket]
+
+
+class SocketTypeError(Exception):
+    def __init__(self, expected: SocketKind, actual: SocketKind) -> None:
+        super().__init__(
+            f'Unexpected socket type, wanted "{socket.SocketKind(expected)}" got '
+            f'"{socket.SocketKind(actual)}"'
+        )
 
 
 class Config:
@@ -183,6 +192,9 @@ class Config:
                     pass
             elif bind.startswith("fd://"):
                 sock = socket.socket(fileno=int(bind[5:]))
+                actual_type = sock.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE)
+                if actual_type != type_:
+                    raise SocketTypeError(type_, actual_type)
             else:
                 bind = bind.replace("[", "").replace("]", "")
                 try:
