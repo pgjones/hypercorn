@@ -237,4 +237,5 @@ def valid_server_name(config: Config, request: "Request") -> bool:
     for name, value in request.headers:
         if name.lower() == b"host":
             host = value.decode()
+            break
     return host in config.server_names

@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 from urllib.parse import urlunsplit
 
 from ..typing import ASGIFramework
@@ -6,7 +6,7 @@ from ..utils import invoke_asgi
 
 
 class HTTPToHTTPSRedirectMiddleware:
-    def __init__(self, app: ASGIFramework, host: str) -> None:
+    def __init__(self, app: ASGIFramework, host: Optional[str]) -> None:
         self.app = app
         self.host = host
 
@@ -25,9 +25,7 @@ class HTTPToHTTPSRedirectMiddleware:
             return await invoke_asgi(self.app, scope, receive, send)
 
     async def _send_http_redirect(self, scope: dict, send: Callable) -> None:
-        new_url = urlunsplit(
-            ("https", self.host, scope["raw_path"].decode(), scope["query_string"].decode(), "")
-        )
+        new_url = self._new_url("https", scope)
         await send(
             {
                 "type": "http.response.start",
@@ -40,14 +38,11 @@ class HTTPToHTTPSRedirectMiddleware:
     async def _send_websocket_redirect(self, scope: dict, send: Callable) -> None:
         # If the HTTP version is 2 we should redirect with a https
         # scheme not wss.
-
         scheme = "wss"
         if scope.get("http_version", "1.1") == "2":
             scheme = "https"
 
-        new_url = urlunsplit(
-            (scheme, self.host, scope["raw_path"].decode(), scope["query_string"].decode(), "")
-        )
+        new_url = self._new_url(scheme, scope)
         await send(
             {
                 "type": "websocket.http.response.start",
@@ -56,3 +51,16 @@ class HTTPToHTTPSRedirectMiddleware:
             }
         )
         await send({"type": "websocket.http.response.body"})
+
+    def _new_url(self, scheme: str, scope: dict) -> str:
+        host = self.host
+        if host is None:
+            for key, value in scope["headers"]:
+                if key == b"host":
+                    host = value.decode("latin-1")
+                    break
+        if host is None:
+            raise ValueError("Host to redirect to cannot be determined")
+
+        path = scope.get("root_path", "") + scope["raw_path"].decode()
+        return urlunsplit((scheme, host, path, scope["query_string"].decode(), ""))

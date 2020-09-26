@@ -104,3 +104,18 @@ async def test_http_to_https_redirect_middleware_websocket_no_rejection() -> Non
     await app(scope, None, send)
 
     assert sent_events == [{"type": "websocket.close"}]
+
+
+def test_http_to_https_redirect_new_url_header() -> None:
+    app = HTTPToHTTPSRedirectMiddleware(empty_framework, None)
+    new_url = app._new_url(
+        "https",
+        {
+            "type": "http",
+            "scheme": "http",
+            "headers": [(b"host", b"localhost")],
+            "raw_path": b"/",
+            "query_string": b"",
+        },
+    )
+    assert new_url == "https://localhost/"
