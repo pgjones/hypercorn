@@ -41,6 +41,9 @@ class Lifespan:
                 message = "ASGI Framework Lifespan errored after shutdown."
 
             await self.config.log.exception(message)
+        finally:
+            self.startup.set()
+            self.shutdown.set()
 
     async def wait_for_startup(self) -> None:
         await self._started.wait()

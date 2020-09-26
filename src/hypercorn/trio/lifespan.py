@@ -36,6 +36,8 @@ class Lifespan:
                 "ASGI Framework Lifespan error, continuing without Lifespan support"
             )
         finally:
+            self.startup.set()
+            self.shutdown.set()
             await self.app_send_channel.aclose()
             await self.app_receive_channel.aclose()
 

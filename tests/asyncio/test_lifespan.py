@@ -44,3 +44,17 @@ async def test_startup_failure() -> None:
     exception = lifespan_task.exception()
     assert isinstance(exception, LifespanFailure)
     assert str(exception) == "Lifespan failure in startup. 'Failure'"
+
+
+async def return_app(scope: dict, receive: Callable, send: Callable) -> None:
+    return
+
+
+@pytest.mark.asyncio
+async def test_lifespan_return() -> None:
+    lifespan = Lifespan(return_app, Config())
+    lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
+    await lifespan.wait_for_startup()
+    await lifespan.wait_for_shutdown()
+    # Should complete (not hang)
+    assert lifespan_task.done()
