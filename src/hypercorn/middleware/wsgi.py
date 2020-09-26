@@ -20,6 +20,8 @@ class _WSGIMiddleware:
             await send({"type": "http.response.body", "body": body})
         elif scope["type"] == "websocket":
             await send({"type": "websocket.close"})
+        elif scope["type"] == "lifespan":
+            return
         else:
             raise Exception(f"Unknown scope type, {scope['type']}")
 
