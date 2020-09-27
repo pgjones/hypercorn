@@ -1,3 +1,22 @@
+0.11.0 2020-09-27
+-----------------
+
+* Bugfix race condition in H11 handling.
+* Bugfix HTTP/1 recycling.
+* Bugfix wait for tasks to complete when cancelled.
+* Bugfix ensure signals are always handled (asyncio). This may allow
+  manual signal handling to be removed if you use Hypercorn via the
+  API.
+* Bugfix wait on the serving when running.
+* Bugfix logger configuration via ``-log-config`` option.
+* Bugfix allow lifespan completion if app just returns.
+* Bugfix handle lifespan in WSGI middleware.
+* Bugfix handle sockets given as file descriptors properly.
+* Improve the logging configuration.
+* Allow HTTP -> HTTPS redirects to host from headers.
+* Introduce new access log atoms, ``R`` path with query string, ``st``
+  status phrase, and ``Uq`` url with query string.
+
 0.10.2 2020-07-22
 -----------------
 
