@@ -87,6 +87,19 @@ receipt of a TERM signal,
         serve(app, config, shutdown_trigger=shutdown_event.wait)
     )
 
+No signal handling
+------------------
+
+If you don't want any signal handling you can set the
+``shutdown_trigger`` to return an awaitable that doesn't complete, for
+example returning an empty Future,
+
+.. code-block:: python
+
+    loop.run_until_complete(
+        serve(app, config, shutdown_trigger=lambda: asyncio.Future())
+    )
+
 SSL Error reporting
 -------------------
 
