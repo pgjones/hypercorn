@@ -67,18 +67,18 @@ async def worker_serve(
                     )
                     bind = repr_socket_addr(sock.family, sock.getsockname())
                     binds.append(f"https://{bind}")
-                    await config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
+                    await config.log.info(f"Running on https://{bind} (CTRL + C to quit)")
 
                 for sock in sockets.insecure_sockets:
                     listeners.append(trio.SocketListener(trio.socket.from_stdlib_socket(sock)))
                     bind = repr_socket_addr(sock.family, sock.getsockname())
                     binds.append(f"http://{bind}")
-                    await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
+                    await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
 
                 for sock in sockets.quic_sockets:
                     await nursery.start(UDPServer(app, config, sock, nursery).run)
                     bind = repr_socket_addr(sock.family, sock.getsockname())
-                    await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
+                    await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
                 task_status.started(binds)
                 await trio.serve_listeners(

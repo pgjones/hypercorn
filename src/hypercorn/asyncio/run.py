@@ -118,7 +118,7 @@ async def worker_serve(
             )
         )
         bind = repr_socket_addr(sock.family, sock.getsockname())
-        await config.log.info(f"Running on {bind} over https (CTRL + C to quit)")
+        await config.log.info(f"Running on https://{bind} (CTRL + C to quit)")
 
     for sock in sockets.insecure_sockets:
         if config.workers > 1 and platform.system() == "Windows":
@@ -130,7 +130,7 @@ async def worker_serve(
             )
         )
         bind = repr_socket_addr(sock.family, sock.getsockname())
-        await config.log.info(f"Running on {bind} over http (CTRL + C to quit)")
+        await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
 
     tasks.extend(server.serve_forever() for server in servers)  # type: ignore
 
@@ -140,7 +140,7 @@ async def worker_serve(
 
         await loop.create_datagram_endpoint(lambda: UDPServer(app, loop, config), sock=sock)
         bind = repr_socket_addr(sock.family, sock.getsockname())
-        await config.log.info(f"Running on {bind} over quic (CTRL + C to quit)")
+        await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
     reload_ = False
     try:
