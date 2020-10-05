@@ -44,7 +44,7 @@ async def test_protocol_send_response(protocol: H11Protocol) -> None:
             RawData(
                 data=(
                     b"HTTP/1.1 201 \r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\n"
-                    b"server: hypercorn-h11\r\nconnection: close\r\n\r\n"
+                    b"server: hypercorn-h11\r\nConnection: close\r\n\r\n"
                 )
             )
         )
@@ -71,7 +71,7 @@ async def test_protocol_send_body(protocol: H11Protocol) -> None:
     assert protocol.send.call_args_list == [
         call(
             RawData(
-                data=b"HTTP/1.1 200 \r\ncontent-length: 5\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\nconnection: close\r\n\r\n"  # noqa: E501
+                data=b"HTTP/1.1 200 \r\ncontent-length: 5\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\nConnection: close\r\n\r\n"  # noqa: E501
             )
         ),
         call(RawData(data=b"hello")),
