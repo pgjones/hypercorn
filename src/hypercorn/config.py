@@ -71,7 +71,7 @@ class Config:
     logconfig: Optional[str] = None
     logconfig_dict: Optional[dict] = None
     logger_class = Logger
-    loglevel: Optional[str] = None
+    loglevel: str = "INFO"
     max_app_queue_size: int = 10
     pid_path: Optional[str] = None
     root_path = ""

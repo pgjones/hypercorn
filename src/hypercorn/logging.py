@@ -10,65 +10,32 @@ if TYPE_CHECKING:
     from .config import Config
 
 
-CONFIG_DEFAULTS = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "root": {"level": "INFO", "handlers": ["error_console"]},
-    "loggers": {
-        "hypercorn.error": {"qualname": "hypercorn.error"},
-        "hypercorn.access": {"level": "INFO", "propagate": False, "qualname": "hypercorn.access"},
-    },
-    "handlers": {
-        "error_console": {
-            "class": "logging.StreamHandler",
-            "formatter": "generic",
-            "stream": "ext://sys.stderr",
-        },
-    },
-    "formatters": {
-        "generic": {
-            "format": "%(asctime)s [%(process)d] [%(levelname)s] %(message)s",
-            "datefmt": "[%Y-%m-%d %H:%M:%S %z]",
-            "class": "logging.Formatter",
-        }
-    },
-}
-
-
 def _create_logger(
     name: str, target: Union[logging.Logger, str, None], level: Optional[str], sys_default: IO
 ) -> Optional[logging.Logger]:
     if isinstance(target, logging.Logger):
         return target
 
-    logger = logging.getLogger(name)
     if target:
+        logger = logging.getLogger(name)
         logger.handlers = [
             logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)
         ]
-    if level is not None:
-        logger.setLevel(logging.getLevelName(level.upper()))
-
-    # hasHandlers() here will allow logger configuration from dict/file
-    return logger if logger.hasHandlers() else None
+        formatter = logging.Formatter(
+            "%(asctime)s [%(process)d] [%(levelname)s] %(message)s",
+            "[%Y-%m-%d %H:%M:%S %z]",
+        )
+        logger.handlers[0].setFormatter(formatter)
+        if level is not None:
+            logger.setLevel(logging.getLevelName(level.upper()))
+        return logger
+    else:
+        return None
 
 
 class Logger:
     def __init__(self, config: "Config") -> None:
         self.access_log_format = config.access_log_format
-
-        log_config = CONFIG_DEFAULTS.copy()
-
-        if config.logconfig is not None:
-            log_config["__file__"] = config.logconfig
-            log_config["here"] = os.path.dirname(config.logconfig)
-            fileConfig(
-                config.logconfig, defaults=log_config, disable_existing_loggers=False  # type: ignore # noqa: E501
-            )
-        else:
-            if config.logconfig_dict is not None:
-                log_config.update(config.logconfig_dict)
-            dictConfig(log_config)
 
         self.access_logger = _create_logger(
             "hypercorn.access", config.accesslog, config.loglevel, sys.stdout
@@ -76,6 +43,16 @@ class Logger:
         self.error_logger = _create_logger(
             "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
         )
+
+        if config.logconfig is not None:
+            log_config = {
+                "__file__": config.logconfig,
+                "here": os.path.dirname(config.logconfig),
+            }
+            fileConfig(config.logconfig, defaults=log_config, disable_existing_loggers=False)
+        else:
+            if config.logconfig_dict is not None:
+                dictConfig(config.logconfig_dict)
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
         if self.access_logger is not None:
