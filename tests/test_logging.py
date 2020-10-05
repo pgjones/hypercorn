@@ -45,14 +45,14 @@ def test_access_logger_init(
     "level, expected",
     [
         (logging.getLevelName(level_name), level_name)
-        for level_name in range(logging.NOTSET, logging.CRITICAL + 1, 10)
+        for level_name in range(logging.DEBUG, logging.CRITICAL + 1, 10)
     ],
 )
 def test_loglevel_option(level: Optional[str], expected: int) -> None:
     config = Config()
     config.loglevel = level
     logger = Logger(config)
-    assert logger.getEffectiveLevel() == expected
+    assert logger.error_logger.getEffectiveLevel() == expected
 
 
 @pytest.fixture(name="request_scope")

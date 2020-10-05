@@ -35,7 +35,7 @@ CONFIG_DEFAULTS = {
 
 
 def _create_logger(
-    name: str, target: Union[logging.Logger, str, None], sys_default: IO
+    name: str, target: Union[logging.Logger, str, None], level: Optional[str], sys_default: IO
 ) -> Optional[logging.Logger]:
     if isinstance(target, logging.Logger):
         return target
@@ -45,6 +45,8 @@ def _create_logger(
         logger.handlers = [
             logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)
         ]
+    if level is not None:
+        logger.setLevel(logging.getLevelName(level.upper()))
 
     # hasHandlers() here will allow logger configuration from dict/file
     return logger if logger.hasHandlers() else None
@@ -65,11 +67,12 @@ class Logger:
                 log_config.update(config.logconfig_dict)
             dictConfig(log_config)
 
-        self.access_logger = _create_logger("hypercorn.access", config.accesslog, sys.stdout)
-        self.error_logger = _create_logger("hypercorn.error", config.errorlog, sys.stderr)
-
-        if config.loglevel is not None:
-            logging.getLogger().setLevel(logging.getLevelName(config.loglevel.upper()))
+        self.access_logger = _create_logger(
+            "hypercorn.access", config.accesslog, config.loglevel, sys.stdout
+        )
+        self.error_logger = _create_logger(
+            "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
+        )
 
     async def access(self, request: dict, response: dict, request_time: float) -> None:
         if self.access_logger is not None:
