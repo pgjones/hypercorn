@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 CONFIG_DEFAULTS = {
     "version": 1,
+    "disable_existing_loggers": False,
     "root": {"level": "INFO", "handlers": ["error_console"]},
     "loggers": {
         "hypercorn.error": {"qualname": "hypercorn.error"},
@@ -61,7 +62,9 @@ class Logger:
         if config.logconfig is not None:
             log_config["__file__"] = config.logconfig
             log_config["here"] = os.path.dirname(config.logconfig)
-            fileConfig(config.logconfig, defaults=log_config)  # type: ignore
+            fileConfig(
+                config.logconfig, defaults=log_config, disable_existing_loggers=False  # type: ignore # noqa: E501
+            )
         else:
             if config.logconfig_dict is not None:
                 log_config.update(config.logconfig_dict)
