@@ -1,3 +1,9 @@
+0.11.1 2020-10-07
+-----------------
+
+* Bugfix logging setup. This should work by default as expected from
+  pre 0.11 whilst being more configurable.
+
 0.11.0 2020-09-27
 -----------------
 
