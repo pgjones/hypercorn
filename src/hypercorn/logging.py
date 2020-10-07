@@ -11,7 +11,12 @@ if TYPE_CHECKING:
 
 
 def _create_logger(
-    name: str, target: Union[logging.Logger, str, None], level: Optional[str], sys_default: IO
+    name: str,
+    target: Union[logging.Logger, str, None],
+    level: Optional[str],
+    sys_default: IO,
+    *,
+    propagate: bool = True,
 ) -> Optional[logging.Logger]:
     if isinstance(target, logging.Logger):
         return target
@@ -21,6 +26,7 @@ def _create_logger(
         logger.handlers = [
             logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)
         ]
+        logger.propagate = propagate
         formatter = logging.Formatter(
             "%(asctime)s [%(process)d] [%(levelname)s] %(message)s",
             "[%Y-%m-%d %H:%M:%S %z]",
@@ -38,7 +44,11 @@ class Logger:
         self.access_log_format = config.access_log_format
 
         self.access_logger = _create_logger(
-            "hypercorn.access", config.accesslog, config.loglevel, sys.stdout
+            "hypercorn.access",
+            config.accesslog,
+            config.loglevel,
+            sys.stdout,
+            propagate=False,
         )
         self.error_logger = _create_logger(
             "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
