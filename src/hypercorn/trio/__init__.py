@@ -22,7 +22,7 @@ async def serve(
 
     .. code-block:: python
 
-        trio.run(partial(serve, app, config))
+        trio.run(serve, app, config)
 
     It is assumed that the event-loop is configured before calling
     this function, therefore configuration values that relate to loop

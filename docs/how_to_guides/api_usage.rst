@@ -32,12 +32,10 @@ The same for Trio,
 
 .. code-block:: python
 
-    from functools import partial
-
     import trio
     from hypercorn.trio import serve
 
-    trio.run(partial(serve, app, config))
+    trio.run(serve, app, config)
 
 finally for uvloop,
 
