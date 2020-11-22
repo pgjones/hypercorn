@@ -88,7 +88,7 @@ class TCPServer:
                 try:
                     self.writer.write(event.data)
                     await self.writer.drain()
-                except (BrokenPipeError, ConnectionResetError):
+                except ConnectionError:
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
@@ -102,9 +102,7 @@ class TCPServer:
             try:
                 data = await self.reader.read(MAX_RECV)
             except (
-                BrokenPipeError,
-                ConnectionRefusedError,
-                ConnectionResetError,
+                ConnectionError,
                 OSError,
                 asyncio.TimeoutError,
                 TimeoutError,
