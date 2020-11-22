@@ -105,7 +105,9 @@ def test_create_sockets_unix(monkeypatch: MonkeyPatch) -> None:
 
 def test_create_sockets_fd(monkeypatch: MonkeyPatch) -> None:
     mock_sock_class = Mock(
-        return_value=NonCallableMock(**{"getsockopt.return_value": socket.SOCK_STREAM})
+        return_value=NonCallableMock(
+            **{"getsockopt.return_value": socket.SOCK_STREAM}  # type: ignore
+        )
     )
     monkeypatch.setattr(socket, "socket", mock_sock_class)
     config = Config()
