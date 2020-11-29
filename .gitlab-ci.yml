@@ -8,10 +8,16 @@ py38:
   image: python:3.8
   script:
   - pip install tox
-  - tox -e docs,format,mypy,py38,pep8,setuppy,manifest
+  - tox -e py38
+
+py39:
+  image: python:3.9
+  script:
+  - pip install tox
+  - tox -e docs,format,mypy,py39,pep8,setuppy,manifest
 
 pages:
-  image: python:3.8
+  image: python:3.9
   script:
   - pip install sphinx git+https://github.com/pandas-dev/pydata-sphinx-theme.git@master
   - python setup.py install
@@ -25,7 +31,7 @@ pages:
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 .h2spec-script: &h2spec-script
-  image: python:3.8
+  image: python:3.9
   script:
   - python3 -m pip install trio .
   - cd compliance/h2spec && nohup hypercorn --keyfile key.pem --certfile cert.pem -k $WORKER_CLASS server:App &
