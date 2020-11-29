@@ -54,7 +54,7 @@ h2spec-trio:
   image: python:2.7.16-alpine3.10
   script:
   - apk --update add build-base libressl libressl-dev ca-certificates libffi-dev python3 python3-dev
-  - pip install cryptography==2.3.1 autobahntestsuite
+  - pip install pyopenssl==19.1.0 cryptography==2.3.1 autobahntestsuite
   - python3 -m pip install trio .
   - cd compliance/autobahn && nohup hypercorn -k $WORKER_CLASS server:App &
   - while ! netstat -l -t | grep -q 8000; do sleep 1; done
