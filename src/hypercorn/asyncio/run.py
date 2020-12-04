@@ -227,6 +227,8 @@ def _run(
 
     try:
         loop.run_until_complete(main(shutdown_trigger=shutdown_trigger))
+    except KeyboardInterrupt:
+        pass
     finally:
         try:
             _cancel_all_tasks(loop)
