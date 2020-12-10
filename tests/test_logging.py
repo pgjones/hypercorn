@@ -126,3 +126,8 @@ def test_access_log_environ_atoms(request_scope: dict, response: dict) -> None:
     os.environ["Random"] = "Environ"
     atoms = AccessLogAtoms(request_scope, response, 0)
     assert atoms["{random}e"] == "Environ"
+
+
+def test_nonstandard_status_code(request_scope: dict) -> None:
+    atoms = AccessLogAtoms(request_scope, {"status": 441}, 0)
+    assert atoms["st"] == "<???441???>"
