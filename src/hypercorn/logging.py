@@ -131,6 +131,11 @@ class AccessLogAtoms(dict):
         method = request.get("method", "GET")
         query_string = request["query_string"].decode()
         path_with_qs = request["path"] + ("?" + query_string if query_string else "")
+        status_code = response["status"]
+        try:
+            status_phrase = HTTPStatus(status_code).phrase
+        except ValueError:
+            status_phrase = f"<???{status_code}???>"
         self.update(
             {
                 "h": remote_addr,
@@ -139,7 +144,7 @@ class AccessLogAtoms(dict):
                 "r": f"{method} {request['path']} {protocol}",
                 "R": f"{method} {path_with_qs} {protocol}",
                 "s": response["status"],
-                "st": HTTPStatus(response["status"]).phrase,
+                "st": status_phrase,
                 "S": request["scheme"],
                 "m": method,
                 "U": request["path"],
