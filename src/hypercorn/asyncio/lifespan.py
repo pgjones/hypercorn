@@ -1,7 +1,7 @@
 import asyncio
 
 from ..config import Config
-from ..typing import ASGIFramework, LifespanScope
+from ..typing import ASGIFramework, ASGIReceiveEvent, ASGISendEvent, LifespanScope
 from ..utils import invoke_asgi, LifespanFailure, LifespanTimeout
 
 
@@ -67,10 +67,10 @@ class Lifespan:
         except asyncio.TimeoutError as error:
             raise LifespanTimeout("shutdown") from error
 
-    async def asgi_receive(self) -> dict:
+    async def asgi_receive(self) -> ASGIReceiveEvent:
         return await self.app_queue.get()
 
-    async def asgi_send(self, message: dict) -> None:
+    async def asgi_send(self, message: ASGISendEvent) -> None:
         if message["type"] == "lifespan.startup.complete":
             self.startup.set()
         elif message["type"] == "lifespan.shutdown.complete":

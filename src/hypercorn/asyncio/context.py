@@ -1,9 +1,16 @@
 import asyncio
-from typing import Any, Awaitable, Callable, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Type, Union
 
 from .task_group import TaskGroup
 from ..config import Config
-from ..typing import ASGIFramework, Event, Scope
+from ..typing import (
+    ASGIFramework,
+    ASGIReceiveCallable,
+    ASGIReceiveEvent,
+    ASGISendEvent,
+    Event,
+    Scope,
+)
 from ..utils import invoke_asgi
 
 
@@ -22,7 +29,11 @@ class EventWrapper:
 
 
 async def _handle(
-    app: ASGIFramework, config: Config, scope: Scope, receive: Callable, send: Callable
+    app: ASGIFramework,
+    config: Config,
+    scope: Scope,
+    receive: ASGIReceiveCallable,
+    send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
 ) -> None:
     try:
         await invoke_asgi(app, scope, receive, send)
@@ -45,9 +56,9 @@ class Context:
         app: ASGIFramework,
         config: Config,
         scope: Scope,
-        send: Callable[[dict], Awaitable[None]],
-    ) -> Callable[[dict], Awaitable[None]]:
-        app_queue: asyncio.Queue = asyncio.Queue(config.max_app_queue_size)
+        send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+    ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
+        app_queue: asyncio.Queue[ASGIReceiveEvent] = asyncio.Queue(config.max_app_queue_size)
         self.task_group.spawn(_handle(app, config, scope, app_queue.get, send))
         return app_queue.put
 

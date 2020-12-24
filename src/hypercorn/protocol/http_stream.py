@@ -5,7 +5,7 @@ from urllib.parse import unquote
 
 from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
-from ..typing import ASGIFramework, Context, HTTPScope
+from ..typing import ASGIFramework, ASGISendEvent, Context, HTTPResponseStartEvent, HTTPScope
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 PUSH_VERSIONS = {"2", "3"}
@@ -37,7 +37,7 @@ class HTTPStream:
         self.closed = False
         self.config = config
         self.context = context
-        self.response: dict
+        self.response: HTTPResponseStartEvent
         self.scope: HTTPScope
         self.send = send
         self.scheme = "https" if ssl else "http"
@@ -91,9 +91,9 @@ class HTTPStream:
         elif isinstance(event, StreamClosed):
             self.closed = True
             if self.app_put is not None:
-                await self.app_put({"type": "http.disconnect"})
+                await self.app_put({"type": "http.disconnect"})  # type: ignore
 
-    async def app_send(self, message: Optional[dict]) -> None:
+    async def app_send(self, message: Optional[ASGISendEvent]) -> None:
         if self.closed:
             # Allow app to finish after close
             return

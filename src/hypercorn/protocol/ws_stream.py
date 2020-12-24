@@ -19,7 +19,15 @@ from wsproto.utilities import generate_accept_token, split_comma_header
 
 from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
-from ..typing import ASGIFramework, Context, WebsocketScope
+from ..typing import (
+    ASGIFramework,
+    ASGISendEvent,
+    Context,
+    WebsocketAcceptEvent,
+    WebsocketResponseBodyEvent,
+    WebsocketResponseStartEvent,
+    WebsocketScope,
+)
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 
@@ -152,7 +160,7 @@ class WSStream:
         self.closed = False
         self.config = config
         self.context = context
-        self.response: dict
+        self.response: WebsocketResponseStartEvent
         self.scope: WebsocketScope
         self.send = send
         # RFC 8441 for HTTP/2 says use http or https, ASGI says ws or wss
@@ -202,7 +210,7 @@ class WSStream:
                 self.app_put = await self.context.spawn_app(
                     self.app, self.config, self.scope, self.app_send
                 )
-                await self.app_put({"type": "websocket.connect"})
+                await self.app_put({"type": "websocket.connect"})  # type: ignore
         elif isinstance(event, (Body, Data)):
             self.connection.receive_data(event.data)
             await self._handle_events()
@@ -215,7 +223,7 @@ class WSStream:
                     code = CloseReason.ABNORMAL_CLOSURE.value
                 await self.app_put({"type": "websocket.disconnect", "code": code})
 
-    async def app_send(self, message: Optional[dict]) -> None:
+    async def app_send(self, message: Optional[ASGISendEvent]) -> None:
         if self.closed:
             # Allow app to finish after close
             return
@@ -304,7 +312,7 @@ class WSStream:
         data = self.connection.send(event)
         await self.send(Data(stream_id=self.stream_id, data=data))
 
-    async def _accept(self, message: dict) -> None:
+    async def _accept(self, message: WebsocketAcceptEvent) -> None:
         self.state = ASGIWebsocketState.CONNECTED
         status_code, headers, self.connection = self.handshake.accept(message.get("subprotocol"))
         await self.send(
@@ -316,7 +324,7 @@ class WSStream:
         if self.config.websocket_ping_interval is not None:
             self.context.spawn(self._send_pings)
 
-    async def _send_rejection(self, message: dict) -> None:
+    async def _send_rejection(self, message: WebsocketResponseBodyEvent) -> None:
         body_suppressed = suppress_body("GET", self.response["status"])
         if self.state == ASGIWebsocketState.HANDSHAKE:
             headers = build_and_validate_headers(self.response["headers"])

@@ -1,9 +1,16 @@
-from typing import Any, Awaitable, Callable, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Type, Union
 
 import trio
 
 from ..config import Config
-from ..typing import ASGIFramework, Event, Scope
+from ..typing import (
+    ASGIFramework,
+    ASGIReceiveCallable,
+    ASGIReceiveEvent,
+    ASGISendEvent,
+    Event,
+    Scope,
+)
 from ..utils import invoke_asgi
 
 
@@ -22,7 +29,11 @@ class EventWrapper:
 
 
 async def _handle(
-    app: ASGIFramework, config: Config, scope: Scope, receive: Callable, send: Callable
+    app: ASGIFramework,
+    config: Config,
+    scope: Scope,
+    receive: ASGIReceiveCallable,
+    send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
 ) -> None:
     try:
         await invoke_asgi(app, scope, receive, send)
@@ -54,8 +65,8 @@ class Context:
         app: ASGIFramework,
         config: Config,
         scope: Scope,
-        send: Callable[[dict], Awaitable[None]],
-    ) -> Callable[[dict], Awaitable[None]]:
+        send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+    ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_send_channel, app_receive_channel = trio.open_memory_channel(config.max_app_queue_size)
         self.nursery.start_soon(_handle, app, config, scope, app_receive_channel.receive, send)
         return app_send_channel.send

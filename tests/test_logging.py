@@ -7,7 +7,7 @@ import pytest
 
 from hypercorn.config import Config
 from hypercorn.logging import AccessLogAtoms, Logger
-from hypercorn.typing import HTTPScope
+from hypercorn.typing import HTTPScope, ResponseSummary
 
 
 @pytest.mark.parametrize(
@@ -61,7 +61,7 @@ def _response_scope() -> dict:
     return {"status": 200, "headers": [(b"Content-Length", b"5"), (b"X-Hypercorn", b"Hypercorn")]}
 
 
-def test_access_log_standard_atoms(http_scope: HTTPScope, response: dict) -> None:
+def test_access_log_standard_atoms(http_scope: HTTPScope, response: ResponseSummary) -> None:
     atoms = AccessLogAtoms(http_scope, response, 0.000_023)
     assert atoms["h"] == "127.0.0.1:80"
     assert atoms["l"] == "-"
@@ -86,7 +86,7 @@ def test_access_log_standard_atoms(http_scope: HTTPScope, response: dict) -> Non
     assert atoms["st"] == "OK"
 
 
-def test_access_log_header_atoms(http_scope: HTTPScope, response: dict) -> None:
+def test_access_log_header_atoms(http_scope: HTTPScope, response: ResponseSummary) -> None:
     atoms = AccessLogAtoms(http_scope, response, 0)
     assert atoms["{X-Hypercorn}i"] == "Hypercorn"
     assert atoms["{X-HYPERCORN}i"] == "Hypercorn"
@@ -96,14 +96,14 @@ def test_access_log_header_atoms(http_scope: HTTPScope, response: dict) -> None:
 
 
 def test_access_no_log_header_atoms(http_scope: HTTPScope) -> None:
-    atoms = AccessLogAtoms(http_scope, {"status": 200}, 0)
+    atoms = AccessLogAtoms(http_scope, {"status": 200, "headers": []}, 0)
     assert atoms["{X-Hypercorn}i"] == "Hypercorn"
     assert atoms["{X-HYPERCORN}i"] == "Hypercorn"
     assert atoms["{not-atom}i"] == "-"
     assert not any(key.startswith("{") and key.endswith("}o") for key in atoms.keys())
 
 
-def test_access_log_environ_atoms(http_scope: HTTPScope, response: dict) -> None:
+def test_access_log_environ_atoms(http_scope: HTTPScope, response: ResponseSummary) -> None:
     os.environ["Random"] = "Environ"
     atoms = AccessLogAtoms(http_scope, response, 0)
     assert atoms["{random}e"] == "Environ"

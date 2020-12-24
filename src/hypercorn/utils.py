@@ -7,10 +7,28 @@ from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
-from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    cast,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from .config import Config
-from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework, Scope
+from .typing import (
+    ASGI2Framework,
+    ASGI3Framework,
+    ASGIFramework,
+    ASGIReceiveCallable,
+    ASGISendCallable,
+    Scope,
+)
 
 if TYPE_CHECKING:
     from .protocol.events import Request
@@ -54,7 +72,7 @@ def suppress_body(method: str, status_code: int) -> bool:
     return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
 
 
-def build_and_validate_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
+def build_and_validate_headers(headers: Iterable[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
     # Validates that the header name and value are bytes
     validated_headers: List[Tuple[bytes, bytes]] = []
     for name, value in headers:
@@ -207,7 +225,9 @@ def repr_socket_addr(family: int, address: tuple) -> str:
         return f"{address}"
 
 
-async def invoke_asgi(app: ASGIFramework, scope: Scope, receive: Callable, send: Callable) -> None:
+async def invoke_asgi(
+    app: ASGIFramework, scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
+) -> None:
     if _is_asgi_2(app):
         scope["asgi"]["version"] = "2.0"
         app = cast(ASGI2Framework, app)

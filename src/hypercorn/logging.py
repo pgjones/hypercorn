@@ -8,7 +8,7 @@ from typing import Any, IO, Mapping, Optional, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .config import Config
-    from .typing import WWWScope
+    from .typing import ResponseSummary, WWWScope
 
 
 def _create_logger(
@@ -65,7 +65,9 @@ class Logger:
             if config.logconfig_dict is not None:
                 dictConfig(config.logconfig_dict)
 
-    async def access(self, request: "WWWScope", response: dict, request_time: float) -> None:
+    async def access(
+        self, request: "WWWScope", response: "ResponseSummary", request_time: float
+    ) -> None:
         if self.access_logger is not None:
             self.access_logger.info(
                 self.access_log_format, self.atoms(request, response, request_time)
@@ -99,7 +101,9 @@ class Logger:
         if self.error_logger is not None:
             self.error_logger.log(level, message, *args, **kwargs)
 
-    def atoms(self, request: "WWWScope", response: dict, request_time: float) -> Mapping[str, str]:
+    def atoms(
+        self, request: "WWWScope", response: "ResponseSummary", request_time: float
+    ) -> Mapping[str, str]:
         """Create and return an access log atoms dictionary.
 
         This can be overidden and customised if desired. It should
@@ -112,7 +116,9 @@ class Logger:
 
 
 class AccessLogAtoms(dict):
-    def __init__(self, request: "WWWScope", response: dict, request_time: float) -> None:
+    def __init__(
+        self, request: "WWWScope", response: "ResponseSummary", request_time: float
+    ) -> None:
         for name, value in request["headers"]:
             self[f"{{{name.decode('latin1').lower()}}}i"] = value.decode("latin1")
         for name, value in response.get("headers", []):
