@@ -3,6 +3,8 @@ from functools import partial
 from io import BytesIO
 from typing import Callable, Iterable, List, Optional, Tuple
 
+from ..typing import HTTPScope, Scope
+
 MAX_BODY_SIZE = 2 ** 16
 
 WSGICallable = Callable[[dict, Callable], Iterable[bytes]]
@@ -13,7 +15,7 @@ class _WSGIMiddleware:
         self.wsgi_app = wsgi_app
         self.max_body_size = max_body_size
 
-    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
         if scope["type"] == "http":
             status_code, headers, body = await self._handle_http(scope, receive, send)
             await send({"type": "http.response.start", "status": status_code, "headers": headers})
@@ -26,14 +28,14 @@ class _WSGIMiddleware:
             raise Exception(f"Unknown scope type, {scope['type']}")
 
     async def _handle_http(
-        self, scope: dict, receive: Callable, send: Callable
+        self, scope: HTTPScope, receive: Callable, send: Callable
     ) -> Tuple[int, list, bytes]:
         pass
 
 
 class AsyncioWSGIMiddleware(_WSGIMiddleware):
     async def _handle_http(
-        self, scope: dict, receive: Callable, send: Callable
+        self, scope: HTTPScope, receive: Callable, send: Callable
     ) -> Tuple[int, list, bytes]:
         loop = asyncio.get_event_loop()
         instance = _WSGIInstance(self.wsgi_app, self.max_body_size)
@@ -42,7 +44,7 @@ class AsyncioWSGIMiddleware(_WSGIMiddleware):
 
 class TrioWSGIMiddleware(_WSGIMiddleware):
     async def _handle_http(
-        self, scope: dict, receive: Callable, send: Callable
+        self, scope: HTTPScope, receive: Callable, send: Callable
     ) -> Tuple[int, list, bytes]:
         import trio
 
@@ -58,7 +60,7 @@ class _WSGIInstance:
         self.headers: list = []
 
     async def handle_http(
-        self, scope: dict, receive: Callable, spawn: Callable
+        self, scope: HTTPScope, receive: Callable, spawn: Callable
     ) -> Tuple[int, list, bytes]:
         self.scope = scope
         body = bytearray()
@@ -92,7 +94,7 @@ class _WSGIInstance:
         return self.status_code, self.headers, body
 
 
-def _build_environ(scope: dict, body: bytes) -> dict:
+def _build_environ(scope: HTTPScope, body: bytes) -> dict:
     server = scope.get("server") or ("localhost", 80)
     environ = {
         "REQUEST_METHOD": scope["method"],
@@ -114,8 +116,8 @@ def _build_environ(scope: dict, body: bytes) -> dict:
     if "client" in scope:
         environ["REMOTE_ADDR"] = scope["client"][0]
 
-    for name, value in scope.get("headers", []):
-        name = name.decode("latin1")
+    for raw_name, raw_value in scope.get("headers", []):
+        name = raw_name.decode("latin1")
         if name == "content-length":
             corrected_name = "CONTENT_LENGTH"
         elif name == "content-type":
@@ -123,8 +125,8 @@ def _build_environ(scope: dict, body: bytes) -> dict:
         else:
             corrected_name = "HTTP_%s" % name.upper().replace("-", "_")
         # HTTPbis say only ASCII chars are allowed in headers, but we latin1 just in case
-        value = value.decode("latin1")
+        value = raw_value.decode("latin1")
         if corrected_name in environ:
-            value = environ[corrected_name] + "," + value
+            value = environ[corrected_name] + "," + value  # type: ignore
         environ[corrected_name] = value
     return environ

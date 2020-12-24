@@ -4,6 +4,7 @@ from .logging import Logger
 
 if TYPE_CHECKING:
     from .config import Config
+    from .typing import WWWScope
 
 METRIC_VAR = "metric"
 VALUE_VAR = "value"
@@ -63,7 +64,7 @@ class StatsdLogger(Logger):
         except Exception:
             await super().warning("Failed to log to statsd", exc_info=True)
 
-    async def access(self, request: dict, response: dict, request_time: float) -> None:
+    async def access(self, request: "WWWScope", response: dict, request_time: float) -> None:
         await super().access(request, response, request_time)
         await self.histogram("hypercorn.request.duration", request_time * 1_000)
         await self.increment("hypercorn.requests", 1)

@@ -31,5 +31,5 @@ async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> 
     data = await server.writer.receive()  # type: ignore
     assert (
         data
-        == b"HTTP/1.1 200 \r\ncontent-length: 317\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\n\r\n"  # noqa: E501
+        == b"HTTP/1.1 200 \r\ncontent-length: 335\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\n\r\n"  # noqa: E501
     )

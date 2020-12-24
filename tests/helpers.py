@@ -1,7 +1,9 @@
 from copy import deepcopy
 from json import dumps
 from socket import AF_INET
-from typing import Callable, Tuple
+from typing import Callable, cast, Tuple
+
+from hypercorn.typing import Scope, WWWScope
 
 SANITY_BODY = b"Hello Hypercorn"
 
@@ -17,7 +19,7 @@ class MockSocket:
         return ("127.0.0.1", 80)
 
 
-async def empty_framework(scope: dict, receive: Callable, send: Callable) -> None:
+async def empty_framework(scope: Scope, receive: Callable, send: Callable) -> None:
     pass
 
 
@@ -30,11 +32,14 @@ class SlowLifespanFramework:
         await self.sleep(self.delay)
 
 
-async def echo_framework(input_scope: dict, receive: Callable, send: Callable) -> None:
+async def echo_framework(input_scope: Scope, receive: Callable, send: Callable) -> None:
+    input_scope = cast(WWWScope, input_scope)
     scope = deepcopy(input_scope)
-    scope["query_string"] = scope["query_string"].decode()
-    scope["raw_path"] = scope["raw_path"].decode()
-    scope["headers"] = [(name.decode(), value.decode()) for name, value in scope["headers"]]
+    scope["query_string"] = scope["query_string"].decode()  # type: ignore
+    scope["raw_path"] = scope["raw_path"].decode()  # type: ignore
+    scope["headers"] = [  # type: ignore
+        (name.decode(), value.decode()) for name, value in scope["headers"]
+    ]
 
     body = bytearray()
     while True:
@@ -61,7 +66,7 @@ async def echo_framework(input_scope: dict, receive: Callable, send: Callable) -
             await send({"type": "websocket.send", "text": event["text"], "bytes": event["bytes"]})
 
 
-async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> None:
+async def lifespan_failure(scope: Scope, receive: Callable, send: Callable) -> None:
     while True:
         message = await receive()
         if message["type"] == "lifespan.startup":
@@ -69,7 +74,7 @@ async def lifespan_failure(scope: dict, receive: Callable, send: Callable) -> No
         break
 
 
-async def sanity_framework(scope: dict, receive: Callable, send: Callable) -> None:
+async def sanity_framework(scope: Scope, receive: Callable, send: Callable) -> None:
     body = b""
     if scope["type"] == "websocket":
         await send({"type": "websocket.accept"})

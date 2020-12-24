@@ -1,7 +1,7 @@
 from typing import Callable, Optional
 from urllib.parse import urlunsplit
 
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, HTTPScope, Scope, WebsocketScope, WWWScope
 from ..utils import invoke_asgi
 
 
@@ -10,7 +10,7 @@ class HTTPToHTTPSRedirectMiddleware:
         self.app = app
         self.host = host
 
-    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
         if scope["type"] == "http" and scope["scheme"] == "http":
             await self._send_http_redirect(scope, send)
         elif scope["type"] == "websocket" and scope["scheme"] == "ws":
@@ -24,7 +24,7 @@ class HTTPToHTTPSRedirectMiddleware:
         else:
             return await invoke_asgi(self.app, scope, receive, send)
 
-    async def _send_http_redirect(self, scope: dict, send: Callable) -> None:
+    async def _send_http_redirect(self, scope: HTTPScope, send: Callable) -> None:
         new_url = self._new_url("https", scope)
         await send(
             {
@@ -35,7 +35,7 @@ class HTTPToHTTPSRedirectMiddleware:
         )
         await send({"type": "http.response.body"})
 
-    async def _send_websocket_redirect(self, scope: dict, send: Callable) -> None:
+    async def _send_websocket_redirect(self, scope: WebsocketScope, send: Callable) -> None:
         # If the HTTP version is 2 we should redirect with a https
         # scheme not wss.
         scheme = "wss"
@@ -52,7 +52,7 @@ class HTTPToHTTPSRedirectMiddleware:
         )
         await send({"type": "websocket.http.response.body"})
 
-    def _new_url(self, scheme: str, scope: dict) -> str:
+    def _new_url(self, scheme: str, scope: WWWScope) -> str:
         host = self.host
         if host is None:
             for key, value in scope["headers"]:

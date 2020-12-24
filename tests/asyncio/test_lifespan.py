@@ -6,11 +6,12 @@ import pytest
 
 from hypercorn.asyncio.lifespan import Lifespan
 from hypercorn.config import Config
+from hypercorn.typing import Scope
 from hypercorn.utils import LifespanFailure, LifespanTimeout
 from ..helpers import lifespan_failure, SlowLifespanFramework
 
 
-async def no_lifespan_app(scope: dict, receive: Callable, send: Callable) -> None:
+async def no_lifespan_app(scope: Scope, receive: Callable, send: Callable) -> None:
     sleep(0.1)  # Block purposefully
     raise Exception()
 
@@ -46,7 +47,7 @@ async def test_startup_failure() -> None:
     assert str(exception) == "Lifespan failure in startup. 'Failure'"
 
 
-async def return_app(scope: dict, receive: Callable, send: Callable) -> None:
+async def return_app(scope: Scope, receive: Callable, send: Callable) -> None:
     return
 
 

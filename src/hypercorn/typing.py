@@ -1,14 +1,14 @@
 from multiprocessing.synchronize import Event as EventType
-from typing import Any, Awaitable, Callable, Optional, Tuple, Type, Union
+from typing import Any, Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
 
 import h2.events
 import h11
 
 # Till PEP 544 is accepted
 try:
-    from typing import Protocol
+    from typing import Literal, Protocol, TypedDict
 except ImportError:
-    from typing_extensions import Protocol  # type: ignore
+    from typing_extensions import Literal, Protocol, TypedDict  # type: ignore
 
 from .config import Config, Sockets
 
@@ -17,10 +17,56 @@ H11SendableEvent = Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, 
 WorkerFunc = Callable[[Config, Optional[Sockets], Optional[EventType]], None]
 
 
+class ASGIVersions(TypedDict, total=False):
+    spec_version: str
+    version: Union[Literal["2.0"], Literal["3.0"]]
+
+
+class HTTPScope(TypedDict):
+    type: Literal["http"]
+    asgi: ASGIVersions
+    http_version: str
+    method: str
+    scheme: str
+    path: str
+    raw_path: bytes
+    query_string: bytes
+    root_path: str
+    headers: Iterable[Tuple[bytes, bytes]]
+    client: Optional[Tuple[str, int]]
+    server: Optional[Tuple[str, Optional[int]]]
+    extensions: Dict[str, dict]
+
+
+class WebsocketScope(TypedDict):
+    type: Literal["websocket"]
+    asgi: ASGIVersions
+    http_version: str
+    scheme: str
+    path: str
+    raw_path: bytes
+    query_string: bytes
+    root_path: str
+    headers: Iterable[Tuple[bytes, bytes]]
+    client: Optional[Tuple[str, int]]
+    server: Optional[Tuple[str, Optional[int]]]
+    subprotocols: Iterable[str]
+    extensions: Dict[str, dict]
+
+
+class LifespanScope(TypedDict):
+    type: Literal["lifespan"]
+    asgi: ASGIVersions
+
+
+WWWScope = Union[HTTPScope, WebsocketScope]
+Scope = Union[HTTPScope, WebsocketScope, LifespanScope]
+
+
 class ASGI2Protocol(Protocol):
     # Should replace with a Protocol when PEP 544 is accepted.
 
-    def __init__(self, scope: dict) -> None:
+    def __init__(self, scope: Scope) -> None:
         ...
 
     async def __call__(self, receive: Callable, send: Callable) -> None:
@@ -28,7 +74,7 @@ class ASGI2Protocol(Protocol):
 
 
 ASGI2Framework = Type[ASGI2Protocol]
-ASGI3Framework = Callable[[dict, Callable, Callable], Awaitable[None]]
+ASGI3Framework = Callable[[Scope, Callable, Callable], Awaitable[None]]
 ASGIFramework = Union[ASGI2Framework, ASGI3Framework]
 
 
@@ -103,7 +149,7 @@ class Context(Protocol):
         self,
         app: ASGIFramework,
         config: Config,
-        scope: dict,
+        scope: Scope,
         send: Callable[[dict], Awaitable[None]],
     ) -> Callable[[dict], Awaitable[None]]:
         ...

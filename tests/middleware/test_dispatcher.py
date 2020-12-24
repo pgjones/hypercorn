@@ -1,17 +1,19 @@
-from typing import Callable
+from typing import Callable, cast
 
 import pytest
 
 from hypercorn.middleware.dispatcher import AsyncioDispatcherMiddleware, TrioDispatcherMiddleware
+from hypercorn.typing import HTTPScope, Scope
 
 
 @pytest.mark.asyncio
-async def test_dispatcher_middleware() -> None:
+async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
     class EchoFramework:
         def __init__(self, name: str) -> None:
             self.name = name
 
-        async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+        async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
+            scope = cast(HTTPScope, scope)
             response = f"{self.name}-{scope['path']}"
             await send(
                 {
@@ -32,10 +34,9 @@ async def test_dispatcher_middleware() -> None:
         nonlocal sent_events
         sent_events.append(message)
 
-    scope = {"type": "http", "asgi": {"version": "3.0"}}
-    await app(dict(path="/api/x/b", **scope), None, send)
-    await app(dict(path="/api/b", **scope), None, send)
-    await app(dict(path="/", **scope), None, send)
+    await app({**http_scope, **{"path": "/api/x/b"}}, None, send)  # type: ignore
+    await app({**http_scope, **{"path": "/api/b"}}, None, send)  # type: ignore
+    await app({**http_scope, **{"path": "/"}}, None, send)  # type: ignore
     assert sent_events == [
         {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"7")]},
         {"type": "http.response.body", "body": b"apix-/b"},
@@ -50,7 +51,7 @@ class ScopeFramework:
     def __init__(self, name: str) -> None:
         self.name = name
 
-    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
         await send({"type": "lifespan.startup.complete"})
 
 

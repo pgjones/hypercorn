@@ -5,7 +5,7 @@ from urllib.parse import unquote
 
 from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
-from ..typing import ASGIFramework, Context
+from ..typing import ASGIFramework, Context, HTTPScope
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 PUSH_VERSIONS = {"2", "3"}
@@ -38,7 +38,7 @@ class HTTPStream:
         self.config = config
         self.context = context
         self.response: dict
-        self.scope: dict
+        self.scope: HTTPScope
         self.send = send
         self.scheme = "https" if ssl else "http"
         self.server = server
@@ -69,9 +69,10 @@ class HTTPStream:
                 "headers": event.headers,
                 "client": self.client,
                 "server": self.server,
+                "extensions": {},
             }
             if event.http_version in PUSH_VERSIONS:
-                self.scope["extensions"] = {"http.response.push": {}}
+                self.scope["extensions"]["http.response.push"] = {}
 
             if valid_server_name(self.config, event):
                 self.app_put = await self.context.spawn_app(

@@ -1,7 +1,7 @@
 import trio
 
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, LifespanScope
 from ..utils import invoke_asgi, LifespanFailure, LifespanTimeout
 
 
@@ -24,7 +24,7 @@ class Lifespan:
         self, *, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
     ) -> None:
         task_status.started()
-        scope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
+        scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
         try:
             await invoke_asgi(self.app, scope, self.asgi_receive, self.asgi_send)
         except LifespanFailure:

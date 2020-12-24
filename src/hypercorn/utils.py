@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, cast, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .config import Config
-from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework
+from .typing import ASGI2Framework, ASGI3Framework, ASGIFramework, Scope
 
 if TYPE_CHECKING:
     from .protocol.events import Request
@@ -207,7 +207,7 @@ def repr_socket_addr(family: int, address: tuple) -> str:
         return f"{address}"
 
 
-async def invoke_asgi(app: ASGIFramework, scope: dict, receive: Callable, send: Callable) -> None:
+async def invoke_asgi(app: ASGIFramework, scope: Scope, receive: Callable, send: Callable) -> None:
     if _is_asgi_2(app):
         scope["asgi"]["version"] = "2.0"
         app = cast(ASGI2Framework, app)

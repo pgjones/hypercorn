@@ -6,6 +6,7 @@ import trio
 
 from hypercorn.middleware import AsyncioWSGIMiddleware, TrioWSGIMiddleware
 from hypercorn.middleware.wsgi import _build_environ
+from hypercorn.typing import HTTPScope
 
 
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
@@ -22,14 +23,20 @@ def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
 @pytest.mark.trio
 async def test_wsgi_trio() -> None:
     middleware = TrioWSGIMiddleware(echo_body)
-    scope = {
+    scope: HTTPScope = {
         "http_version": "1.1",
+        "asgi": {},
         "method": "GET",
+        "headers": [],
         "path": "/",
+        "root_path": "/",
         "query_string": b"a=b",
         "raw_path": b"/",
         "scheme": "http",
         "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
     }
     send_channel, receive_channel = trio.open_memory_channel(1)
     await send_channel.send({"type": "http.request"})
@@ -54,14 +61,20 @@ async def test_wsgi_trio() -> None:
 @pytest.mark.asyncio
 async def test_wsgi_asyncio() -> None:
     middleware = AsyncioWSGIMiddleware(echo_body)
-    scope = {
+    scope: HTTPScope = {
         "http_version": "1.1",
+        "asgi": {},
         "method": "GET",
+        "headers": [],
         "path": "/",
+        "root_path": "/",
         "query_string": b"a=b",
         "raw_path": b"/",
         "scheme": "http",
         "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
     }
     queue: asyncio.Queue = asyncio.Queue()
     await queue.put({"type": "http.request"})
@@ -86,14 +99,20 @@ async def test_wsgi_asyncio() -> None:
 @pytest.mark.asyncio
 async def test_max_body_size() -> None:
     middleware = AsyncioWSGIMiddleware(echo_body, max_body_size=4)
-    scope = {
+    scope: HTTPScope = {
         "http_version": "1.1",
+        "asgi": {},
         "method": "GET",
+        "headers": [],
         "path": "/",
+        "root_path": "/",
         "query_string": b"a=b",
         "raw_path": b"/",
         "scheme": "http",
         "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
     }
     queue: asyncio.Queue = asyncio.Queue()
     await queue.put({"type": "http.request", "body": b"abcde"})
@@ -111,14 +130,20 @@ async def test_max_body_size() -> None:
 
 
 def test_build_environ_encoding() -> None:
-    scope = {
-        "type": "http",
+    scope: HTTPScope = {
         "http_version": "1.0",
+        "asgi": {},
         "method": "GET",
+        "headers": [],
         "path": "/中文",
         "root_path": "/中国",
         "query_string": b"bar=baz",
-        "headers": [],
+        "raw_path": "/中文".encode(),
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
     }
     environ = _build_environ(scope, b"")
     assert environ["SCRIPT_NAME"] == "/中国".encode("utf8").decode("latin-1")

@@ -19,7 +19,7 @@ from wsproto.utilities import generate_accept_token, split_comma_header
 
 from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
-from ..typing import ASGIFramework, Context
+from ..typing import ASGIFramework, Context, WebsocketScope
 from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 
@@ -153,7 +153,7 @@ class WSStream:
         self.config = config
         self.context = context
         self.response: dict
-        self.scope: dict
+        self.scope: WebsocketScope
         self.send = send
         # RFC 8441 for HTTP/2 says use http or https, ASGI says ws or wss
         self.scheme = "wss" if ssl else "ws"

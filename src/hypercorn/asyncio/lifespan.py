@@ -1,7 +1,7 @@
 import asyncio
 
 from ..config import Config
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, LifespanScope
 from ..utils import invoke_asgi, LifespanFailure, LifespanTimeout
 
 
@@ -25,7 +25,7 @@ class Lifespan:
 
     async def handle_lifespan(self) -> None:
         self._started.set()
-        scope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
+        scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
         try:
             await invoke_asgi(self.app, scope, self.asgi_receive, self.asgi_send)
         except LifespanFailure:

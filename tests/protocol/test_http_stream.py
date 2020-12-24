@@ -45,6 +45,7 @@ async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> N
         "headers": [],
         "client": None,
         "server": None,
+        "extensions": {},
     }
 
 

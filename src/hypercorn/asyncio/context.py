@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Type, Union
 
 from .task_group import TaskGroup
 from ..config import Config
-from ..typing import ASGIFramework, Event
+from ..typing import ASGIFramework, Event, Scope
 from ..utils import invoke_asgi
 
 
@@ -22,7 +22,7 @@ class EventWrapper:
 
 
 async def _handle(
-    app: ASGIFramework, config: Config, scope: dict, receive: Callable, send: Callable
+    app: ASGIFramework, config: Config, scope: Scope, receive: Callable, send: Callable
 ) -> None:
     try:
         await invoke_asgi(app, scope, receive, send)
@@ -44,7 +44,7 @@ class Context:
         self,
         app: ASGIFramework,
         config: Config,
-        scope: dict,
+        scope: Scope,
         send: Callable[[dict], Awaitable[None]],
     ) -> Callable[[dict], Awaitable[None]]:
         app_queue: asyncio.Queue = asyncio.Queue(config.max_app_queue_size)

@@ -7,6 +7,7 @@ import pytest
 
 from hypercorn.config import Config
 from hypercorn.logging import AccessLogAtoms, Logger
+from hypercorn.typing import HTTPScope
 
 
 @pytest.mark.parametrize(
@@ -55,34 +56,14 @@ def test_loglevel_option(level: Optional[str], expected: int) -> None:
     assert logger.error_logger.getEffectiveLevel() == expected
 
 
-@pytest.fixture(name="request_scope")
-def _request_scope() -> dict:
-    return {
-        "type": "http",
-        "http_version": "2",
-        "method": "GET",
-        "scheme": "https",
-        "path": "/",
-        "query_string": b"a=b",
-        "root_path": "",
-        "headers": [
-            (b"User-Agent", b"Hypercorn"),
-            (b"X-Hypercorn", b"Hypercorn"),
-            (b"Referer", b"hypercorn"),
-        ],
-        "client": ("127.0.0.1",),
-        "server": None,
-    }
-
-
 @pytest.fixture(name="response")
 def _response_scope() -> dict:
     return {"status": 200, "headers": [(b"Content-Length", b"5"), (b"X-Hypercorn", b"Hypercorn")]}
 
 
-def test_access_log_standard_atoms(request_scope: dict, response: dict) -> None:
-    atoms = AccessLogAtoms(request_scope, response, 0.000_023)
-    assert atoms["h"] == "127.0.0.1"
+def test_access_log_standard_atoms(http_scope: HTTPScope, response: dict) -> None:
+    atoms = AccessLogAtoms(http_scope, response, 0.000_023)
+    assert atoms["h"] == "127.0.0.1:80"
     assert atoms["l"] == "-"
     assert time.strptime(atoms["t"], "[%d/%b/%Y:%H:%M:%S %z]")
     assert int(atoms["s"]) == 200
@@ -105,8 +86,8 @@ def test_access_log_standard_atoms(request_scope: dict, response: dict) -> None:
     assert atoms["st"] == "OK"
 
 
-def test_access_log_header_atoms(request_scope: dict, response: dict) -> None:
-    atoms = AccessLogAtoms(request_scope, response, 0)
+def test_access_log_header_atoms(http_scope: HTTPScope, response: dict) -> None:
+    atoms = AccessLogAtoms(http_scope, response, 0)
     assert atoms["{X-Hypercorn}i"] == "Hypercorn"
     assert atoms["{X-HYPERCORN}i"] == "Hypercorn"
     assert atoms["{not-atom}i"] == "-"
@@ -114,17 +95,17 @@ def test_access_log_header_atoms(request_scope: dict, response: dict) -> None:
     assert atoms["{X-HYPERCORN}o"] == "Hypercorn"
 
 
-def test_access_no_log_header_atoms(request_scope: dict) -> None:
-    atoms = AccessLogAtoms(request_scope, {"status": 200}, 0)
+def test_access_no_log_header_atoms(http_scope: HTTPScope) -> None:
+    atoms = AccessLogAtoms(http_scope, {"status": 200}, 0)
     assert atoms["{X-Hypercorn}i"] == "Hypercorn"
     assert atoms["{X-HYPERCORN}i"] == "Hypercorn"
     assert atoms["{not-atom}i"] == "-"
     assert not any(key.startswith("{") and key.endswith("}o") for key in atoms.keys())
 
 
-def test_access_log_environ_atoms(request_scope: dict, response: dict) -> None:
+def test_access_log_environ_atoms(http_scope: HTTPScope, response: dict) -> None:
     os.environ["Random"] = "Environ"
-    atoms = AccessLogAtoms(request_scope, response, 0)
+    atoms = AccessLogAtoms(http_scope, response, 0)
     assert atoms["{random}e"] == "Environ"
 
 

@@ -6,13 +6,14 @@ import trio
 
 from hypercorn.config import Config
 from hypercorn.trio.tcp_server import TCPServer
+from hypercorn.typing import Scope
 from ..helpers import MockSocket
 
 KEEP_ALIVE_TIMEOUT = 0.01
 REQUEST = h11.Request(method="GET", target="/", headers=[(b"host", b"hypercorn")])
 
 
-async def slow_framework(scope: dict, receive: Callable, send: Callable) -> None:
+async def slow_framework(scope: Scope, receive: Callable, send: Callable) -> None:
     while True:
         event = await receive()
         if event["type"] == "http.disconnect":

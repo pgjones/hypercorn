@@ -3,7 +3,7 @@ from functools import partial
 from typing import Callable, Dict
 
 from ..asyncio.task_group import TaskGroup
-from ..typing import ASGIFramework
+from ..typing import ASGIFramework, Scope
 from ..utils import invoke_asgi
 
 MAX_QUEUE_SIZE = 10
@@ -13,13 +13,13 @@ class _DispatcherMiddleware:
     def __init__(self, mounts: Dict[str, ASGIFramework]) -> None:
         self.mounts = mounts
 
-    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
         if scope["type"] == "lifespan":
             await self._handle_lifespan(scope, receive, send)
         else:
             for path, app in self.mounts.items():
                 if scope["path"].startswith(path):
-                    scope["path"] = scope["path"][len(path) :] or "/"
+                    scope["path"] = scope["path"][len(path) :] or "/"  # type: ignore
                     return await invoke_asgi(app, scope, receive, send)
             await send(
                 {
@@ -30,12 +30,12 @@ class _DispatcherMiddleware:
             )
             await send({"type": "http.response.body"})
 
-    async def _handle_lifespan(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def _handle_lifespan(self, scope: Scope, receive: Callable, send: Callable) -> None:
         pass
 
 
 class AsyncioDispatcherMiddleware(_DispatcherMiddleware):
-    async def _handle_lifespan(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def _handle_lifespan(self, scope: Scope, receive: Callable, send: Callable) -> None:
         self.app_queues: Dict[str, asyncio.Queue] = {
             path: asyncio.Queue(MAX_QUEUE_SIZE) for path in self.mounts
         }
@@ -69,7 +69,7 @@ class AsyncioDispatcherMiddleware(_DispatcherMiddleware):
 
 
 class TrioDispatcherMiddleware(_DispatcherMiddleware):
-    async def _handle_lifespan(self, scope: dict, receive: Callable, send: Callable) -> None:
+    async def _handle_lifespan(self, scope: Scope, receive: Callable, send: Callable) -> None:
         import trio
 
         self.app_queues = {path: trio.open_memory_channel(MAX_QUEUE_SIZE) for path in self.mounts}
