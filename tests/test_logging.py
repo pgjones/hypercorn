@@ -109,6 +109,6 @@ def test_access_log_environ_atoms(http_scope: HTTPScope, response: ResponseSumma
     assert atoms["{random}e"] == "Environ"
 
 
-def test_nonstandard_status_code(request_scope: dict) -> None:
-    atoms = AccessLogAtoms(request_scope, {"status": 441}, 0)
+def test_nonstandard_status_code(http_scope: HTTPScope) -> None:
+    atoms = AccessLogAtoms(http_scope, {"status": 441, "headers": []}, 0)
     assert atoms["st"] == "<???441???>"
