@@ -132,7 +132,7 @@ class WebsocketDisconnectEvent(TypedDict):
 
 class WebsocketCloseEvent(TypedDict):
     type: Literal["websocket.close"]
-    code: Optional[int]
+    code: int
 
 
 class LifespanStartupEvent(TypedDict):
