@@ -1,3 +1,11 @@
+0.11.2 2021-01-10
+-----------------
+
+* Bugfix catch the base class ConnectionError.
+* Bugfix catch KeyboardInterrupt if raised here e.g. on Windows.
+* Bugfix support non-standard HTTP status codes in the access logger.
+* Docs add typing for ASGI scopes and messages.
+
 0.11.1 2020-10-07
 -----------------
 
