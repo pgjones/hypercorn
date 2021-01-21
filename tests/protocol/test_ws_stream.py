@@ -268,6 +268,30 @@ async def test_invalid_server_name(stream: WSStream) -> None:
 
 
 @pytest.mark.asyncio
+async def test_root_path(stream: WSStream) -> None:
+    stream.config.root_path = "/bob"
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"host", b"example.com"), (b"sec-websocket-version", b"13")],
+            raw_path=b"/",
+            method="GET",
+        )
+    )
+    assert stream.send.call_args_list == [
+        call(
+            Response(
+                stream_id=1,
+                headers=[(b"content-length", b"0"), (b"connection", b"close")],
+                status_code=404,
+            )
+        ),
+        call(EndBody(stream_id=1)),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_send_app_error_handshake(stream: WSStream) -> None:
     await stream.handle(
         Request(

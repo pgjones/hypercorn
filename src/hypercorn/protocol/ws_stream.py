@@ -1,7 +1,6 @@
 from enum import auto, Enum
 from time import time
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
-from urllib.parse import unquote
 
 from wsproto.connection import Connection, ConnectionState, ConnectionType
 from wsproto.events import (
@@ -28,7 +27,13 @@ from ..typing import (
     WebsocketResponseStartEvent,
     WebsocketScope,
 )
-from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
+from ..utils import (
+    build_and_validate_headers,
+    extract_path,
+    suppress_body,
+    UnexpectedMessage,
+    valid_server_name,
+)
 
 
 class ASGIWebsocketState(Enum):
@@ -183,14 +188,15 @@ class WSStream:
         elif isinstance(event, Request):
             self.start_time = time()
             self.handshake = Handshake(event.headers, event.http_version)
-            path, _, query_string = event.raw_path.partition(b"?")
+            raw_path, _, query_string = event.raw_path.partition(b"?")
+            path = extract_path(raw_path, self.config.root_path)
             self.scope = {
                 "type": "websocket",
                 "asgi": {"spec_version": "2.1"},
                 "scheme": self.scheme,
                 "http_version": event.http_version,
-                "path": unquote(path.decode("ascii")),
-                "raw_path": path,
+                "path": path,
+                "raw_path": raw_path,
                 "query_string": query_string,
                 "root_path": self.config.root_path,
                 "headers": event.headers,
@@ -200,7 +206,7 @@ class WSStream:
                 "extensions": {"websocket.http.response": {}},
             }
 
-            if not valid_server_name(self.config, event):
+            if path is None or not valid_server_name(self.config, event):
                 await self._send_error_response(404)
                 self.closed = True
             elif not self.handshake.is_valid():

@@ -19,6 +19,7 @@ from typing import (
     Tuple,
     TYPE_CHECKING,
 )
+from urllib.parse import unquote
 
 from .config import Config
 from .typing import (
@@ -259,3 +260,13 @@ def valid_server_name(config: Config, request: "Request") -> bool:
             host = value.decode()
             break
     return host in config.server_names
+
+
+def extract_path(raw_path: bytes, root_path: str) -> Optional[str]:
+    """Extract the path portion from the raw_path accounting for any root_path."""
+    path = unquote(raw_path.decode("ascii"))
+    if path.startswith(root_path):
+        path = path[len(root_path) :]
+        return path if path != "" else "/"
+    else:
+        return None

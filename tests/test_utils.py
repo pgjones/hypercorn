@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 
 import pytest
 
@@ -97,3 +97,17 @@ def test_filter_pseudo_headers() -> None:
         [(b":authority", b"quart"), (b":path", b"/"), (b"user-agent", b"something")]
     )
     assert result == [(b"host", b"quart"), (b"user-agent", b"something")]
+
+
+@pytest.mark.parametrize(
+    "raw_path, root_path, expected",
+    [
+        (b"/bob/", "/bob", "/"),
+        (b"/bob", "/bob", "/"),
+        (b"/foo", "/bob", None),
+        (b"/bob", "", "/bob"),
+        (b"/bob", "bob", None),
+    ],
+)
+def test_extract_path(raw_path: bytes, root_path: str, expected: Optional[str]) -> None:
+    assert hypercorn.utils.extract_path(raw_path, root_path) == expected
