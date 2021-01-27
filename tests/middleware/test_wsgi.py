@@ -5,7 +5,7 @@ import pytest
 import trio
 
 from hypercorn.middleware import AsyncioWSGIMiddleware, TrioWSGIMiddleware
-from hypercorn.middleware.wsgi import _build_environ
+from hypercorn.middleware.wsgi import _build_environ, InvalidPath
 from hypercorn.typing import HTTPScope
 
 
@@ -135,6 +135,27 @@ def test_build_environ_encoding() -> None:
         "asgi": {},
         "method": "GET",
         "headers": [],
+        "path": "/中/文",
+        "root_path": "/中",
+        "query_string": b"bar=baz",
+        "raw_path": "/中/文".encode(),
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+    }
+    environ = _build_environ(scope, b"")
+    assert environ["SCRIPT_NAME"] == "/中".encode("utf8").decode("latin-1")
+    assert environ["PATH_INFO"] == "/文".encode("utf8").decode("latin-1")
+
+
+def test_build_environ_root_path() -> None:
+    scope: HTTPScope = {
+        "http_version": "1.0",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
         "path": "/中文",
         "root_path": "/中国",
         "query_string": b"bar=baz",
@@ -145,6 +166,5 @@ def test_build_environ_encoding() -> None:
         "server": None,
         "extensions": {},
     }
-    environ = _build_environ(scope, b"")
-    assert environ["SCRIPT_NAME"] == "/中国".encode("utf8").decode("latin-1")
-    assert environ["PATH_INFO"] == "/中文".encode("utf8").decode("latin-1")
+    with pytest.raises(InvalidPath):
+        _build_environ(scope, b"")

@@ -10,6 +10,10 @@ MAX_BODY_SIZE = 2 ** 16
 WSGICallable = Callable[[dict, Callable], Iterable[bytes]]
 
 
+class InvalidPath(Exception):
+    pass
+
+
 class _WSGIMiddleware:
     def __init__(self, wsgi_app: WSGICallable, max_body_size: int = MAX_BODY_SIZE) -> None:
         self.wsgi_app = wsgi_app
@@ -87,19 +91,31 @@ class _WSGIInstance:
         ]
 
     def run_wsgi_app(self, body: bytes) -> Tuple[int, list, bytes]:
-        environ = _build_environ(self.scope, body)
-        body = bytearray()
-        for output in self.wsgi_app(environ, self._start_response):
-            body.extend(output)
-        return self.status_code, self.headers, body
+        try:
+            environ = _build_environ(self.scope, body)
+        except InvalidPath:
+            return 404, self.headers, b""
+        else:
+            body = bytearray()
+            for output in self.wsgi_app(environ, self._start_response):
+                body.extend(output)
+            return self.status_code, self.headers, body
 
 
 def _build_environ(scope: HTTPScope, body: bytes) -> dict:
     server = scope.get("server") or ("localhost", 80)
+    path = scope["path"]
+    script_name = scope.get("root_path", "")
+    if path.startswith(script_name):
+        path = path[len(script_name) :]
+        path = path if path != "" else "/"
+    else:
+        raise InvalidPath()
+
     environ = {
         "REQUEST_METHOD": scope["method"],
-        "SCRIPT_NAME": scope.get("root_path", "").encode("utf8").decode("latin1"),
-        "PATH_INFO": scope["path"].encode("utf8").decode("latin1"),
+        "SCRIPT_NAME": script_name.encode("utf8").decode("latin1"),
+        "PATH_INFO": path.encode("utf8").decode("latin1"),
         "QUERY_STRING": scope["query_string"].decode("ascii"),
         "SERVER_NAME": server[0],
         "SERVER_PORT": server[1],

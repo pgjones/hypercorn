@@ -46,6 +46,7 @@ class Config:
     _quic_bind: List[str] = []
     _quic_addresses: List[Tuple] = []
     _log: Optional[Logger] = None
+    _root_path: str = ""
 
     access_log_format = '%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
     accesslog: Union[logging.Logger, str, None] = None
@@ -74,7 +75,6 @@ class Config:
     loglevel: str = "INFO"
     max_app_queue_size: int = 10
     pid_path: Optional[str] = None
-    root_path = ""
     server_names: List[str] = []
     shutdown_timeout = 60 * SECONDS
     ssl_handshake_timeout = 60 * SECONDS
@@ -135,6 +135,14 @@ class Config:
             self._quic_bind = [value]
         else:
             self._quic_bind = value
+
+    @property
+    def root_path(self) -> str:
+        return self._root_path
+
+    @root_path.setter
+    def root_path(self, value: str) -> None:
+        self._root_path = value.rstrip("/")
 
     def create_ssl_context(self) -> Optional[SSLContext]:
         if not self.ssl_enabled:
