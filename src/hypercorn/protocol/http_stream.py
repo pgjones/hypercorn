@@ -1,17 +1,12 @@
 from enum import auto, Enum
 from time import time
 from typing import Awaitable, Callable, Optional, Tuple
+from urllib.parse import unquote
 
 from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
 from ..typing import ASGIFramework, ASGISendEvent, Context, HTTPResponseStartEvent, HTTPScope
-from ..utils import (
-    build_and_validate_headers,
-    extract_path,
-    suppress_body,
-    UnexpectedMessage,
-    valid_server_name,
-)
+from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
 
 PUSH_VERSIONS = {"2", "3"}
 
@@ -60,16 +55,15 @@ class HTTPStream:
             return
         elif isinstance(event, Request):
             self.start_time = time()
-            raw_path, _, query_string = event.raw_path.partition(b"?")
-            path = extract_path(raw_path, self.config.root_path)
+            path, _, query_string = event.raw_path.partition(b"?")
             self.scope = {
                 "type": "http",
                 "http_version": event.http_version,
                 "asgi": {"spec_version": "2.1"},
                 "method": event.method,
                 "scheme": self.scheme,
-                "path": path,
-                "raw_path": raw_path,
+                "path": unquote(path.decode("ascii")),
+                "raw_path": path,
                 "query_string": query_string,
                 "root_path": self.config.root_path,
                 "headers": event.headers,
@@ -80,13 +74,13 @@ class HTTPStream:
             if event.http_version in PUSH_VERSIONS:
                 self.scope["extensions"]["http.response.push"] = {}
 
-            if path is None or not valid_server_name(self.config, event):
-                await self._send_error_response(404)
-                self.closed = True
-            else:
+            if valid_server_name(self.config, event):
                 self.app_put = await self.context.spawn_app(
                     self.app, self.config, self.scope, self.app_send
                 )
+            else:
+                await self._send_error_response(404)
+                self.closed = True
 
         elif isinstance(event, Body):
             await self.app_put(
