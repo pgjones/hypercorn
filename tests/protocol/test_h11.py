@@ -38,8 +38,8 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
 @pytest.mark.asyncio
 async def test_protocol_send_response(protocol: H11Protocol) -> None:
     await protocol.stream_send(Response(stream_id=1, status_code=201, headers=[]))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list == [
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [  # type: ignore
         call(
             RawData(
                 data=(
@@ -54,8 +54,8 @@ async def test_protocol_send_response(protocol: H11Protocol) -> None:
 @pytest.mark.asyncio
 async def test_protocol_send_data(protocol: H11Protocol) -> None:
     await protocol.stream_send(Data(stream_id=1, data=b"hello"))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list == [call(RawData(data=b"hello"))]
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [call(RawData(data=b"hello"))]  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -67,8 +67,8 @@ async def test_protocol_send_body(protocol: H11Protocol) -> None:
         Response(stream_id=1, status_code=200, headers=[(b"content-length", b"5")])
     )
     await protocol.stream_send(Body(stream_id=1, data=b"hello"))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list == [
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [  # type: ignore
         call(
             RawData(
                 data=b"HTTP/1.1 200 \r\ncontent-length: 5\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\nConnection: close\r\n\r\n"  # noqa: E501
@@ -92,8 +92,8 @@ async def test_protocol_send_stream_closed(
     await protocol.stream_send(Response(stream_id=1, status_code=200, headers=[]))
     await protocol.stream_send(EndBody(stream_id=1))
     await protocol.stream_send(StreamClosed(stream_id=1))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list[2] == call(expected)
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list[2] == call(expected)  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -133,8 +133,8 @@ async def test_protocol_handle_closed(protocol: H11Protocol) -> None:
     )
     stream = protocol.stream
     await protocol.handle(Closed())
-    stream.handle.assert_called()
-    assert stream.handle.call_args_list == [
+    stream.handle.assert_called()  # type: ignore
+    assert stream.handle.call_args_list == [  # type: ignore
         call(
             Request(
                 stream_id=1,
@@ -155,8 +155,8 @@ async def test_protocol_handle_request(protocol: H11Protocol) -> None:
     await protocol.handle(
         RawData(data=client.send(h11.Request(method="GET", target="/?a=b", headers=BASIC_HEADERS)))
     )
-    protocol.stream.handle.assert_called()
-    assert protocol.stream.handle.call_args_list == [
+    protocol.stream.handle.assert_called()  # type: ignore
+    assert protocol.stream.handle.call_args_list == [  # type: ignore
         call(
             Request(
                 stream_id=1,
@@ -173,8 +173,8 @@ async def test_protocol_handle_request(protocol: H11Protocol) -> None:
 @pytest.mark.asyncio
 async def test_protocol_handle_protocol_error(protocol: H11Protocol) -> None:
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list == [
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [  # type: ignore
         call(
             RawData(
                 data=b"HTTP/1.1 400 \r\ncontent-length: 0\r\nconnection: close\r\n"
@@ -199,7 +199,7 @@ async def test_protocol_handle_send_client_error(protocol: H11Protocol) -> None:
 
 @pytest.mark.asyncio
 async def test_protocol_handle_pipelining(protocol: H11Protocol) -> None:
-    protocol.can_read.wait.side_effect = Exception()
+    protocol.can_read.wait.side_effect = Exception()  # type: ignore
     with pytest.raises(Exception):
         await protocol.handle(
             RawData(
@@ -207,8 +207,8 @@ async def test_protocol_handle_pipelining(protocol: H11Protocol) -> None:
                 b"GET / HTTP/1.1\r\nHost: hypercorn\r\nConnection: close\r\n\r\n"
             )
         )
-    protocol.can_read.clear.assert_called()
-    protocol.can_read.wait.assert_called()
+    protocol.can_read.clear.assert_called()  # type: ignore
+    protocol.can_read.wait.assert_called()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -226,7 +226,7 @@ async def test_protocol_handle_continue_request(protocol: H11Protocol) -> None:
             )
         )
     )
-    assert protocol.send.call_args[0][0] == RawData(
+    assert protocol.send.call_args[0][0] == RawData(  # type: ignore
         data=b"HTTP/1.1 100 \r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\n\r\n"  # noqa: E501
     )
 
@@ -242,8 +242,8 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
     context.event_class.return_value = AsyncMock(spec=IOEvent)
     protocol = H11Protocol(AsyncMock(), config, context, False, None, None, AsyncMock())
     await protocol.handle(RawData(data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list == [
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [  # type: ignore
         call(
             RawData(
                 data=b"HTTP/1.1 400 \r\ncontent-length: 0\r\nconnection: close\r\n"
@@ -266,7 +266,7 @@ async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
                 )
             )
         )
-    assert protocol.send.call_args_list == [
+    assert protocol.send.call_args_list == [  # type: ignore
         call(
             RawData(
                 b"HTTP/1.1 101 \r\n"

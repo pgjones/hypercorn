@@ -87,7 +87,7 @@ class Config:
     verify_flags: Optional[VerifyFlags] = None
     verify_mode: Optional[VerifyMode] = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
-    websocket_ping_interval: Optional[int] = None
+    websocket_ping_interval: Optional[float] = None
     worker_class = "asyncio"
     workers = 1
 

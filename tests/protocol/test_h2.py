@@ -22,15 +22,15 @@ except ImportError:
 async def test_stream_buffer_push_and_pop(event_loop: asyncio.AbstractEventLoop) -> None:
     stream_buffer = StreamBuffer(EventWrapper)
 
-    async def _push_over_limit() -> None:
+    async def _push_over_limit() -> bool:
         await stream_buffer.push(b"a" * (BUFFER_HIGH_WATER + 1))
         return True
 
     task = event_loop.create_task(_push_over_limit())
     assert not task.done()  # Blocked as over high water
-    await stream_buffer.pop(BUFFER_HIGH_WATER / 4)
+    await stream_buffer.pop(BUFFER_HIGH_WATER // 4)
     assert not task.done()  # Blocked as over low water
-    await stream_buffer.pop(BUFFER_HIGH_WATER / 4)
+    await stream_buffer.pop(BUFFER_HIGH_WATER // 4)
     assert (await task) is True
 
 
@@ -39,7 +39,7 @@ async def test_stream_buffer_drain(event_loop: asyncio.AbstractEventLoop) -> Non
     stream_buffer = StreamBuffer(EventWrapper)
     await stream_buffer.push(b"a" * 10)
 
-    async def _drain() -> None:
+    async def _drain() -> bool:
         await stream_buffer.drain()
         return True
 
@@ -82,5 +82,5 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H2Protocol:
 @pytest.mark.asyncio
 async def test_protocol_handle_protocol_error(protocol: H2Protocol) -> None:
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
-    protocol.send.assert_called()
-    assert protocol.send.call_args_list == [call(Closed())]
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [call(Closed())]  # type: ignore

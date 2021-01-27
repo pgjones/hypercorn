@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, List, Tuple
+from typing import Any, cast, List, Tuple
 from unittest.mock import call, Mock
 
 import pytest
@@ -16,6 +16,13 @@ from hypercorn.protocol.ws_stream import (
     Handshake,
     WebsocketBuffer,
     WSStream,
+)
+from hypercorn.typing import (
+    WebsocketAcceptEvent,
+    WebsocketCloseEvent,
+    WebsocketResponseBodyEvent,
+    WebsocketResponseStartEvent,
+    WebsocketSendEvent,
 )
 from hypercorn.utils import UnexpectedMessage
 
@@ -135,7 +142,7 @@ def test_handshake_accept_http2() -> None:
 @pytest.fixture(name="stream")
 async def _stream() -> WSStream:
     stream = WSStream(AsyncMock(), Config(), AsyncMock(), False, None, None, AsyncMock(), 1)
-    stream.context.spawn_app.return_value = AsyncMock()
+    stream.context.spawn_app.return_value = AsyncMock()  # type: ignore
     stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
     return stream
@@ -152,8 +159,8 @@ async def test_handle_request(stream: WSStream) -> None:
             method="GET",
         )
     )
-    stream.context.spawn_app.assert_called()
-    scope = stream.context.spawn_app.call_args[0][2]
+    stream.context.spawn_app.assert_called()  # type: ignore
+    scope = stream.context.spawn_app.call_args[0][2]  # type: ignore
     assert scope == {
         "type": "websocket",
         "asgi": {"spec_version": "2.1"},
@@ -182,7 +189,7 @@ async def test_handle_connection(stream: WSStream) -> None:
             method="GET",
         )
     )
-    await stream.app_send({"type": "websocket.accept"})
+    await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
     stream.app_put = AsyncMock()
     await stream.handle(Data(stream_id=1, data=b"\x81\x85&`\x13\x0eN\x05\x7fbI"))
     stream.app_put.assert_called()
@@ -194,8 +201,10 @@ async def test_handle_connection(stream: WSStream) -> None:
 @pytest.mark.asyncio
 async def test_handle_closed(stream: WSStream) -> None:
     await stream.handle(StreamClosed(stream_id=1))
-    stream.app_put.assert_called()
-    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect", "code": 1006})]
+    stream.app_put.assert_called()  # type: ignore
+    assert stream.app_put.call_args_list == [  # type: ignore
+        call({"type": "websocket.disconnect", "code": 1006})
+    ]
 
 
 @pytest.mark.asyncio
@@ -209,10 +218,12 @@ async def test_send_accept(stream: WSStream) -> None:
             method="GET",
         )
     )
-    await stream.app_send({"type": "websocket.accept"})
+    await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
     assert stream.state == ASGIWebsocketState.CONNECTED
-    stream.send.assert_called()
-    assert stream.send.call_args_list == [call(Response(stream_id=1, headers=[], status_code=200))]
+    stream.send.assert_called()  # type: ignore
+    assert stream.send.call_args_list == [  # type: ignore
+        call(Response(stream_id=1, headers=[], status_code=200))
+    ]
 
 
 @pytest.mark.asyncio
@@ -226,19 +237,26 @@ async def test_send_reject(stream: WSStream) -> None:
             method="GET",
         )
     )
-    await stream.app_send({"type": "websocket.http.response.start", "status": 200, "headers": []})
+    await stream.app_send(
+        cast(
+            WebsocketResponseStartEvent,
+            {"type": "websocket.http.response.start", "status": 200, "headers": []},
+        ),
+    )
     assert stream.state == ASGIWebsocketState.HANDSHAKE
     # Must wait for response before sending anything
-    stream.send.assert_not_called()
-    await stream.app_send({"type": "websocket.http.response.body", "body": b"Body"})
+    stream.send.assert_not_called()  # type: ignore
+    await stream.app_send(
+        cast(WebsocketResponseBodyEvent, {"type": "websocket.http.response.body", "body": b"Body"})
+    )
     assert stream.state == ASGIWebsocketState.HTTPCLOSED
-    stream.send.assert_called()
-    assert stream.send.call_args_list == [
+    stream.send.assert_called()  # type: ignore
+    assert stream.send.call_args_list == [  # type: ignore
         call(Response(stream_id=1, headers=[], status_code=200)),
         call(Body(stream_id=1, data=b"Body")),
         call(EndBody(stream_id=1)),
     ]
-    stream.config._log.access.assert_called()
+    stream.config._log.access.assert_called()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -253,7 +271,7 @@ async def test_invalid_server_name(stream: WSStream) -> None:
             method="GET",
         )
     )
-    assert stream.send.call_args_list == [
+    assert stream.send.call_args_list == [  # type: ignore
         call(
             Response(
                 stream_id=1,
@@ -279,8 +297,8 @@ async def test_send_app_error_handshake(stream: WSStream) -> None:
         )
     )
     await stream.app_send(None)
-    stream.send.assert_called()
-    assert stream.send.call_args_list == [
+    stream.send.assert_called()  # type: ignore
+    assert stream.send.call_args_list == [  # type: ignore
         call(
             Response(
                 stream_id=1,
@@ -291,7 +309,7 @@ async def test_send_app_error_handshake(stream: WSStream) -> None:
         call(EndBody(stream_id=1)),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._log.access.assert_called()
+    stream.config._log.access.assert_called()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -305,15 +323,15 @@ async def test_send_app_error_connected(stream: WSStream) -> None:
             method="GET",
         )
     )
-    await stream.app_send({"type": "websocket.accept"})
+    await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
     await stream.app_send(None)
-    stream.send.assert_called()
-    assert stream.send.call_args_list == [
+    stream.send.assert_called()  # type: ignore
+    assert stream.send.call_args_list == [  # type: ignore
         call(Response(stream_id=1, headers=[], status_code=200)),
         call(Data(stream_id=1, data=b"\x88\x02\x03\xe8")),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._log.access.assert_called()
+    stream.config._log.access.assert_called()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -327,11 +345,11 @@ async def test_send_connection(stream: WSStream) -> None:
             method="GET",
         )
     )
-    await stream.app_send({"type": "websocket.accept"})
-    await stream.app_send({"type": "websocket.send", "text": "hello"})
-    await stream.app_send({"type": "websocket.close"})
-    stream.send.assert_called()
-    assert stream.send.call_args_list == [
+    await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
+    await stream.app_send(cast(WebsocketSendEvent, {"type": "websocket.send", "text": "hello"}))
+    await stream.app_send(cast(WebsocketCloseEvent, {"type": "websocket.close"}))
+    stream.send.assert_called()  # type: ignore
+    assert stream.send.call_args_list == [  # type: ignore
         call(Response(stream_id=1, headers=[], status_code=200)),
         call(Data(stream_id=1, data=b"\x81\x05hello")),
         call(Data(stream_id=1, data=b"\x88\x02\x03\xe8")),
@@ -353,10 +371,10 @@ async def test_pings(stream: WSStream, event_loop: asyncio.AbstractEventLoop) ->
     )
     async with TaskGroup(event_loop) as task_group:
         stream.context = Context(task_group)
-        await stream.app_send({"type": "websocket.accept"})
+        await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
         stream.app_put = AsyncMock()
         await asyncio.sleep(0.15)
-        assert stream.send.call_args_list == [
+        assert stream.send.call_args_list == [  # type: ignore
             call(Response(stream_id=1, headers=[], status_code=200)),
             call(Data(stream_id=1, data=b"\x89\x00")),
             call(Data(stream_id=1, data=b"\x89\x00")),
@@ -383,7 +401,7 @@ async def test_send_invalid_message_given_state(
 ) -> None:
     stream.state = state
     with pytest.raises(UnexpectedMessage):
-        await stream.app_send({"type": message_type})
+        await stream.app_send({"type": message_type})  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -400,12 +418,17 @@ async def test_send_invalid_http_message(
 ) -> None:
     stream.connection = Mock()
     stream.state = ASGIWebsocketState.HANDSHAKE
-    stream.scope = {"method": "GET"}
+    stream.scope = {"method": "GET"}  # type: ignore
     with pytest.raises((TypeError, ValueError)):
         await stream.app_send(
-            {"type": "websocket.http.response.start", "headers": headers, "status": status}
+            cast(
+                WebsocketResponseStartEvent,
+                {"type": "websocket.http.response.start", "headers": headers, "status": status},
+            ),
         )
-        await stream.app_send({"type": "websocket.http.response.body", "body": body})
+        await stream.app_send(
+            cast(WebsocketResponseBodyEvent, {"type": "websocket.http.response.body", "body": body})
+        )
 
 
 @pytest.mark.parametrize(
@@ -431,11 +454,13 @@ async def test_closure(stream: WSStream) -> None:
     assert stream.closed
     # It is important that the disconnect message has only been sent
     # once.
-    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect", "code": 1006})]
+    assert stream.app_put.call_args_list == [  # type: ignore
+        call({"type": "websocket.disconnect", "code": 1006})
+    ]
 
 
 @pytest.mark.asyncio
 async def test_closed_app_send_noop(stream: WSStream) -> None:
     stream.closed = True
-    await stream.app_send({"type": "websocket.accept"})
-    stream.send.assert_not_called()
+    await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
+    stream.send.assert_not_called()  # type: ignore
