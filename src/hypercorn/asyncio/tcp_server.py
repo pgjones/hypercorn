@@ -128,14 +128,12 @@ class TCPServer:
         except (BrokenPipeError, ConnectionResetError):
             pass  # Already closed
 
+        async with self.timeout_lock:
+            await self._cancel_keep_alive_timeout()
+
     async def _update_keep_alive_timeout(self) -> None:
         async with self.timeout_lock:
-            if self._keep_alive_timeout_handle is not None:
-                self._keep_alive_timeout_handle.cancel()
-                try:
-                    await self._keep_alive_timeout_handle
-                except asyncio.CancelledError:
-                    pass
+            await self._cancel_keep_alive_timeout()
 
             self._keep_alive_timeout_handle = None
             if self.protocol.idle:
@@ -146,6 +144,14 @@ class TCPServer:
     async def _timeout(self) -> None:
         await self.protocol.handle(Closed())
         self.writer.close()
+
+    async def _cancel_keep_alive_timeout(self) -> None:
+        if self._keep_alive_timeout_handle is not None:
+            self._keep_alive_timeout_handle.cancel()
+            try:
+                await self._keep_alive_timeout_handle
+            except asyncio.CancelledError:
+                pass
 
 
 async def _call_later(timeout: float, callback: Callable) -> None:
