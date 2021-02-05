@@ -70,6 +70,7 @@ class Config:
     dogstatsd_tags = ""
     errorlog: Union[logging.Logger, str, None] = "-"
     graceful_timeout: float = 3 * SECONDS
+    read_timeout: Optional[int] = None
     group: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h2_max_concurrent_streams = 100

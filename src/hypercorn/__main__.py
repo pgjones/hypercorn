@@ -84,6 +84,12 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         type=int,
     )
     parser.add_argument(
+        "--read-timeout",
+        help="""Seconds to wait before timing out reads on TCP sockets""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
         "-g", "--group", help="Group to own any unix sockets.", default=sentinel, type=int
     )
     parser.add_argument(
@@ -226,6 +232,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.errorlog = args.error_logfile
     if args.graceful_timeout is not sentinel:
         config.graceful_timeout = args.graceful_timeout
+    if args.read_timeout is not sentinel:
+        config.read_timeout = args.read_timeout
     if args.group is not sentinel:
         config.group = args.group
     if args.keep_alive is not sentinel:
