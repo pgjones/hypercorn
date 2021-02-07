@@ -1,3 +1,4 @@
+from __future__ import annotations
 import trio
 
 from ..config import Config

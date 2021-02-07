@@ -1,3 +1,4 @@
+from __future__ import annotations
 from itertools import chain
 from typing import Awaitable, Callable, Optional, Tuple, Union
 

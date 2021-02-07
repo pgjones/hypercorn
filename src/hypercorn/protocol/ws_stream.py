@@ -1,3 +1,4 @@
+from __future__ import annotations
 from enum import auto, Enum
 from time import time
 from typing import Awaitable, Callable, List, Optional, Tuple, Union

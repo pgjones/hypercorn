@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ssl  # noqa: F401
 
 access_log_format = "bob"

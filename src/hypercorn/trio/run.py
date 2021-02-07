@@ -1,3 +1,4 @@
+from __future__ import annotations
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from typing import Awaitable, Callable, Optional

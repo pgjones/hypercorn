@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 access_log_format = "bob"
 bind = ["127.0.0.1:5555"]
 certfile = "tests/assets/cert.pem"

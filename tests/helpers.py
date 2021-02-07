@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from json import dumps
 from socket import AF_INET

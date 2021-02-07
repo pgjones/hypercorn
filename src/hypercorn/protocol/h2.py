@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import h2

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import os
 from unittest.mock import Mock

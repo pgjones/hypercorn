@@ -1,3 +1,4 @@
+from __future__ import annotations
 from multiprocessing.synchronize import Event as EventType
 from typing import Any, Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
 

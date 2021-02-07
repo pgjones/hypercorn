@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Awaitable, Callable, Optional, Tuple, Union
 
 from .h2 import H2Protocol
