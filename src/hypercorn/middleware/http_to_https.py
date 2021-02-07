@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Callable, Optional
 from urllib.parse import urlunsplit
 

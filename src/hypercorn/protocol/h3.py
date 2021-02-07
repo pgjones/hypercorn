@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 from aioquic.h3.connection import H3Connection
