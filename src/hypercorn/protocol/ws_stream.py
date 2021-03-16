@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import auto, Enum
+from io import BytesIO, StringIO
 from time import time
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
 from urllib.parse import unquote
@@ -124,27 +125,29 @@ class Handshake:
 
 class WebsocketBuffer:
     def __init__(self, max_length: int) -> None:
-        self.value: Optional[Union[bytes, str]] = None
+        self.value: Optional[Union[BytesIO, StringIO]] = None
+        self.length = 0
         self.max_length = max_length
 
     def extend(self, event: Message) -> None:
         if self.value is None:
             if isinstance(event, TextMessage):
-                self.value = ""
+                self.value = StringIO()
             else:
-                self.value = b""
-        self.value += event.data
-        if len(self.value) > self.max_length:
+                self.value = BytesIO()
+        self.length += self.value.write(event.data)
+        if self.length > self.max_length:
             raise FrameTooLargeError()
 
     def clear(self) -> None:
         self.value = None
+        self.length = 0
 
     def to_message(self) -> dict:
         return {
             "type": "websocket.receive",
-            "bytes": self.value if isinstance(self.value, bytes) else None,
-            "text": self.value if isinstance(self.value, str) else None,
+            "bytes": self.value.getvalue() if isinstance(self.value, BytesIO) else None,
+            "text": self.value.getvalue() if isinstance(self.value, StringIO) else None,
         }
 
 
