@@ -100,7 +100,7 @@ class Handshake:
 
         extensions: List[Extension] = [PerMessageDeflate()]
         accepts = None
-        if False and self.extensions is not None:
+        if self.extensions is not None:
             accepts = server_extensions_handshake(self.extensions, extensions)
 
         if accepts:
