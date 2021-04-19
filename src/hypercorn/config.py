@@ -10,7 +10,14 @@ import stat
 import types
 import warnings
 from dataclasses import dataclass
-from ssl import SSLContext, VerifyFlags, VerifyMode
+from ssl import (
+    create_default_context,
+    OP_NO_COMPRESSION,
+    Purpose,
+    SSLContext,
+    VerifyFlags,
+    VerifyMode,
+)
 from time import time
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Tuple, Type, Union
 from wsgiref.handlers import format_date_time
@@ -150,14 +157,14 @@ class Config:
         if not self.ssl_enabled:
             return None
 
-        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context = create_default_context(Purpose.CLIENT_AUTH)
         context.set_ciphers(self.ciphers)
         cipher_opts = 0
         for attr in ["OP_NO_SSLv2", "OP_NO_SSLv3", "OP_NO_TLSv1", "OP_NO_TLSv1_1"]:
             if hasattr(ssl, attr):  # To be future proof
                 cipher_opts |= getattr(ssl, attr)
         context.options |= cipher_opts  # RFC 7540 Section 9.2: MUST be TLS >=1.2
-        context.options |= ssl.OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
+        context.options |= OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
         context.set_alpn_protocols(self.alpn_protocols)
 
         if self.certfile is not None and self.keyfile is not None:

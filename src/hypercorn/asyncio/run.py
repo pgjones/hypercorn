@@ -27,11 +27,6 @@ from ..utils import (
     Shutdown,
 )
 
-try:
-    from socket import AF_UNIX
-except ImportError:
-    AF_UNIX = None
-
 
 async def _windows_signal_support() -> None:
     # See https://bugs.python.org/issue23057, to catch signals on
