@@ -37,7 +37,7 @@ The same for Trio,
 
     trio.run(serve, app, config)
 
-finally for uvloop,
+The same for uvloop,
 
 .. code-block:: python
 
@@ -46,11 +46,8 @@ finally for uvloop,
     import uvloop
     from hypercorn.asyncio import serve
 
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    loop.run_until_complete(serve(app, config))
+    uvloop.install()
+    asyncio.run(serve(app, config))
 
 Features caveat
 ---------------
