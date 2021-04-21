@@ -12,5 +12,5 @@ DNS rebinding attacks
 ---------------------
 
 Setting the ``server_names`` configuration variable helps mitigate
-[DNS rebinding attacks](https://en.wikipedia.org/wiki/DNS_rebinding)
+`DNS rebinding attacks <https://en.wikipedia.org/wiki/DNS_rebinding>`_
 and hence is recommended.
