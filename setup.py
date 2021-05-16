@@ -20,7 +20,7 @@ INSTALL_REQUIRES = [
     "h2 >= 3.1.0",
     "priority",
     "toml",
-    "typing_extensions; python_version < '3.8'",
+    "typing_extensions >= 3.7.4; python_version < '3.8'",
     "wsproto >= 0.14.0",
 ]
 
