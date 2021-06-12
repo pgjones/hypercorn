@@ -164,4 +164,4 @@ texinfo_documents = [
 ]
 
 def setup(app):
-    app.add_stylesheet('css/hypercorn.css')
+    app.add_css_file('css/hypercorn.css')
