@@ -86,11 +86,16 @@ def build_and_validate_headers(headers: Iterable[Tuple[bytes, bytes]]) -> List[T
 
 def filter_pseudo_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
     filtered_headers: List[Tuple[bytes, bytes]] = [(b"host", b"")]  # Placeholder
+    authority = None
+    host = b""
     for name, value in headers:
         if name == b":authority":  # h2 & h3 libraries validate this is present
-            filtered_headers[0] = (b"host", value)
+            authority = value
+        elif name == b"host":
+            host = value
         elif name[0] != b":"[0]:
             filtered_headers.append((name, value))
+    filtered_headers[0] = (b"host", authority if authority is not None else host)
     return filtered_headers
 
 
