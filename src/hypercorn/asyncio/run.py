@@ -108,7 +108,6 @@ async def worker_serve(
             await asyncio.start_server(
                 _server_callback,
                 backlog=config.backlog,
-                loop=loop,
                 ssl=ssl_context,
                 sock=sock,
                 ssl_handshake_timeout=ssl_handshake_timeout,
