@@ -7,7 +7,7 @@ import pytest
 import trio
 
 from hypercorn.middleware import AsyncioWSGIMiddleware, TrioWSGIMiddleware
-from hypercorn.middleware.wsgi import _build_environ, InvalidPath
+from hypercorn.middleware.wsgi import _build_environ, InvalidPathError
 from hypercorn.typing import HTTPScope
 
 
@@ -168,5 +168,5 @@ def test_build_environ_root_path() -> None:
         "server": None,
         "extensions": {},
     }
-    with pytest.raises(InvalidPath):
+    with pytest.raises(InvalidPathError):
         _build_environ(scope, b"")

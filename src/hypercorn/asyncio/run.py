@@ -19,12 +19,12 @@ from ..typing import ASGIFramework
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
-    MustReloadException,
+    MustReloadError,
     observe_changes,
     raise_shutdown,
     repr_socket_addr,
     restart,
-    Shutdown,
+    ShutdownError,
 )
 
 
@@ -143,9 +143,9 @@ async def worker_serve(
     try:
         gathered_tasks = asyncio.gather(*tasks)
         await gathered_tasks
-    except MustReloadException:
+    except MustReloadError:
         reload_ = True
-    except (Shutdown, KeyboardInterrupt):
+    except (ShutdownError, KeyboardInterrupt):
         pass
     finally:
         for server in servers:
@@ -154,7 +154,7 @@ async def worker_serve(
 
         try:
             await asyncio.sleep(config.graceful_timeout)
-        except (Shutdown, KeyboardInterrupt):
+        except (ShutdownError, KeyboardInterrupt):
             pass
 
         # Retrieve the Gathered Tasks Cancelled Exception, to

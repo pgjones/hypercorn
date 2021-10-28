@@ -4,10 +4,10 @@ import trio
 
 from ..config import Config
 from ..typing import ASGIFramework, ASGIReceiveEvent, ASGISendEvent, LifespanScope
-from ..utils import invoke_asgi, LifespanFailure, LifespanTimeout
+from ..utils import invoke_asgi, LifespanFailureError, LifespanTimeoutError
 
 
-class UnexpectedMessage(Exception):
+class UnexpectedMessageError(Exception):
     pass
 
 
@@ -29,7 +29,7 @@ class Lifespan:
         scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
         try:
             await invoke_asgi(self.app, scope, self.asgi_receive, self.asgi_send)
-        except LifespanFailure:
+        except LifespanFailureError:
             # Lifespan failures should crash the server
             raise
         except Exception:
@@ -52,7 +52,7 @@ class Lifespan:
             with trio.fail_after(self.config.startup_timeout):
                 await self.startup.wait()
         except trio.TooSlowError as error:
-            raise LifespanTimeout("startup") from error
+            raise LifespanTimeoutError("startup") from error
 
     async def wait_for_shutdown(self) -> None:
         if not self.supported:
@@ -63,7 +63,7 @@ class Lifespan:
             with trio.fail_after(self.config.shutdown_timeout):
                 await self.shutdown.wait()
         except trio.TooSlowError as error:
-            raise LifespanTimeout("startup") from error
+            raise LifespanTimeoutError("startup") from error
 
     async def asgi_receive(self) -> ASGIReceiveEvent:
         return await self.app_receive_channel.receive()
@@ -74,8 +74,8 @@ class Lifespan:
         elif message["type"] == "lifespan.shutdown.complete":
             self.shutdown.set()
         elif message["type"] == "lifespan.startup.failed":
-            raise LifespanFailure("startup", message["message"])
+            raise LifespanFailureError("startup", message["message"])
         elif message["type"] == "lifespan.shutdown.failed":
-            raise LifespanFailure("shutdown", message["message"])
+            raise LifespanFailureError("shutdown", message["message"])
         else:
-            raise UnexpectedMessage(message["type"])
+            raise UnexpectedMessageError(message["type"])

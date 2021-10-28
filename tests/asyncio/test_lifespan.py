@@ -9,7 +9,7 @@ import pytest
 from hypercorn.asyncio.lifespan import Lifespan
 from hypercorn.config import Config
 from hypercorn.typing import Scope
-from hypercorn.utils import LifespanFailure, LifespanTimeout
+from hypercorn.utils import LifespanFailureError, LifespanTimeoutError
 from ..helpers import lifespan_failure, SlowLifespanFramework
 
 
@@ -33,7 +33,7 @@ async def test_startup_timeout_error() -> None:
     config.startup_timeout = 0.01
     lifespan = Lifespan(SlowLifespanFramework(0.02, asyncio.sleep), config)  # type: ignore
     asyncio.ensure_future(lifespan.handle_lifespan())
-    with pytest.raises(LifespanTimeout) as exc_info:
+    with pytest.raises(LifespanTimeoutError) as exc_info:
         await lifespan.wait_for_startup()
     assert str(exc_info.value).startswith("Timeout whilst awaiting startup")
 
@@ -45,7 +45,7 @@ async def test_startup_failure() -> None:
     await lifespan.wait_for_startup()
     assert lifespan_task.done()
     exception = lifespan_task.exception()
-    assert isinstance(exception, LifespanFailure)
+    assert isinstance(exception, LifespanFailureError)
     assert str(exception) == "Lifespan failure in startup. 'Failure'"
 
 

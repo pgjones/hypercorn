@@ -14,7 +14,7 @@ from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
 from hypercorn.protocol.ws_stream import (
     ASGIWebsocketState,
-    FrameTooLarge,
+    FrameTooLargeError,
     Handshake,
     WebsocketBuffer,
     WSStream,
@@ -26,7 +26,7 @@ from hypercorn.typing import (
     WebsocketResponseStartEvent,
     WebsocketSendEvent,
 )
-from hypercorn.utils import UnexpectedMessage
+from hypercorn.utils import UnexpectedMessageError
 
 try:
     from unittest.mock import AsyncMock
@@ -46,7 +46,7 @@ def test_buffer() -> None:
 
 def test_buffer_frame_too_large() -> None:
     buffer_ = WebsocketBuffer(2)
-    with pytest.raises(FrameTooLarge):
+    with pytest.raises(FrameTooLargeError):
         buffer_.extend(TextMessage(data="abc", frame_finished=False, message_finished=True))
 
 
@@ -402,7 +402,7 @@ async def test_send_invalid_message_given_state(
     stream: WSStream, state: ASGIWebsocketState, message_type: str
 ) -> None:
     stream.state = state
-    with pytest.raises(UnexpectedMessage):
+    with pytest.raises(UnexpectedMessageError):
         await stream.app_send({"type": message_type})  # type: ignore
 
 

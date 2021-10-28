@@ -8,7 +8,12 @@ from urllib.parse import unquote
 from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
 from ..typing import ASGIFramework, ASGISendEvent, Context, HTTPResponseStartEvent, HTTPScope
-from ..utils import build_and_validate_headers, suppress_body, UnexpectedMessage, valid_server_name
+from ..utils import (
+    build_and_validate_headers,
+    suppress_body,
+    UnexpectedMessageError,
+    valid_server_name,
+)
 
 PUSH_VERSIONS = {"2", "3"}
 
@@ -160,7 +165,7 @@ class HTTPStream:
                         await self.send(EndBody(stream_id=self.stream_id))
                         await self.send(StreamClosed(stream_id=self.stream_id))
             else:
-                raise UnexpectedMessage(self.state, message["type"])
+                raise UnexpectedMessageError(self.state, message["type"])
 
     async def _send_error_response(self, status_code: int) -> None:
         await self.send(

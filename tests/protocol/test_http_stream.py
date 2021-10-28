@@ -10,7 +10,7 @@ from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, EndBody, Request, Response, StreamClosed
 from hypercorn.protocol.http_stream import ASGIHTTPState, HTTPStream
 from hypercorn.typing import HTTPResponseBodyEvent, HTTPResponseStartEvent, HTTPScope
-from hypercorn.utils import UnexpectedMessage
+from hypercorn.utils import UnexpectedMessageError
 
 try:
     from unittest.mock import AsyncMock
@@ -206,7 +206,7 @@ async def test_send_invalid_message_given_state(
     stream: HTTPStream, state: ASGIHTTPState, message_type: str
 ) -> None:
     stream.state = state
-    with pytest.raises(UnexpectedMessage):
+    with pytest.raises(UnexpectedMessageError):
         await stream.app_send({"type": message_type})  # type: ignore
 
 

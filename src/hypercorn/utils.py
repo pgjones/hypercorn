@@ -36,19 +36,19 @@ if TYPE_CHECKING:
     from .protocol.events import Request
 
 
-class Shutdown(Exception):
+class ShutdownError(Exception):
     pass
 
 
-class MustReloadException(Exception):
+class MustReloadError(Exception):
     pass
 
 
-class NoAppException(Exception):
+class NoAppError(Exception):
     pass
 
 
-class LifespanTimeout(Exception):
+class LifespanTimeoutError(Exception):
     def __init__(self, stage: str) -> None:
         super().__init__(
             f"Timeout whilst awaiting {stage}. Your application may not support the ASGI Lifespan "
@@ -56,17 +56,17 @@ class LifespanTimeout(Exception):
         )
 
 
-class LifespanFailure(Exception):
+class LifespanFailureError(Exception):
     def __init__(self, stage: str, message: str) -> None:
         super().__init__(f"Lifespan failure in {stage}. '{message}'")
 
 
-class UnexpectedMessage(Exception):
+class UnexpectedMessageError(Exception):
     def __init__(self, state: Enum, message_type: str) -> None:
         super().__init__(f"Unexpected message type, {message_type} given the state {state}")
 
 
-class FrameTooLarge(Exception):
+class FrameTooLargeError(Exception):
     pass
 
 
@@ -100,7 +100,7 @@ def load_application(path: str) -> ASGIFramework:
     except ValueError:
         module_name, app_name = path, "app"
     except AttributeError:
-        raise NoAppException()
+        raise NoAppError()
 
     module_path = Path(module_name).resolve()
     sys.path.insert(0, str(module_path.parent))
@@ -112,14 +112,14 @@ def load_application(path: str) -> ASGIFramework:
         module = import_module(import_name)
     except ModuleNotFoundError as error:
         if error.name == import_name:
-            raise NoAppException()
+            raise NoAppError()
         else:
             raise
 
     try:
         return eval(app_name, vars(module))
     except NameError:
-        raise NoAppException()
+        raise NoAppError()
 
 
 async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
@@ -146,10 +146,10 @@ async def observe_changes(sleep: Callable[[float], Awaitable[Any]]) -> None:
                 mtime = path.stat().st_mtime
             except FileNotFoundError:
                 # File deleted
-                raise MustReloadException()
+                raise MustReloadError()
             else:
                 if mtime > last_mtime:
-                    raise MustReloadException()
+                    raise MustReloadError()
                 else:
                     last_updates[path] = mtime
 
@@ -190,7 +190,7 @@ def restart() -> None:
 
 async def raise_shutdown(shutdown_event: Callable[..., Awaitable[None]]) -> None:
     await shutdown_event()
-    raise Shutdown()
+    raise ShutdownError()
 
 
 async def check_multiprocess_shutdown_event(

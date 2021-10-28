@@ -24,7 +24,7 @@ from ..typing import ASGIFramework, Context, H11SendableEvent
 STREAM_ID = 1
 
 
-class H2CProtocolRequired(Exception):
+class H2CProtocolRequiredError(Exception):
     def __init__(self, data: bytes, request: h11.Request) -> None:
         settings = ""
         headers = [(b":method", request.method), (b":path", request.target)]
@@ -40,7 +40,7 @@ class H2CProtocolRequired(Exception):
         self.settings = settings
 
 
-class H2ProtocolAssumed(Exception):
+class H2ProtocolAssumedError(Exception):
     def __init__(self, data: bytes) -> None:
         self.data = data
 
@@ -286,6 +286,8 @@ class H11Protocol:
                     + [(b"connection", b"upgrade"), (b"upgrade", b"h2c")],
                 )
             )
-            raise H2CProtocolRequired(self.connection.trailing_data[0], event)
+            raise H2CProtocolRequiredError(self.connection.trailing_data[0], event)
         elif event.method == b"PRI" and event.target == b"*" and event.http_version == b"2.0":
-            raise H2ProtocolAssumed(b"PRI * HTTP/2.0\r\n\r\n" + self.connection.trailing_data[0])
+            raise H2ProtocolAssumedError(
+                b"PRI * HTTP/2.0\r\n\r\n" + self.connection.trailing_data[0]
+            )

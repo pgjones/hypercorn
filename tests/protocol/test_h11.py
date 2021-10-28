@@ -13,7 +13,7 @@ from hypercorn.asyncio.tcp_server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData, Updated
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
-from hypercorn.protocol.h11 import H2CProtocolRequired, H2ProtocolAssumed, H11Protocol
+from hypercorn.protocol.h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
 from hypercorn.protocol.http_stream import HTTPStream
 from hypercorn.typing import Event as IOEvent
 
@@ -259,7 +259,7 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
-    with pytest.raises(H2CProtocolRequired) as exc_info:
+    with pytest.raises(H2CProtocolRequiredError) as exc_info:
         await protocol.handle(
             RawData(
                 data=(
@@ -294,7 +294,7 @@ async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
 
 @pytest.mark.asyncio
 async def test_protocol_handle_h2_prior(protocol: H11Protocol) -> None:
-    with pytest.raises(H2ProtocolAssumed) as exc_info:
+    with pytest.raises(H2ProtocolAssumedError) as exc_info:
         await protocol.handle(RawData(data=b"PRI * HTTP/2.0\r\n\r\nbbb"))
 
     assert exc_info.value.data == b"PRI * HTTP/2.0\r\n\r\nbbb"

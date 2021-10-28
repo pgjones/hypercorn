@@ -12,7 +12,7 @@ MAX_BODY_SIZE = 2 ** 16
 WSGICallable = Callable[[dict, Callable], Iterable[bytes]]
 
 
-class InvalidPath(Exception):
+class InvalidPathError(Exception):
     pass
 
 
@@ -95,7 +95,7 @@ class _WSGIInstance:
     def run_wsgi_app(self, body: bytes) -> Tuple[int, list, bytes]:
         try:
             environ = _build_environ(self.scope, body)
-        except InvalidPath:
+        except InvalidPathError:
             return 404, self.headers, b""
         else:
             body = bytearray()
@@ -112,7 +112,7 @@ def _build_environ(scope: HTTPScope, body: bytes) -> dict:
         path = path[len(script_name) :]
         path = path if path != "" else "/"
     else:
-        raise InvalidPath()
+        raise InvalidPathError()
 
     environ = {
         "REQUEST_METHOD": scope["method"],

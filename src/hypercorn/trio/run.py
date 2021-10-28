@@ -15,12 +15,12 @@ from ..typing import ASGIFramework
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
-    MustReloadException,
+    MustReloadError,
     observe_changes,
     raise_shutdown,
     repr_socket_addr,
     restart,
-    Shutdown,
+    ShutdownError,
 )
 
 
@@ -87,14 +87,14 @@ async def worker_serve(
                     partial(TCPServer, app, config), listeners, handler_nursery=lifespan_nursery
                 )
 
-        except MustReloadException:
+        except MustReloadError:
             reload_ = True
-        except (Shutdown, KeyboardInterrupt):
+        except (ShutdownError, KeyboardInterrupt):
             pass
         finally:
             try:
                 await trio.sleep(config.graceful_timeout)
-            except (Shutdown, KeyboardInterrupt):
+            except (ShutdownError, KeyboardInterrupt):
                 pass
 
             await lifespan.wait_for_shutdown()
