@@ -69,16 +69,23 @@ reverse_relative = true
 
 [tool.mypy]
 allow_redefinition = true
+disallow_any_generics = false
 disallow_subclassing_any = true
+disallow_untyped_calls = false
 disallow_untyped_defs = true
+implicit_reexport = true
+no_implicit_optional = true
+show_error_codes = true
+strict = true
 strict_equality = true
 strict_optional = false
 warn_redundant_casts = true
+warn_return_any = false
 warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module =["aioquic.*", "aioredis.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "_pytest.*", "pytest.*", "trio.*", "uvloop.*"]
+module =["aioquic.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "trio.*", "uvloop.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
