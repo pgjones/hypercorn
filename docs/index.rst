@@ -7,7 +7,7 @@
    :alt: Hypercorn
 
 Hypercorn is an `ASGI
-<https://github.com/django/asgiref/blob/master/specs/asgi.rst>`_ web
+<https://github.com/django/asgiref/blob/main/specs/asgi.rst>`_ web
 server based on the sans-io hyper, `h11
 <https://github.com/python-hyper/h11>`_, `h2
 <https://github.com/python-hyper/hyper-h2>`_, and `wsproto

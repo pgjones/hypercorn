@@ -1,13 +1,13 @@
 Hypercorn
 =========
 
-.. image:: https://assets.gitlab-static.net/pgjones/hypercorn/raw/master/artwork/logo.png
+.. image:: https://assets.gitlab-static.net/pgjones/hypercorn/raw/main/artwork/logo.png
    :alt: Hypercorn logo
 
 |Build Status| |docs| |pypi| |http| |python| |license|
 
 Hypercorn is an `ASGI
-<https://github.com/django/asgiref/blob/master/specs/asgi.rst>`_ web
+<https://github.com/django/asgiref/blob/main/specs/asgi.rst>`_ web
 server based on the sans-io hyper, `h11
 <https://github.com/python-hyper/h11>`_, `h2
 <https://github.com/python-hyper/hyper-h2>`_, and `wsproto
@@ -95,8 +95,8 @@ if you still can't find an answer please `open an issue
 <https://gitlab.com/pgjones/hypercorn/issues>`_.
 
 
-.. |Build Status| image:: https://gitlab.com/pgjones/hypercorn/badges/master/pipeline.svg
-   :target: https://gitlab.com/pgjones/hypercorn/commits/master
+.. |Build Status| image:: https://gitlab.com/pgjones/hypercorn/badges/main/pipeline.svg
+   :target: https://gitlab.com/pgjones/hypercorn/commits/main
 
 .. |docs| image:: https://img.shields.io/badge/docs-passing-brightgreen.svg
    :target: https://pgjones.gitlab.io/hypercorn/
@@ -111,4 +111,4 @@ if you still can't find an answer please `open an issue
    :target: https://pypi.python.org/pypi/Hypercorn/
 
 .. |license| image:: https://img.shields.io/badge/license-MIT-blue.svg
-   :target: https://gitlab.com/pgjones/hypercorn/blob/master/LICENSE
+   :target: https://gitlab.com/pgjones/hypercorn/blob/main/LICENSE
