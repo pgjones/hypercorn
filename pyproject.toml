@@ -88,7 +88,7 @@ module =["aioquic.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "trio.*",
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-addopts = "--no-cov-on-fail --showlocals --strict"
+addopts = "--no-cov-on-fail --showlocals --strict-markers"
 testpaths = ["tests"]
 
 [build-system]
