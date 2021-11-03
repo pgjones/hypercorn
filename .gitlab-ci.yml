@@ -20,7 +20,7 @@ py310:
   image: python:3.10
   script:
   - pip install tox
-  - tox -e docs,format,mypy,py310,pep8,setuppy,manifest
+  - tox -e docs,format,mypy,py310,package,pep8
 
 pages:
   image: python:3.10
