@@ -99,3 +99,10 @@ def test_filter_pseudo_headers() -> None:
         [(b":authority", b"quart"), (b":path", b"/"), (b"user-agent", b"something")]
     )
     assert result == [(b"host", b"quart"), (b"user-agent", b"something")]
+
+
+def test_filter_pseudo_headers_no_authority() -> None:
+    result = hypercorn.utils.filter_pseudo_headers(
+        [(b"host", b"quart"), (b":path", b"/"), (b"user-agent", b"something")]
+    )
+    assert result == [(b"host", b"quart"), (b"user-agent", b"something")]
