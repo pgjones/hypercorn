@@ -108,7 +108,6 @@ async def worker_serve(
             await asyncio.start_server(
                 _server_callback,
                 backlog=config.backlog,
-                loop=loop,
                 ssl=ssl_context,
                 sock=sock,
                 ssl_handshake_timeout=ssl_handshake_timeout,
@@ -122,9 +121,7 @@ async def worker_serve(
             sock = _share_socket(sock)
 
         servers.append(
-            await asyncio.start_server(
-                _server_callback, backlog=config.backlog, loop=loop, sock=sock
-            )
+            await asyncio.start_server(_server_callback, backlog=config.backlog, sock=sock)
         )
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
@@ -242,7 +239,7 @@ def _cancel_all_tasks(loop: asyncio.AbstractEventLoop) -> None:
 
     for task in tasks:
         task.cancel()
-    loop.run_until_complete(asyncio.gather(*tasks, loop=loop, return_exceptions=True))
+    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
 
     for task in tasks:
         if not task.cancelled() and task.exception() is not None:
