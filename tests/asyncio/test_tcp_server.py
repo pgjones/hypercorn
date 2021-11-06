@@ -26,7 +26,7 @@ async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> 
     server = TCPServer(
         echo_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
     )
-    asyncio.ensure_future(server.run())
+    task = event_loop.create_task(server.run())
     await server.reader.send(b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n")  # type: ignore
     server.reader.close()  # type: ignore
     await asyncio.sleep(0)
@@ -35,3 +35,4 @@ async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> 
         data
         == b"HTTP/1.1 200 \r\ncontent-length: 335\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\n\r\n"  # noqa: E501
     )
+    await task
