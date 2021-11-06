@@ -34,9 +34,14 @@ class Lifespan:
             raise
         except Exception:
             self.supported = False
-            await self.config.log.exception(
-                "ASGI Framework Lifespan error, continuing without Lifespan support"
-            )
+            if not self.startup.is_set():
+                message = "ASGI Framework Lifespan error, continuing without Lifespan support"
+            elif not self.shutdown.is_set():
+                message = "ASGI Framework Lifespan error, shutdown without Lifespan support"
+            else:
+                message = "ASGI Framework Lifespan errored after shutdown."
+
+            await self.config.log.exception(message)
         finally:
             self.startup.set()
             self.shutdown.set()
