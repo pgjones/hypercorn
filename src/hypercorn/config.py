@@ -5,7 +5,6 @@ import importlib.util
 import logging
 import os
 import socket
-import ssl
 import stat
 import types
 import warnings
@@ -15,6 +14,7 @@ from ssl import (
     OP_NO_COMPRESSION,
     Purpose,
     SSLContext,
+    TLSVersion,
     VerifyFlags,
     VerifyMode,
 )
@@ -159,12 +159,8 @@ class Config:
 
         context = create_default_context(Purpose.CLIENT_AUTH)
         context.set_ciphers(self.ciphers)
-        cipher_opts = 0
-        for attr in ["OP_NO_SSLv2", "OP_NO_SSLv3", "OP_NO_TLSv1", "OP_NO_TLSv1_1"]:
-            if hasattr(ssl, attr):  # To be future proof
-                cipher_opts |= getattr(ssl, attr)
-        context.options |= cipher_opts  # RFC 7540 Section 9.2: MUST be TLS >=1.2
-        context.options |= OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
+        context.minimum_version = TLSVersion.TLSv1_2  # RFC 7540 Section 9.2: MUST be TLS >=1.2
+        context.options = OP_NO_COMPRESSION  # RFC 7540 Section 9.2.1: MUST disable compression
         context.set_alpn_protocols(self.alpn_protocols)
 
         if self.certfile is not None and self.keyfile is not None:
