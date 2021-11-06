@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable, Generator
+from typing import AsyncGenerator, Callable
 
 import h11
 import pytest
@@ -37,7 +37,7 @@ async def slow_framework(scope: dict, receive: Callable, send: Callable) -> None
 
 
 @pytest.fixture(name="server", scope="function")
-def _server(event_loop: asyncio.AbstractEventLoop) -> Generator[TCPServer, None, None]:
+async def _server(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[TCPServer, None]:
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
     server = TCPServer(
@@ -45,7 +45,8 @@ def _server(event_loop: asyncio.AbstractEventLoop) -> Generator[TCPServer, None,
     )
     task = event_loop.create_task(server.run())
     yield server
-    task.cancel()
+    server.reader.close()  # type: ignore
+    await task
 
 
 @pytest.mark.asyncio
