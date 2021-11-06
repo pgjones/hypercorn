@@ -19,29 +19,31 @@ async def no_lifespan_app(scope: Scope, receive: Callable, send: Callable) -> No
 
 
 @pytest.mark.asyncio
-async def test_ensure_no_race_condition() -> None:
+async def test_ensure_no_race_condition(event_loop: asyncio.AbstractEventLoop) -> None:
     config = Config()
     config.startup_timeout = 0.2
     lifespan = Lifespan(no_lifespan_app, config)
-    asyncio.ensure_future(lifespan.handle_lifespan())
+    task = event_loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()  # Raises if there is a race condition
+    await task
 
 
 @pytest.mark.asyncio
-async def test_startup_timeout_error() -> None:
+async def test_startup_timeout_error(event_loop: asyncio.AbstractEventLoop) -> None:
     config = Config()
     config.startup_timeout = 0.01
     lifespan = Lifespan(SlowLifespanFramework(0.02, asyncio.sleep), config)  # type: ignore
-    asyncio.ensure_future(lifespan.handle_lifespan())
+    task = event_loop.create_task(lifespan.handle_lifespan())
     with pytest.raises(LifespanTimeoutError) as exc_info:
         await lifespan.wait_for_startup()
     assert str(exc_info.value).startswith("Timeout whilst awaiting startup")
+    await task
 
 
 @pytest.mark.asyncio
-async def test_startup_failure() -> None:
+async def test_startup_failure(event_loop: asyncio.AbstractEventLoop) -> None:
     lifespan = Lifespan(lifespan_failure, Config())
-    lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
+    lifespan_task = event_loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
     assert lifespan_task.done()
     exception = lifespan_task.exception()
@@ -54,9 +56,9 @@ async def return_app(scope: Scope, receive: Callable, send: Callable) -> None:
 
 
 @pytest.mark.asyncio
-async def test_lifespan_return() -> None:
+async def test_lifespan_return(event_loop: asyncio.AbstractEventLoop) -> None:
     lifespan = Lifespan(return_app, Config())
-    lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
+    lifespan_task = event_loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
     await lifespan.wait_for_shutdown()
     # Should complete (not hang)

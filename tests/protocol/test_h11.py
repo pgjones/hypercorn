@@ -99,20 +99,22 @@ async def test_protocol_send_stream_closed(
 
 
 @pytest.mark.asyncio
-async def test_protocol_instant_recycle(protocol: H11Protocol) -> None:
+async def test_protocol_instant_recycle(
+    protocol: H11Protocol, event_loop: asyncio.AbstractEventLoop
+) -> None:
     # This test task acts as the asgi app, spawned tasks act as the
     # server.
     data = b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n"
     # This test requires a real event as the handling should pause on
     # the instant receipt
     protocol.can_read = EventWrapper()
-    task = asyncio.ensure_future(protocol.handle(RawData(data=data)))
+    task = event_loop.create_task(protocol.handle(RawData(data=data)))
     await asyncio.sleep(0)  # Switch to task
     assert protocol.stream is not None
     assert task.done()
     await protocol.stream_send(Response(stream_id=1, status_code=200, headers=[]))
     await protocol.stream_send(EndBody(stream_id=1))
-    task = asyncio.ensure_future(protocol.handle(RawData(data=data)))
+    task = event_loop.create_task(protocol.handle(RawData(data=data)))
     await asyncio.sleep(0)  # Switch to task
     await protocol.stream_send(StreamClosed(stream_id=1))
     await asyncio.sleep(0)  # Switch to task

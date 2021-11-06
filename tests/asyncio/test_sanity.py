@@ -18,7 +18,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
     server = TCPServer(
         sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
     )
-    asyncio.ensure_future(server.run())
+    task = event_loop.create_task(server.run())
     client = h11.Connection(h11.CLIENT)
     await server.reader.send(  # type: ignore
         client.send(
@@ -61,6 +61,8 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
         h11.Data(data=b"Hello & Goodbye"),
         h11.EndOfMessage(headers=[]),
     ]
+    server.reader.close()  # type: ignore
+    await task
 
 
 @pytest.mark.asyncio
@@ -68,7 +70,7 @@ async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     server = TCPServer(
         sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
     )
-    asyncio.ensure_future(server.run())
+    task = event_loop.create_task(server.run())
     client = wsproto.WSConnection(wsproto.ConnectionType.CLIENT)
     await server.reader.send(  # type: ignore
         client.send(wsproto.events.Request(host="hypercorn", target="/"))
@@ -91,6 +93,8 @@ async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     client.receive_data(await server.writer.receive())  # type: ignore
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
     assert server.writer.is_closed  # type: ignore
+    server.reader.close()  # type: ignore
+    await task
 
 
 @pytest.mark.asyncio
@@ -102,7 +106,7 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )
-    asyncio.ensure_future(server.run())
+    task = event_loop.create_task(server.run())
     client = h2.connection.H2Connection()
     client.initiate_connection()
     await server.reader.send(client.data_to_send())  # type: ignore
@@ -147,6 +151,12 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
         (b"date", b"Thu, 01 Jan 1970 01:23:20 GMT"),
         (b"server", b"hypercorn-h2"),
     ]
+    client.close_connection()
+    await server.reader.send(client.data_to_send())  # type: ignore
+    await server.writer.receive()  # type: ignore
+    assert server.writer.is_closed  # type: ignore
+    server.reader.close()  # type: ignore
+    await task
 
 
 @pytest.mark.asyncio
@@ -158,7 +168,7 @@ async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )
-    asyncio.ensure_future(server.run())
+    task = event_loop.create_task(server.run())
     h2_client = h2.connection.H2Connection()
     h2_client.initiate_connection()
     await server.reader.send(h2_client.data_to_send())  # type: ignore
@@ -195,4 +205,5 @@ async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     events = h2_client.receive_data(await server.writer.receive())  # type: ignore
     client.receive_data(events[0].data)
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
-    await server.reader.send(b"")  # type: ignore
+    server.reader.close()  # type: ignore
+    await task
