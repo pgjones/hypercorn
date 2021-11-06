@@ -4,14 +4,11 @@ import asyncio
 from unittest.mock import call, Mock
 
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
 
-import hypercorn.protocol.h2
 from hypercorn.asyncio.tcp_server import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer
-from hypercorn.protocol.http_stream import HTTPStream
 
 try:
     from unittest.mock import AsyncMock
@@ -73,16 +70,9 @@ async def test_stream_buffer_complete(event_loop: asyncio.AbstractEventLoop) -> 
     assert stream_buffer.complete
 
 
-@pytest.fixture(name="protocol")
-async def _protocol(monkeypatch: MonkeyPatch) -> H2Protocol:
-    MockHTTPStream = Mock()  # noqa: N806
-    MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
-    monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
-    return H2Protocol(AsyncMock(), Config(), AsyncMock(), False, None, None, AsyncMock())
-
-
 @pytest.mark.asyncio
-async def test_protocol_handle_protocol_error(protocol: H2Protocol) -> None:
+async def test_protocol_handle_protocol_error() -> None:
+    protocol = H2Protocol(Mock(), Config(), Mock(), False, None, None, AsyncMock())
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
-    protocol.send.assert_called()  # type: ignore
+    protocol.send.assert_awaited()  # type: ignore
     assert protocol.send.call_args_list == [call(Closed())]  # type: ignore
