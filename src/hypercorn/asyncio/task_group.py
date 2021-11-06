@@ -10,14 +10,18 @@ class TaskGroup:
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
         self._tasks: weakref.WeakSet = weakref.WeakSet()
+        self._exiting = False
 
     def spawn(self, coro: Coroutine) -> None:
+        if self._exiting:
+            raise RuntimeError("Spawning whilst exiting")
         self._tasks.add(self._loop.create_task(coro))
 
     async def __aenter__(self) -> "TaskGroup":
         return self
 
     async def __aexit__(self, exc_type: type, exc_value: BaseException, tb: TracebackType) -> None:
+        self._exiting = True
         if exc_type is not None:
             self._cancel_tasks()
 
