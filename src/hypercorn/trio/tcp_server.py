@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import inf
 from typing import Any, Callable, Generator, Optional
 
 import trio
@@ -101,7 +102,8 @@ class TCPServer:
     async def _read_data(self) -> None:
         while True:
             try:
-                data = await self.stream.receive_some(MAX_RECV)
+                with trio.fail_after(self.config.read_timeout or inf):
+                    data = await self.stream.receive_some(MAX_RECV)
             except (trio.ClosedResourceError, trio.BrokenResourceError):
                 await self.protocol.handle(Closed())
                 break
