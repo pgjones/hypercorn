@@ -1,3 +1,17 @@
+0.12.0 2021-11-08
+-----------------
+
+* Correctly utilise SCRIPT_NAME in the wsgi middleware.
+* Support Python 3.10.
+* Support badly behaved HTTP/2 clients that omit a :authority header
+  but provide a host header.
+* Use environment marker for uvloop (on windows).
+* Use StringIO and BytesIO for more performant websocket buffers.
+* Add optional read timeout.
+* Bugfix ensure keep alive timeout is cancelled on closure.
+* Bugfix statsd type error.
+* Bugfix prevent spawning whilst a task group is exit(ing).
+
 0.11.2 2021-01-10
 -----------------
 
