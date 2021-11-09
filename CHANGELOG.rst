@@ -8,6 +8,8 @@
 * Use environment marker for uvloop (on windows).
 * Use StringIO and BytesIO for more performant websocket buffers.
 * Add optional read timeout.
+* Rename errors to add a ``Error`` suffix, most notably
+  ``LifespanFailure`` to ``LifespanFailureError``.
 * Bugfix ensure keep alive timeout is cancelled on closure.
 * Bugfix statsd type error.
 * Bugfix prevent spawning whilst a task group is exit(ing).
