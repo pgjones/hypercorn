@@ -196,7 +196,7 @@ class WSStream:
             path, _, query_string = event.raw_path.partition(b"?")
             self.scope = {
                 "type": "websocket",
-                "asgi": {"spec_version": "2.1"},
+                "asgi": {"spec_version": "2.3"},
                 "scheme": self.scheme,
                 "http_version": event.http_version,
                 "path": unquote(path.decode("ascii")),
@@ -278,7 +278,10 @@ class WSStream:
             elif message["type"] == "websocket.close":
                 self.state = ASGIWebsocketState.CLOSED
                 await self._send_wsproto_event(
-                    CloseConnection(code=int(message.get("code", CloseReason.NORMAL_CLOSURE)))
+                    CloseConnection(
+                        code=int(message.get("code", CloseReason.NORMAL_CLOSURE)),
+                        reason=message.get("reason"),
+                    )
                 )
                 await self.send(EndData(stream_id=self.stream_id))
             else:
