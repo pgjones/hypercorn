@@ -95,10 +95,6 @@ class H11Protocol:
         self.ssl = ssl
         self.stream: Optional[Union[HTTPStream, WSStream]] = None
 
-    @property
-    def idle(self) -> bool:
-        return self.stream is None or self.stream.idle
-
     async def initiate(self) -> None:
         pass
 
@@ -157,9 +153,9 @@ class H11Protocol:
                 if isinstance(event, h11.Request):
                     await self._check_protocol(event)
                     await self._create_stream(event)
+                    await self.send(Updated(idle=False))
                 elif event is h11.PAUSED:
                     await self.can_read.clear()
-                    await self.send(Updated())
                     await self.can_read.wait()
                 elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
                     break
@@ -253,7 +249,7 @@ class H11Protocol:
                 self.response = None
                 self.scope = None
                 await self.can_read.set()
-                await self.send(Updated())
+                await self.send(Updated(idle=True))
         else:
             await self.can_read.set()
             await self.send(Closed())

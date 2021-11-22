@@ -160,6 +160,7 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     server = TCPServer(
         sanity_framework,

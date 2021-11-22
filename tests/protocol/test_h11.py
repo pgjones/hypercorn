@@ -71,6 +71,7 @@ async def test_protocol_send_body(protocol: H11Protocol) -> None:
     await protocol.stream_send(Body(stream_id=1, data=b"hello"))
     protocol.send.assert_called()  # type: ignore
     assert protocol.send.call_args_list == [  # type: ignore
+        call(Updated(idle=False)),
         call(
             RawData(
                 data=b"HTTP/1.1 200 \r\ncontent-length: 5\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\nConnection: close\r\n\r\n"  # noqa: E501
@@ -81,7 +82,7 @@ async def test_protocol_send_body(protocol: H11Protocol) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("keep_alive, expected", [(True, Updated()), (False, Closed())])
+@pytest.mark.parametrize("keep_alive, expected", [(True, Updated(idle=True)), (False, Closed())])
 async def test_protocol_send_stream_closed(
     keep_alive: bool, expected: Any, protocol: H11Protocol
 ) -> None:
@@ -95,7 +96,7 @@ async def test_protocol_send_stream_closed(
     await protocol.stream_send(EndBody(stream_id=1))
     await protocol.stream_send(StreamClosed(stream_id=1))
     protocol.send.assert_called()  # type: ignore
-    assert protocol.send.call_args_list[2] == call(expected)  # type: ignore
+    assert protocol.send.call_args_list[3] == call(expected)  # type: ignore
 
 
 @pytest.mark.asyncio

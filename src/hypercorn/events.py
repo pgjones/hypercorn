@@ -22,6 +22,4 @@ class Closed(Event):
 
 @dataclass(frozen=True)
 class Updated(Event):
-    # Indicate that the protocol has updated (although it has nothing
-    # for the server to do).
-    pass
+    idle: bool

@@ -211,7 +211,12 @@ class H2Protocol:
                 await self.stream_buffers[event.stream_id].drain()
             elif isinstance(event, StreamClosed):
                 await self._close_stream(event.stream_id)
-                await self.send(Updated())
+                await self.send(
+                    Updated(
+                        idle=len(self.streams) == 0
+                        or all(stream.idle for stream in self.streams.values())
+                    )
+                )
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
         except (
@@ -228,6 +233,7 @@ class H2Protocol:
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
                 await self._create_stream(event)
+                await self.send(Updated(idle=False))
             elif isinstance(event, h2.events.DataReceived):
                 await self.streams[event.stream_id].handle(
                     Body(stream_id=event.stream_id, data=event.data)

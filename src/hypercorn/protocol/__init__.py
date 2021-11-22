@@ -50,10 +50,6 @@ class ProtocolWrapper:
                 self.send,
             )
 
-    @property
-    def idle(self) -> bool:
-        return self.protocol.idle
-
     async def initiate(self) -> None:
         return await self.protocol.initiate()
 

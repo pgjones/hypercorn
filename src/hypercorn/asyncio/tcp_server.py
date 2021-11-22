@@ -77,7 +77,7 @@ class TCPServer:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
-                await self._update_keep_alive_timeout()
+                await self._start_keep_alive_timeout()
                 await self._read_data()
         except OSError:
             pass
@@ -96,11 +96,13 @@ class TCPServer:
             await self._close()
             await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
-            pass  # Triggers the keep alive timeout update
-        await self._update_keep_alive_timeout()
+            if event.idle:
+                await self._start_keep_alive_timeout()
+            else:
+                await self._stop_keep_alive_timeout()
 
     async def _read_data(self) -> None:
-        while True:
+        while not self.reader.at_eof():
             try:
                 data = await asyncio.wait_for(self.reader.read(MAX_RECV), self.config.read_timeout)
             except (
@@ -112,11 +114,7 @@ class TCPServer:
                 await self.protocol.handle(Closed())
                 break
             else:
-                if data == b"":
-                    await self._update_keep_alive_timeout()
-                    break
                 await self.protocol.handle(RawData(data))
-                await self._update_keep_alive_timeout()
 
     async def _close(self) -> None:
         try:
@@ -130,15 +128,11 @@ class TCPServer:
         except (BrokenPipeError, ConnectionResetError):
             pass  # Already closed
 
-        async with self.timeout_lock:
-            await self._cancel_keep_alive_timeout()
+        await self._stop_keep_alive_timeout()
 
-    async def _update_keep_alive_timeout(self) -> None:
+    async def _start_keep_alive_timeout(self) -> None:
         async with self.timeout_lock:
-            await self._cancel_keep_alive_timeout()
-
-            self._keep_alive_timeout_handle = None
-            if self.protocol.idle:
+            if self._keep_alive_timeout_handle is None:
                 self._keep_alive_timeout_handle = self.loop.create_task(
                     _call_later(self.config.keep_alive_timeout, self._timeout)
                 )
@@ -147,13 +141,14 @@ class TCPServer:
         await self.protocol.handle(Closed())
         self.writer.close()
 
-    async def _cancel_keep_alive_timeout(self) -> None:
-        if self._keep_alive_timeout_handle is not None:
-            self._keep_alive_timeout_handle.cancel()
-            try:
-                await self._keep_alive_timeout_handle
-            except asyncio.CancelledError:
-                pass
+    async def _stop_keep_alive_timeout(self) -> None:
+        async with self.timeout_lock:
+            if self._keep_alive_timeout_handle is not None:
+                self._keep_alive_timeout_handle.cancel()
+                try:
+                    await self._keep_alive_timeout_handle
+                except asyncio.CancelledError:
+                    pass
 
 
 async def _call_later(timeout: float, callback: Callable) -> None:
