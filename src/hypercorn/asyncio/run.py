@@ -31,6 +31,7 @@ from ..utils import (
 async def _windows_signal_support() -> None:
     # See https://bugs.python.org/issue23057, to catch signals on
     # Windows it is necessary for an IO event to happen periodically.
+    # Fixed by Python 3.8
     while True:
         await asyncio.sleep(1)
 
