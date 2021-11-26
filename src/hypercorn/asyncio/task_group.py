@@ -3,7 +3,28 @@ from __future__ import annotations
 import asyncio
 import weakref
 from types import TracebackType
-from typing import Coroutine
+from typing import Any, Awaitable, Callable, Optional
+
+from ..config import Config
+from ..typing import ASGIFramework, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+from ..utils import invoke_asgi
+
+
+async def _handle(
+    app: ASGIFramework,
+    config: Config,
+    scope: Scope,
+    receive: ASGIReceiveCallable,
+    send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+) -> None:
+    try:
+        await invoke_asgi(app, scope, receive, send)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        await config.log.exception("Error in ASGI Framework")
+    finally:
+        await send(None)
 
 
 class TaskGroup:
@@ -12,10 +33,21 @@ class TaskGroup:
         self._tasks: weakref.WeakSet = weakref.WeakSet()
         self._exiting = False
 
-    def spawn(self, coro: Coroutine) -> None:
+    async def spawn_app(
+        self,
+        app: ASGIFramework,
+        config: Config,
+        scope: Scope,
+        send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+    ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
+        app_queue: asyncio.Queue[ASGIReceiveEvent] = asyncio.Queue(config.max_app_queue_size)
+        self.spawn(_handle, app, config, scope, app_queue.get, send)
+        return app_queue.put
+
+    def spawn(self, func: Callable, *args: Any) -> None:
         if self._exiting:
             raise RuntimeError("Spawning whilst exiting")
-        self._tasks.add(self._loop.create_task(coro))
+        self._tasks.add(self._loop.create_task(func(*args)))
 
     async def __aenter__(self) -> "TaskGroup":
         return self

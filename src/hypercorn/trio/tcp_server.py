@@ -5,7 +5,8 @@ from typing import Any, Callable, Generator, Optional
 
 import trio
 
-from .context import Context
+from .task_group import TaskGroup
+from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
@@ -30,9 +31,12 @@ class EventWrapper:
 
 
 class TCPServer:
-    def __init__(self, app: ASGIFramework, config: Config, stream: trio.abc.Stream) -> None:
+    def __init__(
+        self, app: ASGIFramework, config: Config, context: WorkerContext, stream: trio.abc.Stream
+    ) -> None:
         self.app = app
         self.config = config
+        self.context = context
         self.protocol: ProtocolWrapper
         self.send_lock = trio.Lock()
         self.timeout_lock = trio.Lock()
@@ -62,13 +66,13 @@ class TCPServer:
             client = parse_socket_addr(socket.family, socket.getpeername())
             server = parse_socket_addr(socket.family, socket.getsockname())
 
-            async with trio.open_nursery() as nursery:
-                self.nursery = nursery
-                context = Context(nursery)
+            async with TaskGroup() as task_group:
+                self._task_group = task_group
                 self.protocol = ProtocolWrapper(
                     self.app,
                     self.config,
-                    context,
+                    self.context,
+                    task_group,
                     ssl,
                     client,
                     server,
@@ -131,7 +135,7 @@ class TCPServer:
     async def _start_keep_alive_timeout(self) -> None:
         async with self.timeout_lock:
             if self._keep_alive_timeout_handle is None:
-                self._keep_alive_timeout_handle = await self.nursery.start(
+                self._keep_alive_timeout_handle = await self._task_group._nursery.start(
                     _call_later, self.config.keep_alive_timeout, self._timeout
                 )
 

@@ -33,8 +33,9 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
     context = Mock()
+    context.terminated = False
     context.event_class.return_value = AsyncMock(spec=IOEvent)
-    return H11Protocol(AsyncMock(), Config(), context, False, None, None, AsyncMock())
+    return H11Protocol(AsyncMock(), Config(), context, AsyncMock(), False, None, None, AsyncMock())
 
 
 @pytest.mark.asyncio
@@ -245,7 +246,9 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
     context = Mock()
     context.event_class.return_value = AsyncMock(spec=IOEvent)
-    protocol = H11Protocol(AsyncMock(), config, context, False, None, None, AsyncMock())
+    protocol = H11Protocol(
+        AsyncMock(), config, context, AsyncMock(), False, None, None, AsyncMock()
+    )
     await protocol.handle(RawData(data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"))
     protocol.send.assert_called()  # type: ignore
     assert protocol.send.call_args_list == [  # type: ignore

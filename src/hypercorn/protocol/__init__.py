@@ -6,7 +6,7 @@ from .h2 import H2Protocol
 from .h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
 from ..config import Config
 from ..events import Event, RawData
-from ..typing import ASGIFramework, Context
+from ..typing import ASGIFramework, TaskGroup, WorkerContext
 
 
 class ProtocolWrapper:
@@ -14,7 +14,8 @@ class ProtocolWrapper:
         self,
         app: ASGIFramework,
         config: Config,
-        context: Context,
+        context: WorkerContext,
+        task_group: TaskGroup,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
@@ -24,6 +25,7 @@ class ProtocolWrapper:
         self.app = app
         self.config = config
         self.context = context
+        self.task_group = task_group
         self.ssl = ssl
         self.client = client
         self.server = server
@@ -34,6 +36,7 @@ class ProtocolWrapper:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 self.ssl,
                 self.client,
                 self.server,
@@ -44,6 +47,7 @@ class ProtocolWrapper:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 self.ssl,
                 self.client,
                 self.server,
@@ -61,6 +65,7 @@ class ProtocolWrapper:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 self.ssl,
                 self.client,
                 self.server,
@@ -74,6 +79,7 @@ class ProtocolWrapper:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 self.ssl,
                 self.client,
                 self.server,

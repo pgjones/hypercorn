@@ -47,9 +47,11 @@ class AsyncioDispatcherMiddleware(_DispatcherMiddleware):
         async with TaskGroup(asyncio.get_event_loop()) as task_group:
             for path, app in self.mounts.items():
                 task_group.spawn(
-                    invoke_asgi(
-                        app, scope, self.app_queues[path].get, partial(self.send, path, send)
-                    )
+                    invoke_asgi,
+                    app,
+                    scope,
+                    self.app_queues[path].get,
+                    partial(self.send, path, send),
                 )
 
             while True:

@@ -7,6 +7,7 @@ import h11
 import pytest
 
 from hypercorn.asyncio.tcp_server import TCPServer
+from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from .helpers import MemoryReader, MemoryWriter
 
@@ -41,7 +42,7 @@ async def _server(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[TCPSe
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
     server = TCPServer(
-        slow_framework, event_loop, config, MemoryReader(), MemoryWriter()  # type: ignore
+        slow_framework, event_loop, config, WorkerContext(), MemoryReader(), MemoryWriter()  # type: ignore  # noqa: E501
     )
     task = event_loop.create_task(server.run())
     yield server

@@ -9,11 +9,13 @@ from multiprocessing.synchronize import Event as EventType
 from os import getpid
 from socket import socket
 from typing import Any, Awaitable, Callable, Optional
+from weakref import WeakSet
 
 from .lifespan import Lifespan
 from .statsd import StatsdLogger
 from .tcp_server import TCPServer
 from .udp_server import UDPServer
+from .worker_context import WorkerContext
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -54,22 +56,7 @@ async def worker_serve(
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 
-    lifespan = Lifespan(app, config)
-    lifespan_task = asyncio.ensure_future(lifespan.handle_lifespan())
-
-    await lifespan.wait_for_startup()
-    if lifespan_task.done():
-        exception = lifespan_task.exception()
-        if exception is not None:
-            raise exception
-
-    if sockets is None:
-        sockets = config.create_sockets()
-
     loop = asyncio.get_event_loop()
-    tasks = []
-    if platform.system() == "Windows":
-        tasks.append(loop.create_task(_windows_signal_support()))
 
     if shutdown_trigger is None:
         signal_event = asyncio.Event()
@@ -87,18 +74,30 @@ async def worker_serve(
 
         shutdown_trigger = signal_event.wait  # type: ignore
 
-    tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
+    lifespan = Lifespan(app, config)
+    reload_ = False
 
-    if config.use_reloader:
-        tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
+    lifespan_task = loop.create_task(lifespan.handle_lifespan())
+    await lifespan.wait_for_startup()
+    if lifespan_task.done():
+        exception = lifespan_task.exception()
+        if exception is not None:
+            raise exception
+
+    if sockets is None:
+        sockets = config.create_sockets()
 
     ssl_handshake_timeout = None
     if config.ssl_enabled:
         ssl_context = config.create_ssl_context()
         ssl_handshake_timeout = config.ssl_handshake_timeout
 
+    context = WorkerContext()
+    server_tasks: WeakSet = WeakSet()
+
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await TCPServer(app, loop, config, reader, writer)
+        server_tasks.add(asyncio.current_task(loop))
+        await TCPServer(app, loop, config, context, reader, writer)
 
     servers = []
     for sock in sockets.secure_sockets:
@@ -127,37 +126,55 @@ async def worker_serve(
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
 
-    tasks.extend(server.serve_forever() for server in servers)  # type: ignore
-
     for sock in sockets.quic_sockets:
         if config.workers > 1 and platform.system() == "Windows":
             sock = _share_socket(sock)
 
-        await loop.create_datagram_endpoint(lambda: UDPServer(app, loop, config), sock=sock)
+        await loop.create_datagram_endpoint(
+            lambda: UDPServer(app, loop, config, context), sock=sock
+        )
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
-    reload_ = False
+    tasks = []
+    if platform.system() == "Windows":
+        tasks.append(loop.create_task(_windows_signal_support()))
+
+    tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
+
+    if config.use_reloader:
+        tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
+
     try:
-        gathered_tasks = asyncio.gather(*tasks)
-        await gathered_tasks
+        if len(tasks):
+            gathered_tasks = asyncio.gather(*tasks)
+            await gathered_tasks
+        else:
+            loop.run_forever()
     except MustReloadError:
         reload_ = True
     except (ShutdownError, KeyboardInterrupt):
         pass
     finally:
+        context.terminated = True
+
         for server in servers:
             server.close()
             await server.wait_closed()
 
+        # Retrieve the Gathered Tasks Cancelled Exception, to
+        # prevent a warning that this hasn't been done.
+        gathered_tasks.exception()
+
         try:
-            await asyncio.sleep(config.graceful_timeout)
-        except (ShutdownError, KeyboardInterrupt):
+            gathered_server_tasks = asyncio.gather(*server_tasks)
+            await asyncio.wait_for(gathered_server_tasks, config.graceful_timeout)
+        except asyncio.TimeoutError:
             pass
 
         # Retrieve the Gathered Tasks Cancelled Exception, to
         # prevent a warning that this hasn't been done.
-        gathered_tasks.exception()
+        gathered_server_tasks.exception()
 
         await lifespan.wait_for_shutdown()
         lifespan_task.cancel()

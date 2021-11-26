@@ -1,33 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Optional, Type, Union
+from types import TracebackType
+from typing import Any, Awaitable, Callable, Optional
 
 import trio
 
 from ..config import Config
-from ..typing import (
-    ASGIFramework,
-    ASGIReceiveCallable,
-    ASGIReceiveEvent,
-    ASGISendEvent,
-    Event,
-    Scope,
-)
+from ..typing import ASGIFramework, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
 from ..utils import invoke_asgi
-
-
-class EventWrapper:
-    def __init__(self) -> None:
-        self._event = trio.Event()
-
-    async def clear(self) -> None:
-        self._event = trio.Event()
-
-    async def wait(self) -> None:
-        await self._event.wait()
-
-    async def set(self) -> None:
-        self._event.set()
 
 
 async def _handle(
@@ -56,11 +36,10 @@ async def _handle(
         await send(None)
 
 
-class Context:
-    event_class: Type[Event] = EventWrapper
-
-    def __init__(self, nursery: trio._core._run.Nursery) -> None:
-        self.nursery = nursery
+class TaskGroup:
+    def __init__(self) -> None:
+        self._nursery: Optional[trio._core._run.Nursery] = None
+        self._nursery_manager: Optional[trio._core._run.NurseryManager] = None
 
     async def spawn_app(
         self,
@@ -70,16 +49,18 @@ class Context:
         send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_send_channel, app_receive_channel = trio.open_memory_channel(config.max_app_queue_size)
-        self.nursery.start_soon(_handle, app, config, scope, app_receive_channel.receive, send)
+        self._nursery.start_soon(_handle, app, config, scope, app_receive_channel.receive, send)
         return app_send_channel.send
 
     def spawn(self, func: Callable, *args: Any) -> None:
-        self.nursery.start_soon(func, *args)
+        self._nursery.start_soon(func, *args)
 
-    @staticmethod
-    async def sleep(wait: Union[float, int]) -> None:
-        return await trio.sleep(wait)
+    async def __aenter__(self) -> TaskGroup:
+        self._nursery_manager = trio.open_nursery()
+        self._nursery = await self._nursery_manager.__aenter__()
+        return self
 
-    @staticmethod
-    def time() -> float:
-        return trio.current_time()
+    async def __aexit__(self, exc_type: type, exc_value: BaseException, tb: TracebackType) -> None:
+        await self._nursery_manager.__aexit__(exc_type, exc_value, tb)
+        self._nursery_manager = None
+        self._nursery = None

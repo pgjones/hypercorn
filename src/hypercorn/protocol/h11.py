@@ -19,7 +19,7 @@ from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
-from ..typing import ASGIFramework, Context, H11SendableEvent
+from ..typing import ASGIFramework, H11SendableEvent, TaskGroup, WorkerContext
 
 STREAM_ID = 1
 
@@ -76,7 +76,8 @@ class H11Protocol:
         self,
         app: ASGIFramework,
         config: Config,
-        context: Context,
+        context: WorkerContext,
+        task_group: TaskGroup,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
@@ -94,6 +95,7 @@ class H11Protocol:
         self.server = server
         self.ssl = ssl
         self.stream: Optional[Union[HTTPStream, WSStream]] = None
+        self.task_group = task_group
 
     async def initiate(self) -> None:
         pass
@@ -189,6 +191,7 @@ class H11Protocol:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 self.ssl,
                 self.client,
                 self.server,
@@ -201,6 +204,7 @@ class H11Protocol:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 self.ssl,
                 self.client,
                 self.server,
@@ -240,7 +244,7 @@ class H11Protocol:
 
     async def _maybe_recycle(self) -> None:
         await self._close_stream()
-        if self.connection.our_state is h11.DONE:
+        if not self.context.terminated and self.connection.our_state is h11.DONE:
             try:
                 self.connection.start_next_cycle()
             except h11.LocalProtocolError:

@@ -22,7 +22,7 @@ from aioquic.quic.packet import (
 from .h3 import H3Protocol
 from ..config import Config
 from ..events import Closed, Event, RawData
-from ..typing import ASGIFramework, Context
+from ..typing import ASGIFramework, TaskGroup, WorkerContext
 
 
 class QuicProtocol:
@@ -30,7 +30,8 @@ class QuicProtocol:
         self,
         app: ASGIFramework,
         config: Config,
-        context: Context,
+        context: WorkerContext,
+        task_group: TaskGroup,
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
     ) -> None:
@@ -41,6 +42,7 @@ class QuicProtocol:
         self.http_connections: Dict[QuicConnection, H3Protocol] = {}
         self.send = send
         self.server = server
+        self.task_group = task_group
 
         self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
@@ -98,6 +100,7 @@ class QuicProtocol:
                     self.app,
                     self.config,
                     self.context,
+                    self.task_group,
                     client,
                     self.server,
                     connection,
@@ -117,7 +120,7 @@ class QuicProtocol:
 
         timer = connection.get_timer()
         if timer is not None:
-            self.context.spawn(self._handle_timer, timer, connection)
+            self.task_group.spawn(self._handle_timer, timer, connection)
 
     async def _handle_timer(self, timer: float, connection: QuicConnection) -> None:
         wait = max(0, timer - self.context.time())

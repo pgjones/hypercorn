@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable, cast, Generator, Optional
+from typing import Any, Callable, Generator, Optional
 
-from .context import Context
 from .task_group import TaskGroup
+from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
@@ -34,11 +34,13 @@ class TCPServer:
         app: ASGIFramework,
         loop: asyncio.AbstractEventLoop,
         config: Config,
+        context: WorkerContext,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
     ) -> None:
         self.app = app
         self.config = config
+        self.context = context
         self.loop = loop
         self.protocol: ProtocolWrapper
         self.reader = reader
@@ -65,11 +67,11 @@ class TCPServer:
                 alpn_protocol = "http/1.1"
 
             async with TaskGroup(self.loop) as task_group:
-                context = Context(task_group)
                 self.protocol = ProtocolWrapper(
                     self.app,
                     self.config,
-                    cast(Any, context),
+                    self.context,
+                    task_group,
                     ssl,
                     client,
                     server,

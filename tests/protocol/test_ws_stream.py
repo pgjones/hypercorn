@@ -7,8 +7,8 @@ from unittest.mock import call, Mock
 import pytest
 from wsproto.events import BytesMessage, TextMessage
 
-from hypercorn.asyncio.context import Context
 from hypercorn.asyncio.task_group import TaskGroup
+from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from hypercorn.logging import Logger
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
@@ -143,8 +143,10 @@ def test_handshake_accept_http2() -> None:
 
 @pytest.fixture(name="stream")
 async def _stream() -> WSStream:
-    stream = WSStream(AsyncMock(), Config(), AsyncMock(), False, None, None, AsyncMock(), 1)
-    stream.context.spawn_app.return_value = AsyncMock()  # type: ignore
+    stream = WSStream(
+        AsyncMock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock(), 1
+    )
+    stream.task_group.spawn_app.return_value = AsyncMock()  # type: ignore
     stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
     return stream
@@ -161,8 +163,8 @@ async def test_handle_request(stream: WSStream) -> None:
             method="GET",
         )
     )
-    stream.context.spawn_app.assert_called()  # type: ignore
-    scope = stream.context.spawn_app.call_args[0][2]  # type: ignore
+    stream.task_group.spawn_app.assert_called()  # type: ignore
+    scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
     assert scope == {
         "type": "websocket",
         "asgi": {"spec_version": "2.3"},
@@ -372,7 +374,7 @@ async def test_pings(stream: WSStream, event_loop: asyncio.AbstractEventLoop) ->
         )
     )
     async with TaskGroup(event_loop) as task_group:
-        stream.context = Context(task_group)
+        stream.task_group = task_group
         await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
         stream.app_put = AsyncMock()
         await asyncio.sleep(0.15)

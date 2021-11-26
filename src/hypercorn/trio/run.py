@@ -10,6 +10,7 @@ from .lifespan import Lifespan
 from .statsd import StatsdLogger
 from .tcp_server import TCPServer
 from .udp_server import UDPServer
+from .worker_context import WorkerContext
 from ..config import Config, Sockets
 from ..typing import ASGIFramework
 from ..utils import (
@@ -36,69 +37,80 @@ async def worker_serve(
 
     lifespan = Lifespan(app, config)
     reload_ = False
+    context = WorkerContext()
 
     async with trio.open_nursery() as lifespan_nursery:
         await lifespan_nursery.start(lifespan.handle_lifespan)
         await lifespan.wait_for_startup()
 
-        try:
-            async with trio.open_nursery() as nursery:
-                if config.use_reloader:
-                    nursery.start_soon(observe_changes, trio.sleep)
-
-                if shutdown_trigger is not None:
-                    nursery.start_soon(raise_shutdown, shutdown_trigger)
-
-                if sockets is None:
-                    sockets = config.create_sockets()
-                    for sock in sockets.secure_sockets:
-                        sock.listen(config.backlog)
-                    for sock in sockets.insecure_sockets:
-                        sock.listen(config.backlog)
-
-                ssl_context = config.create_ssl_context()
-                listeners = []
-                binds = []
+        async with trio.open_nursery() as server_nursery:
+            if sockets is None:
+                sockets = config.create_sockets()
                 for sock in sockets.secure_sockets:
-                    listeners.append(
-                        trio.SSLListener(
-                            trio.SocketListener(trio.socket.from_stdlib_socket(sock)),
-                            ssl_context,
-                            https_compatible=True,
-                        )
-                    )
-                    bind = repr_socket_addr(sock.family, sock.getsockname())
-                    binds.append(f"https://{bind}")
-                    await config.log.info(f"Running on https://{bind} (CTRL + C to quit)")
-
+                    sock.listen(config.backlog)
                 for sock in sockets.insecure_sockets:
-                    listeners.append(trio.SocketListener(trio.socket.from_stdlib_socket(sock)))
-                    bind = repr_socket_addr(sock.family, sock.getsockname())
-                    binds.append(f"http://{bind}")
-                    await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
+                    sock.listen(config.backlog)
 
-                for sock in sockets.quic_sockets:
-                    await nursery.start(UDPServer(app, config, sock, nursery).run)
-                    bind = repr_socket_addr(sock.family, sock.getsockname())
-                    await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
-
-                task_status.started(binds)
-                await trio.serve_listeners(
-                    partial(TCPServer, app, config), listeners, handler_nursery=lifespan_nursery
+            ssl_context = config.create_ssl_context()
+            listeners = []
+            binds = []
+            for sock in sockets.secure_sockets:
+                listeners.append(
+                    trio.SSLListener(
+                        trio.SocketListener(trio.socket.from_stdlib_socket(sock)),
+                        ssl_context,
+                        https_compatible=True,
+                    )
                 )
+                bind = repr_socket_addr(sock.family, sock.getsockname())
+                binds.append(f"https://{bind}")
+                await config.log.info(f"Running on https://{bind} (CTRL + C to quit)")
 
-        except MustReloadError:
-            reload_ = True
-        except (ShutdownError, KeyboardInterrupt):
-            pass
-        finally:
+            for sock in sockets.insecure_sockets:
+                listeners.append(trio.SocketListener(trio.socket.from_stdlib_socket(sock)))
+                bind = repr_socket_addr(sock.family, sock.getsockname())
+                binds.append(f"http://{bind}")
+                await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
+
+            for sock in sockets.quic_sockets:
+                await server_nursery.start(UDPServer(app, config, context, sock).run)
+                bind = repr_socket_addr(sock.family, sock.getsockname())
+                await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
+
+            task_status.started(binds)
             try:
-                await trio.sleep(config.graceful_timeout)
+                async with trio.open_nursery() as nursery:
+                    if config.use_reloader:
+                        nursery.start_soon(observe_changes, trio.sleep)
+
+                    if shutdown_trigger is not None:
+                        nursery.start_soon(raise_shutdown, shutdown_trigger)
+
+                    nursery.start_soon(
+                        partial(
+                            trio.serve_listeners,
+                            partial(TCPServer, app, config, context),
+                            listeners,
+                            handler_nursery=server_nursery,
+                        ),
+                    )
+
+                    # This effectively runs the trio loop until a
+                    # signal interrupt is raised.
+                    while True:
+                        await trio.sleep(99999)
+            except trio.MultiError as error:
+                reload_ = any(isinstance(exc, MustReloadError) for exc in error.exceptions)
+            except MustReloadError:
+                reload_ = True
             except (ShutdownError, KeyboardInterrupt):
                 pass
+            finally:
+                context.terminated = True
+                server_nursery.cancel_scope.deadline = trio.current_time() + config.graceful_timeout
 
-            await lifespan.wait_for_shutdown()
-            lifespan_nursery.cancel_scope.cancel()
+        await lifespan.wait_for_shutdown()
+        lifespan_nursery.cancel_scope.cancel()
 
     if reload_:
         restart()

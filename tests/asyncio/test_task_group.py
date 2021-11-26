@@ -5,7 +5,6 @@ from typing import Callable
 
 import pytest
 
-from hypercorn.asyncio.context import Context
 from hypercorn.asyncio.task_group import TaskGroup
 from hypercorn.config import Config
 from hypercorn.typing import HTTPScope, Scope
@@ -22,8 +21,7 @@ async def test_spawn_app(event_loop: asyncio.AbstractEventLoop, http_scope: HTTP
 
     app_queue: asyncio.Queue = asyncio.Queue()
     async with TaskGroup(event_loop) as task_group:
-        context = Context(task_group)
-        put = await context.spawn_app(_echo_app, Config(), http_scope, app_queue.put)
+        put = await task_group.spawn_app(_echo_app, Config(), http_scope, app_queue.put)
         await put({"type": "http.disconnect"})  # type: ignore
         assert (await app_queue.get()) == {"type": "http.disconnect"}
         await put(None)
@@ -38,8 +36,7 @@ async def test_spawn_app_error(
 
     app_queue: asyncio.Queue = asyncio.Queue()
     async with TaskGroup(event_loop) as task_group:
-        context = Context(task_group)
-        await context.spawn_app(_error_app, Config(), http_scope, app_queue.put)
+        await task_group.spawn_app(_error_app, Config(), http_scope, app_queue.put)
     assert (await app_queue.get()) is None
 
 
@@ -53,6 +50,5 @@ async def test_spawn_app_cancelled(
     app_queue: asyncio.Queue = asyncio.Queue()
     with pytest.raises(asyncio.CancelledError):
         async with TaskGroup(event_loop) as task_group:
-            context = Context(task_group)
-            await context.spawn_app(_error_app, Config(), http_scope, app_queue.put)
+            await task_group.spawn_app(_error_app, Config(), http_scope, app_queue.put)
     assert (await app_queue.get()) is None

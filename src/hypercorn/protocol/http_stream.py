@@ -7,7 +7,14 @@ from urllib.parse import unquote
 
 from .events import Body, EndBody, Event, Request, Response, StreamClosed
 from ..config import Config
-from ..typing import ASGIFramework, ASGISendEvent, Context, HTTPResponseStartEvent, HTTPScope
+from ..typing import (
+    ASGIFramework,
+    ASGISendEvent,
+    HTTPResponseStartEvent,
+    HTTPScope,
+    TaskGroup,
+    WorkerContext,
+)
 from ..utils import (
     build_and_validate_headers,
     suppress_body,
@@ -32,7 +39,8 @@ class HTTPStream:
         self,
         app: ASGIFramework,
         config: Config,
-        context: Context,
+        context: WorkerContext,
+        task_group: TaskGroup,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
@@ -52,6 +60,7 @@ class HTTPStream:
         self.start_time: float
         self.state = ASGIHTTPState.REQUEST
         self.stream_id = stream_id
+        self.task_group = task_group
 
     @property
     def idle(self) -> bool:
@@ -82,7 +91,7 @@ class HTTPStream:
                 self.scope["extensions"]["http.response.push"] = {}
 
             if valid_server_name(self.config, event):
-                self.app_put = await self.context.spawn_app(
+                self.app_put = await self.task_group.spawn_app(
                     self.app, self.config, self.scope, self.app_send
                 )
             else:

@@ -8,6 +8,7 @@ import pytest
 import wsproto
 
 from hypercorn.asyncio.tcp_server import TCPServer
+from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from .helpers import MemoryReader, MemoryWriter
 from ..helpers import SANITY_BODY, sanity_framework
@@ -16,7 +17,7 @@ from ..helpers import SANITY_BODY, sanity_framework
 @pytest.mark.asyncio
 async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
     server = TCPServer(
-        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
+        sanity_framework, event_loop, Config(), WorkerContext(), MemoryReader(), MemoryWriter()  # type: ignore  # noqa: E501
     )
     task = event_loop.create_task(server.run())
     client = h11.Connection(h11.CLIENT)
@@ -68,7 +69,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
 @pytest.mark.asyncio
 async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     server = TCPServer(
-        sanity_framework, event_loop, Config(), MemoryReader(), MemoryWriter()  # type: ignore
+        sanity_framework, event_loop, Config(), WorkerContext(), MemoryReader(), MemoryWriter()  # type: ignore  # noqa: E501
     )
     task = event_loop.create_task(server.run())
     client = wsproto.WSConnection(wsproto.ConnectionType.CLIENT)
@@ -103,6 +104,7 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
         sanity_framework,
         event_loop,
         Config(),
+        WorkerContext(),
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )
@@ -166,6 +168,7 @@ async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
         sanity_framework,
         event_loop,
         Config(),
+        WorkerContext(),
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )

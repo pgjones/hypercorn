@@ -8,6 +8,7 @@ import trio
 
 from hypercorn.config import Config
 from hypercorn.trio.tcp_server import TCPServer
+from hypercorn.trio.worker_context import WorkerContext
 from hypercorn.typing import Scope
 from ..helpers import MockSocket
 
@@ -45,7 +46,7 @@ def _client_stream(
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
     client_stream, server_stream = trio.testing.memory_stream_pair()
     server_stream.socket = MockSocket()
-    server = TCPServer(slow_framework, config, server_stream)
+    server = TCPServer(slow_framework, config, WorkerContext(), server_stream)
     nursery.start_soon(server.run)
     yield client_stream
 

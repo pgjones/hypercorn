@@ -21,7 +21,7 @@ from .events import (
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
-from ..typing import ASGIFramework, Context
+from ..typing import ASGIFramework, TaskGroup, WorkerContext
 from ..utils import filter_pseudo_headers
 
 
@@ -30,7 +30,8 @@ class H3Protocol:
         self,
         app: ASGIFramework,
         config: Config,
-        context: Context,
+        context: WorkerContext,
+        task_group: TaskGroup,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         quic: QuicConnection,
@@ -44,6 +45,7 @@ class H3Protocol:
         self.send = send
         self.server = server
         self.streams: Dict[int, Union[HTTPStream, WSStream]] = {}
+        self.task_group = task_group
 
     async def handle(self, quic_event: QuicEvent) -> None:
         for event in self.connection.handle_event(quic_event):
@@ -90,6 +92,7 @@ class H3Protocol:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 True,
                 self.client,
                 self.server,
@@ -101,6 +104,7 @@ class H3Protocol:
                 self.app,
                 self.config,
                 self.context,
+                self.task_group,
                 True,
                 self.client,
                 self.server,

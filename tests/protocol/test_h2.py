@@ -6,6 +6,7 @@ from unittest.mock import call, Mock
 import pytest
 
 from hypercorn.asyncio.tcp_server import EventWrapper
+from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer
@@ -72,7 +73,9 @@ async def test_stream_buffer_complete(event_loop: asyncio.AbstractEventLoop) -> 
 
 @pytest.mark.asyncio
 async def test_protocol_handle_protocol_error() -> None:
-    protocol = H2Protocol(Mock(), Config(), Mock(), False, None, None, AsyncMock())
+    protocol = H2Protocol(
+        Mock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock()
+    )
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
     protocol.send.assert_awaited()  # type: ignore
     assert protocol.send.call_args_list == [call(Closed())]  # type: ignore

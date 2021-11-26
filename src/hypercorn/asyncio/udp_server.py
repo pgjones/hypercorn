@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, cast, Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 
-from .context import Context
 from .task_group import TaskGroup
+from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData
 from ..typing import ASGIFramework
@@ -16,15 +16,20 @@ if TYPE_CHECKING:
 
 
 class UDPServer(asyncio.DatagramProtocol):
-    def __init__(self, app: ASGIFramework, loop: asyncio.AbstractEventLoop, config: Config) -> None:
+    def __init__(
+        self,
+        app: ASGIFramework,
+        loop: asyncio.AbstractEventLoop,
+        config: Config,
+        context: WorkerContext,
+    ) -> None:
         self.app = app
         self.config = config
+        self.context = context
         self.loop = loop
         self.protocol: "QuicProtocol"
         self.protocol_queue: asyncio.Queue = asyncio.Queue(10)
         self.transport: Optional[asyncio.DatagramTransport] = None
-
-        self.loop.create_task(self._consume_events())
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:  # type: ignore
         # h3/Quic is an optional part of Hypercorn
@@ -34,10 +39,10 @@ class UDPServer(asyncio.DatagramProtocol):
         socket = self.transport.get_extra_info("socket")
         server = parse_socket_addr(socket.family, socket.getsockname())
         task_group = TaskGroup(self.loop)
-        context = Context(task_group)
         self.protocol = QuicProtocol(
-            self.app, self.config, cast(Any, context), server, self.protocol_send
+            self.app, self.config, self.context, task_group, server, self.protocol_send
         )
+        task_group.spawn(self._consume_events)
 
     def datagram_received(self, data: bytes, address: Tuple[bytes, str]) -> None:  # type: ignore
         try:
