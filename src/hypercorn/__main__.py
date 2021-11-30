@@ -109,6 +109,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     )
     parser.add_argument("--keyfile", help="Path to the SSL key file", default=sentinel)
     parser.add_argument(
+        "--keyfile-password", help="Password to decrypt the SSL key file", default=sentinel
+    )
+    parser.add_argument(
         "--insecure-bind",
         dest="insecure_binds",
         help="""The TCP host/address to bind to. SSL options will not apply to these binds.
@@ -240,6 +243,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.keep_alive_timeout = args.keep_alive
     if args.keyfile is not sentinel:
         config.keyfile = args.keyfile
+    if args.keyfile_password is not sentinel:
+        config.keyfile_password = args.keyfile_password
     if args.log_config is not sentinel:
         config.logconfig = args.log_config
     if args.pid is not sentinel:

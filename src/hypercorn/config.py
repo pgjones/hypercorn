@@ -79,6 +79,7 @@ class Config:
     include_server_header = True
     keep_alive_timeout = 5 * SECONDS
     keyfile: Optional[str] = None
+    keyfile_password: Optional[str] = None
     logconfig: Optional[str] = None
     logconfig_dict: Optional[dict] = None
     logger_class = Logger
@@ -165,7 +166,11 @@ class Config:
         context.set_alpn_protocols(self.alpn_protocols)
 
         if self.certfile is not None and self.keyfile is not None:
-            context.load_cert_chain(certfile=self.certfile, keyfile=self.keyfile)
+            context.load_cert_chain(
+                certfile=self.certfile,
+                keyfile=self.keyfile,
+                password=self.keyfile_password,
+            )
 
         if self.ca_certs is not None:
             context.load_verify_locations(self.ca_certs)
