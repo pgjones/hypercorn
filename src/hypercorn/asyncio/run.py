@@ -245,6 +245,12 @@ def _run(
         try:
             _cancel_all_tasks(loop)
             loop.run_until_complete(loop.shutdown_asyncgens())
+
+            try:
+                loop.run_until_complete(loop.shutdown_default_executor())
+            except AttributeError:
+                pass  # shutdown_default_executor is new to Python 3.9
+
         finally:
             asyncio.set_event_loop(None)
             loop.close()
