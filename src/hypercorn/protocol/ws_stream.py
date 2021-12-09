@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import auto, Enum
 from io import BytesIO, StringIO
 from time import time
-from typing import Awaitable, Callable, List, Optional, Tuple, Union
+from typing import Awaitable, Callable, Iterable, List, Optional, Tuple, Union
 from urllib.parse import unquote
 
 from wsproto.connection import Connection, ConnectionState, ConnectionType
@@ -96,7 +96,9 @@ class Handshake:
         return True
 
     def accept(
-        self, subprotocol: Optional[str]
+        self,
+        subprotocol: Optional[str],
+        additional_headers: Optional[Iterable[Tuple[bytes, bytes]]],
     ) -> Tuple[int, List[Tuple[bytes, bytes]], Connection]:
         headers = []
         if subprotocol is not None:
@@ -120,6 +122,9 @@ class Handshake:
         if self.http_version == "1.1":
             headers.extend([(b"upgrade", b"WebSocket"), (b"connection", b"Upgrade")])
             status_code = 101
+
+        if additional_headers:
+            headers.extend(header for header in additional_headers)
 
         return status_code, headers, Connection(ConnectionType.SERVER, extensions)
 
@@ -330,7 +335,9 @@ class WSStream:
 
     async def _accept(self, message: WebsocketAcceptEvent) -> None:
         self.state = ASGIWebsocketState.CONNECTED
-        status_code, headers, self.connection = self.handshake.accept(message.get("subprotocol"))
+        status_code, headers, self.connection = self.handshake.accept(
+            message.get("subprotocol"), message.get("headers")
+        )
         await self.send(
             Response(stream_id=self.stream_id, status_code=status_code, headers=headers)
         )

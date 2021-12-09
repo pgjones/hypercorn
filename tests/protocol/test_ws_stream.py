@@ -125,7 +125,7 @@ def test_handshake_accept_http1() -> None:
         ],
         "1.1",
     )
-    status_code, headers, _ = handshake.accept(None)
+    status_code, headers, _ = handshake.accept(None, None)
     assert status_code == 101
     assert headers == [
         (b"sec-websocket-accept", b"1BpNk/3ah1huDGgcuMJBcjcMbEA="),
@@ -136,9 +136,29 @@ def test_handshake_accept_http1() -> None:
 
 def test_handshake_accept_http2() -> None:
     handshake = Handshake([(b"sec-websocket-version", b"13")], "2")
-    status_code, headers, _ = handshake.accept(None)
+    status_code, headers, _ = handshake.accept(None, None)
     assert status_code == 200
     assert headers == []
+
+
+def test_handshake_accept_additional_headers() -> None:
+    handshake = Handshake(
+        [
+            (b"connection", b"upgrade, keep-alive"),
+            (b"sec-websocket-version", b"13"),
+            (b"upgrade", b"websocket"),
+            (b"sec-websocket-key", b"UnQ3lpJAH6j2PslA993iKQ=="),
+        ],
+        "1.1",
+    )
+    status_code, headers, _ = handshake.accept(None, [(b"additional", b"header")])
+    assert status_code == 101
+    assert headers == [
+        (b"sec-websocket-accept", b"1BpNk/3ah1huDGgcuMJBcjcMbEA="),
+        (b"upgrade", b"WebSocket"),
+        (b"connection", b"Upgrade"),
+        (b"additional", b"header"),
+    ]
 
 
 @pytest.fixture(name="stream")
@@ -227,6 +247,30 @@ async def test_send_accept(stream: WSStream) -> None:
     stream.send.assert_called()  # type: ignore
     assert stream.send.call_args_list == [  # type: ignore
         call(Response(stream_id=1, headers=[], status_code=200))
+    ]
+
+
+@pytest.mark.asyncio
+async def test_send_accept_with_additional_headers(stream: WSStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"sec-websocket-version", b"13")],
+            raw_path=b"/",
+            method="GET",
+        )
+    )
+    await stream.app_send(
+        cast(
+            WebsocketAcceptEvent,
+            {"type": "websocket.accept", "headers": [(b"additional", b"header")]},
+        )
+    )
+    assert stream.state == ASGIWebsocketState.CONNECTED
+    stream.send.assert_called()  # type: ignore
+    assert stream.send.call_args_list == [  # type: ignore
+        call(Response(stream_id=1, headers=[(b"additional", b"header")], status_code=200))
     ]
 
 
