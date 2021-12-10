@@ -125,7 +125,7 @@ def test_handshake_accept_http1() -> None:
         ],
         "1.1",
     )
-    status_code, headers, _ = handshake.accept(None, None)
+    status_code, headers, _ = handshake.accept(None, [])
     assert status_code == 101
     assert headers == [
         (b"sec-websocket-accept", b"1BpNk/3ah1huDGgcuMJBcjcMbEA="),
@@ -136,7 +136,7 @@ def test_handshake_accept_http1() -> None:
 
 def test_handshake_accept_http2() -> None:
     handshake = Handshake([(b"sec-websocket-version", b"13")], "2")
-    status_code, headers, _ = handshake.accept(None, None)
+    status_code, headers, _ = handshake.accept(None, [])
     assert status_code == 200
     assert headers == []
 

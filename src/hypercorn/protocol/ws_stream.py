@@ -98,7 +98,7 @@ class Handshake:
     def accept(
         self,
         subprotocol: Optional[str],
-        additional_headers: Optional[Iterable[Tuple[bytes, bytes]]],
+        additional_headers: Iterable[Tuple[bytes, bytes]],
     ) -> Tuple[int, List[Tuple[bytes, bytes]], Connection]:
         headers = []
         if subprotocol is not None:
@@ -123,8 +123,11 @@ class Handshake:
             headers.extend([(b"upgrade", b"WebSocket"), (b"connection", b"Upgrade")])
             status_code = 101
 
-        if additional_headers:
-            headers.extend(header for header in additional_headers)
+        for name, value in additional_headers:
+            if b"sec-websocket-protocol" == name or name.startswith(b":"):
+                raise Exception(f"Invalid additional header, {name.decode()}")
+
+            headers.append((name, value))
 
         return status_code, headers, Connection(ConnectionType.SERVER, extensions)
 
@@ -336,7 +339,7 @@ class WSStream:
     async def _accept(self, message: WebsocketAcceptEvent) -> None:
         self.state = ASGIWebsocketState.CONNECTED
         status_code, headers, self.connection = self.handshake.accept(
-            message.get("subprotocol"), message.get("headers")
+            message.get("subprotocol"), message.get("headers", [])
         )
         await self.send(
             Response(stream_id=self.stream_id, status_code=status_code, headers=headers)
