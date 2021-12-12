@@ -162,7 +162,6 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip
 async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     server = TCPServer(
         sanity_framework,
@@ -209,5 +208,7 @@ async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
     events = h2_client.receive_data(await server.writer.receive())  # type: ignore
     client.receive_data(events[0].data)
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
+    h2_client.close_connection()
+    await server.reader.send(h2_client.data_to_send())  # type: ignore
     server.reader.close()  # type: ignore
     await task
