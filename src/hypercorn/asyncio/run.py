@@ -130,9 +130,10 @@ async def worker_serve(
         if config.workers > 1 and platform.system() == "Windows":
             sock = _share_socket(sock)
 
-        await loop.create_datagram_endpoint(
+        _, protocol = await loop.create_datagram_endpoint(
             lambda: UDPServer(app, loop, config, context), sock=sock
         )
+        server_tasks.add(loop.create_task(protocol.run()))  # type: ignore
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 

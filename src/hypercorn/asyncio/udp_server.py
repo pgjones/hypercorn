@@ -6,7 +6,7 @@ from typing import Optional, Tuple, TYPE_CHECKING
 from .task_group import TaskGroup
 from .worker_context import WorkerContext
 from ..config import Config
-from ..events import Closed, Event, RawData
+from ..events import Event, RawData
 from ..typing import ASGIFramework
 from ..utils import parse_socket_addr
 
@@ -32,17 +32,7 @@ class UDPServer(asyncio.DatagramProtocol):
         self.transport: Optional[asyncio.DatagramTransport] = None
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:  # type: ignore
-        # h3/Quic is an optional part of Hypercorn
-        from ..protocol.quic import QuicProtocol  # noqa: F811
-
         self.transport = transport
-        socket = self.transport.get_extra_info("socket")
-        server = parse_socket_addr(socket.family, socket.getsockname())
-        task_group = TaskGroup(self.loop)
-        self.protocol = QuicProtocol(
-            self.app, self.config, self.context, task_group, server, self.protocol_send
-        )
-        task_group.spawn(self._consume_events)
 
     def datagram_received(self, data: bytes, address: Tuple[bytes, str]) -> None:  # type: ignore
         try:
@@ -50,13 +40,21 @@ class UDPServer(asyncio.DatagramProtocol):
         except asyncio.QueueFull:
             pass  # Just throw the data away, is UDP
 
+    async def run(self) -> None:
+        # h3/Quic is an optional part of Hypercorn
+        from ..protocol.quic import QuicProtocol  # noqa: F811
+
+        socket = self.transport.get_extra_info("socket")
+        server = parse_socket_addr(socket.family, socket.getsockname())
+        async with TaskGroup(self.loop) as task_group:
+            self.protocol = QuicProtocol(
+                self.app, self.config, self.context, task_group, server, self.protocol_send
+            )
+
+            while not self.context.terminated and not self.protocol.idle:
+                event = await self.protocol_queue.get()
+                await self.protocol.handle(event)
+
     async def protocol_send(self, event: Event) -> None:
         if isinstance(event, RawData):
             self.transport.sendto(event.data, event.address)
-
-    async def _consume_events(self) -> None:
-        while True:
-            event = await self.protocol_queue.get()
-            await self.protocol.handle(event)
-            if isinstance(event, Closed):
-                break

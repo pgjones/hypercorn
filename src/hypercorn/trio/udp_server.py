@@ -31,13 +31,13 @@ class UDPServer:
         from ..protocol.quic import QuicProtocol  # h3/Quic is an optional part of Hypercorn
 
         task_status.started()
+        server = parse_socket_addr(self.socket.family, self.socket.getsockname())
         async with TaskGroup() as task_group:
-            server = parse_socket_addr(self.socket.family, self.socket.getsockname())
             self.protocol = QuicProtocol(
                 self.app, self.config, self.context, task_group, server, self.protocol_send
             )
 
-            while True:
+            while not self.context.terminated and not self.protocol.idle:
                 data, address = await self.socket.recvfrom(MAX_RECV)
                 await self.protocol.handle(RawData(data=data, address=address))
 

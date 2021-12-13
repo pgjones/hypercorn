@@ -47,6 +47,10 @@ class QuicProtocol:
         self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
 
+    @property
+    def idle(self) -> bool:
+        return len(self.connections) == 0 and len(self.http_connections) == 0
+
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
             try:
