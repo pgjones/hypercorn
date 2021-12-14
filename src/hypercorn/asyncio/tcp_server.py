@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from ssl import SSLError
 from typing import Any, Callable, Generator, Optional
 
 from .task_group import TaskGroup
@@ -112,6 +113,7 @@ class TCPServer:
                 OSError,
                 asyncio.TimeoutError,
                 TimeoutError,
+                SSLError,
             ):
                 await self.protocol.handle(Closed())
                 break
