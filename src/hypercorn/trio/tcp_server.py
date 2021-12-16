@@ -110,13 +110,13 @@ class TCPServer:
             try:
                 with trio.fail_after(self.config.read_timeout or inf):
                     data = await self.stream.receive_some(MAX_RECV)
-            except trio.EndOfChannel:
-                break
             except (trio.ClosedResourceError, trio.BrokenResourceError):
                 await self.protocol.handle(Closed())
                 break
             else:
                 await self.protocol.handle(RawData(data))
+                if data == b"":
+                    break
 
     async def _close(self) -> None:
         try:
