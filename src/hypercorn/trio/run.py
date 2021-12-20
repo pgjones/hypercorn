@@ -95,10 +95,7 @@ async def worker_serve(
                         ),
                     )
 
-                    # This effectively runs the trio loop until a
-                    # signal interrupt is raised.
-                    while True:
-                        await trio.sleep(99999)
+                    await trio.sleep_forever()
             except trio.MultiError as error:
                 reload_ = any(isinstance(exc, MustReloadError) for exc in error.exceptions)
             except MustReloadError:
