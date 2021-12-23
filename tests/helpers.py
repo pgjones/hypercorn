@@ -39,8 +39,8 @@ async def echo_framework(input_scope: Scope, receive: Callable, send: Callable) 
     scope = deepcopy(input_scope)
     scope["query_string"] = scope["query_string"].decode()  # type: ignore
     scope["raw_path"] = scope["raw_path"].decode()  # type: ignore
-    scope["headers"] = [  # type: ignore
-        (name.decode(), value.decode()) for name, value in scope["headers"]
+    scope["headers"] = [
+        (name.decode(), value.decode()) for name, value in scope["headers"]  # type: ignore
     ]
 
     body = bytearray()

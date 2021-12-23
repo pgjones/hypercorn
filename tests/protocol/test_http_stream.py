@@ -256,7 +256,7 @@ async def test_closure(stream: HTTPStream) -> None:
     assert stream.closed
     # It is important that the disconnect message has only been sent
     # once.
-    assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]  # type: ignore
+    assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
 
 
 @pytest.mark.asyncio

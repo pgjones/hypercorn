@@ -21,7 +21,7 @@ class _DispatcherMiddleware:
         else:
             for path, app in self.mounts.items():
                 if scope["path"].startswith(path):
-                    scope["path"] = scope["path"][len(path) :] or "/"  # type: ignore
+                    scope["path"] = scope["path"][len(path) :] or "/"
                     return await invoke_asgi(app, scope, receive, send)
             await send(
                 {

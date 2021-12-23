@@ -334,7 +334,7 @@ class Config:
         file_path = os.fspath(filename)
         spec = importlib.util.spec_from_file_location("module.name", file_path)
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore
+        spec.loader.exec_module(module)
         return cls.from_object(module)
 
     @classmethod
@@ -380,7 +380,7 @@ class Config:
             try:
                 instance = importlib.import_module(instance)
             except ImportError:
-                path, config = instance.rsplit(".", 1)  # type: ignore
+                path, config = instance.rsplit(".", 1)
                 module = importlib.import_module(path)
                 instance = getattr(module, config)
 

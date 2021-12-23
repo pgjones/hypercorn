@@ -502,9 +502,7 @@ async def test_closure(stream: WSStream) -> None:
     assert stream.closed
     # It is important that the disconnect message has only been sent
     # once.
-    assert stream.app_put.call_args_list == [  # type: ignore
-        call({"type": "websocket.disconnect", "code": 1006})
-    ]
+    assert stream.app_put.call_args_list == [call({"type": "websocket.disconnect", "code": 1006})]
 
 
 @pytest.mark.asyncio
