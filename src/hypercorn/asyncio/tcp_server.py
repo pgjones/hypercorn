@@ -93,7 +93,7 @@ class TCPServer:
                 try:
                     self.writer.write(event.data)
                     await self.writer.drain()
-                except ConnectionError:
+                except (ConnectionError, RuntimeError):
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
@@ -129,7 +129,7 @@ class TCPServer:
         try:
             self.writer.close()
             await self.writer.wait_closed()
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, RuntimeError):
             pass  # Already closed
 
         await self._stop_keep_alive_timeout()
