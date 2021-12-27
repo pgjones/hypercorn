@@ -244,7 +244,11 @@ class H11Protocol:
 
     async def _maybe_recycle(self) -> None:
         await self._close_stream()
-        if not self.context.terminated and self.connection.our_state is h11.DONE:
+        if (
+            not self.context.terminated
+            and self.connection.our_state is h11.DONE
+            and self.connection.their_state is h11.DONE
+        ):
             try:
                 self.connection.start_next_cycle()
             except h11.LocalProtocolError:
