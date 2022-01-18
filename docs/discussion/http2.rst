@@ -43,5 +43,5 @@ protocol Hypercorn will assume and treat the connection as HTTP/1.1.
 HTTP/2 features
 ---------------
 
-Hypercorn supports pipeling, flow control, and server push, it doesn't
-(as yet) support prioritisation.
+Hypercorn supports pipeling, flow control, server push, and
+prioritisation.
