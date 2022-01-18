@@ -172,3 +172,6 @@ texinfo_documents = [
 
 def setup(app):
     app.add_css_file('css/hypercorn.css')
+
+
+suppress_warnings = ["ref.python"]
