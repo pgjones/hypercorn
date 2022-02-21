@@ -7,7 +7,7 @@ from typing import Callable, Iterable, List, Optional, Tuple
 
 from ..typing import HTTPScope, Scope
 
-MAX_BODY_SIZE = 2 ** 16
+MAX_BODY_SIZE = 2**16
 
 WSGICallable = Callable[[dict, Callable], Iterable[bytes]]
 

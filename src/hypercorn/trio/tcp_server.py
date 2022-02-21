@@ -13,7 +13,7 @@ from ..protocol import ProtocolWrapper
 from ..typing import ASGIFramework
 from ..utils import parse_socket_addr
 
-MAX_RECV = 2 ** 16
+MAX_RECV = 2**16
 
 
 class EventWrapper:

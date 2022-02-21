@@ -25,7 +25,7 @@ from ..events import Closed, Event, RawData, Updated
 from ..typing import ASGIFramework, Event as IOEvent, TaskGroup, WorkerContext
 from ..utils import filter_pseudo_headers
 
-BUFFER_HIGH_WATER = 2 * 2 ** 14  # Twice the default max frame size (two frames worth)
+BUFFER_HIGH_WATER = 2 * 2**14  # Twice the default max frame size (two frames worth)
 BUFFER_LOW_WATER = BUFFER_HIGH_WATER / 2
 
 

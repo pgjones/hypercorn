@@ -60,7 +60,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
             reason=b"",
         ),
         h11.Data(data=b"Hello & Goodbye"),
-        h11.EndOfMessage(headers=[]),
+        h11.EndOfMessage(headers=[]),  # type: ignore
     ]
     server.reader.close()  # type: ignore
     await task

@@ -84,7 +84,7 @@ async def test_http1_keep_alive(
     while True:
         event = client.next_event()
         if event == h11.NEED_DATA:
-            data = await client_stream.receive_some(2 ** 16)
+            data = await client_stream.receive_some(2**16)
             client.receive_data(data)
         elif isinstance(event, h11.EndOfMessage):
             break
@@ -102,6 +102,6 @@ async def test_http1_keep_alive_pipelining(
     await client_stream.send_all(
         b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\nGET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n"
     )
-    await client_stream.receive_some(2 ** 16)
+    await client_stream.receive_some(2**16)
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     await client_stream.send_all(b"")
