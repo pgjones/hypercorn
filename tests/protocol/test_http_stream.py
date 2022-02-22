@@ -4,6 +4,7 @@ from typing import Any, cast
 from unittest.mock import call
 
 import pytest
+import pytest_asyncio
 
 from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
@@ -20,7 +21,7 @@ except ImportError:
     from mock import AsyncMock  # type: ignore
 
 
-@pytest.fixture(name="stream")
+@pytest_asyncio.fixture(name="stream")  # type: ignore[misc]
 async def _stream() -> HTTPStream:
     stream = HTTPStream(
         AsyncMock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock(), 1

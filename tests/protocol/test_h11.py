@@ -6,6 +6,7 @@ from unittest.mock import call, Mock
 
 import h11
 import pytest
+import pytest_asyncio
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h11
@@ -27,7 +28,7 @@ except ImportError:
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 
 
-@pytest.fixture(name="protocol")
+@pytest_asyncio.fixture(name="protocol")  # type: ignore[misc]
 async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     MockHTTPStream = Mock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)

@@ -84,11 +84,12 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module =["aioquic.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "trio.*", "uvloop.*"]
+module =["aioquic.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "pytest_asyncio.*", "trio.*", "uvloop.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "--no-cov-on-fail --showlocals --strict-markers"
+asyncio_mode = "strict"
 testpaths = ["tests"]
 
 [build-system]

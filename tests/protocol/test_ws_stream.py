@@ -5,6 +5,7 @@ from typing import Any, cast, List, Tuple
 from unittest.mock import call, Mock
 
 import pytest
+import pytest_asyncio
 from wsproto.events import BytesMessage, TextMessage
 
 from hypercorn.asyncio.task_group import TaskGroup
@@ -161,7 +162,7 @@ def test_handshake_accept_additional_headers() -> None:
     ]
 
 
-@pytest.fixture(name="stream")
+@pytest_asyncio.fixture(name="stream")  # type: ignore[misc]
 async def _stream() -> WSStream:
     stream = WSStream(
         AsyncMock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock(), 1

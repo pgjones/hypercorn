@@ -5,6 +5,7 @@ from typing import AsyncGenerator, Callable
 
 import h11
 import pytest
+import pytest_asyncio
 
 from hypercorn.asyncio.tcp_server import TCPServer
 from hypercorn.asyncio.worker_context import WorkerContext
@@ -37,7 +38,7 @@ async def slow_framework(scope: dict, receive: Callable, send: Callable) -> None
             break
 
 
-@pytest.fixture(name="server", scope="function")
+@pytest_asyncio.fixture(name="server", scope="function")  # type: ignore[misc]
 async def _server(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[TCPServer, None]:
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
