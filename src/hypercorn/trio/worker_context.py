@@ -20,12 +20,15 @@ class EventWrapper:
     async def set(self) -> None:
         self._event.set()
 
+    def is_set(self) -> bool:
+        return self._event.is_set()
+
 
 class WorkerContext:
     event_class: Type[Event] = EventWrapper
 
     def __init__(self) -> None:
-        self.terminated = False
+        self.terminated = self.event_class()
 
     @staticmethod
     async def sleep(wait: Union[float, int]) -> None:

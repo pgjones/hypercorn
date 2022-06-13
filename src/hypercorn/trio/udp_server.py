@@ -37,7 +37,7 @@ class UDPServer:
                 self.app, self.config, self.context, task_group, server, self.protocol_send
             )
 
-            while not self.context.terminated or not self.protocol.idle:
+            while not self.context.terminated.is_set() or not self.protocol.idle:
                 data, address = await self.socket.recvfrom(MAX_RECV)
                 await self.protocol.handle(RawData(data=data, address=address))
 

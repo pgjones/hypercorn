@@ -216,7 +216,7 @@ class H2Protocol:
                 idle = len(self.streams) == 0 or all(
                     stream.idle for stream in self.streams.values()
                 )
-                if idle and self.context.terminated:
+                if idle and self.context.terminated.is_set():
                     self.connection.close_connection()
                     await self._flush()
                 await self.send(Updated(idle=idle))
@@ -235,7 +235,7 @@ class H2Protocol:
     async def _handle_events(self, events: List[h2.events.Event]) -> None:
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
-                if self.context.terminated:
+                if self.context.terminated.is_set():
                     self.connection.reset_stream(event.stream_id)
                     self.connection.update_settings(
                         {h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: 0}

@@ -282,10 +282,13 @@ class Event(Protocol):
     async def wait(self) -> None:
         ...
 
+    def is_set(self) -> bool:
+        ...
+
 
 class WorkerContext(Protocol):
     event_class: Type[Event]
-    terminated: bool
+    terminated: Event
 
     @staticmethod
     async def sleep(wait: Union[float, int]) -> None:

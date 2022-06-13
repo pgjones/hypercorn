@@ -51,7 +51,7 @@ class UDPServer(asyncio.DatagramProtocol):
                 self.app, self.config, self.context, task_group, server, self.protocol_send
             )
 
-            while not self.context.terminated or not self.protocol.idle:
+            while not self.context.terminated.is_set() or not self.protocol.idle:
                 event = await self.protocol_queue.get()
                 await self.protocol.handle(event)
 

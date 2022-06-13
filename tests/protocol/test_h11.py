@@ -10,7 +10,7 @@ import pytest_asyncio
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.protocol.h11
-from hypercorn.asyncio.tcp_server import EventWrapper
+from hypercorn.asyncio.worker_context import EventWrapper
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData, Updated
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
@@ -34,8 +34,9 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
     context = Mock()
-    context.terminated = False
     context.event_class.return_value = AsyncMock(spec=IOEvent)
+    context.terminated = context.event_class()
+    context.terminated.is_set.return_value = False
     return H11Protocol(AsyncMock(), Config(), context, AsyncMock(), False, None, None, AsyncMock())
 
 

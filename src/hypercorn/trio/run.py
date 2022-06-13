@@ -103,7 +103,7 @@ async def worker_serve(
             except (ShutdownError, KeyboardInterrupt):
                 pass
             finally:
-                context.terminated = True
+                await context.terminated.set()
                 server_nursery.cancel_scope.deadline = trio.current_time() + config.graceful_timeout
 
         await lifespan.wait_for_shutdown()

@@ -74,6 +74,7 @@ class QuicProtocol:
                 connection is None
                 and len(event.data) >= 1200
                 and header.packet_type == PACKET_TYPE_INITIAL
+                and not self.context.terminated.is_set()
             ):
                 connection = QuicConnection(
                     configuration=self.quic_config,

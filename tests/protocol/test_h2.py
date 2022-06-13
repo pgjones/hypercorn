@@ -5,8 +5,7 @@ from unittest.mock import call, Mock
 
 import pytest
 
-from hypercorn.asyncio.tcp_server import EventWrapper
-from hypercorn.asyncio.worker_context import WorkerContext
+from hypercorn.asyncio.worker_context import EventWrapper, WorkerContext
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer

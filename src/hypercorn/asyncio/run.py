@@ -157,7 +157,7 @@ async def worker_serve(
     except (ShutdownError, KeyboardInterrupt):
         pass
     finally:
-        context.terminated = True
+        await context.terminated.set()
 
         for server in servers:
             server.close()

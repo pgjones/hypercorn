@@ -5,7 +5,6 @@ import os
 import platform
 import socket
 import sys
-from dataclasses import dataclass
 from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
@@ -267,8 +266,3 @@ def valid_server_name(config: Config, request: "Request") -> bool:
             host = value.decode()
             break
     return host in config.server_names
-
-
-@dataclass
-class WorkerState:
-    terminated: bool = False

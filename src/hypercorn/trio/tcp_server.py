@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from math import inf
-from typing import Any, Callable, Generator, Optional
+from typing import Any, Generator, Optional
 
 import trio
 
@@ -16,20 +16,6 @@ from ..utils import parse_socket_addr
 MAX_RECV = 2**16
 
 
-class EventWrapper:
-    def __init__(self) -> None:
-        self._event = trio.Event()
-
-    async def clear(self) -> None:
-        self._event = trio.Event()
-
-    async def wait(self) -> None:
-        await self._event.wait()
-
-    async def set(self) -> None:
-        self._event.set()
-
-
 class TCPServer:
     def __init__(
         self, app: ASGIFramework, config: Config, context: WorkerContext, stream: trio.abc.Stream
@@ -39,10 +25,10 @@ class TCPServer:
         self.context = context
         self.protocol: ProtocolWrapper
         self.send_lock = trio.Lock()
-        self.timeout_lock = trio.Lock()
+        self.idle_lock = trio.Lock()
         self.stream = stream
 
-        self._keep_alive_timeout_handle: Optional[trio.CancelScope] = None
+        self._idle_handle: Optional[trio.CancelScope] = None
 
     def __await__(self) -> Generator[Any, None, None]:
         return self.run().__await__()
@@ -80,7 +66,7 @@ class TCPServer:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
-                await self._start_keep_alive_timeout()
+                await self._start_idle()
                 await self._read_data()
         except (trio.MultiError, OSError):
             pass
@@ -101,9 +87,9 @@ class TCPServer:
             await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
             if event.idle:
-                await self._start_keep_alive_timeout()
+                await self._start_idle()
             else:
-                await self._stop_keep_alive_timeout()
+                await self._stop_idle()
 
     async def _read_data(self) -> None:
         while True:
@@ -132,32 +118,30 @@ class TCPServer:
             pass
         await self.stream.aclose()
 
-    async def _start_keep_alive_timeout(self) -> None:
-        async with self.timeout_lock:
-            if self._keep_alive_timeout_handle is None:
-                self._keep_alive_timeout_handle = await self._task_group._nursery.start(
-                    _call_later, self.config.keep_alive_timeout, self._timeout
-                )
-
-    async def _timeout(self) -> None:
+    async def _initiate_server_close(self) -> None:
         await self.protocol.handle(Closed())
         await self.stream.aclose()
 
-    async def _stop_keep_alive_timeout(self) -> None:
-        async with self.timeout_lock:
-            if self._keep_alive_timeout_handle is not None:
-                self._keep_alive_timeout_handle.cancel()
-            self._keep_alive_timeout_handle = None
+    async def _start_idle(self) -> None:
+        async with self.idle_lock:
+            if self._idle_handle is None:
+                self._idle_handle = await self._task_group._nursery.start(self._run_idle)
 
+    async def _stop_idle(self) -> None:
+        async with self.idle_lock:
+            if self._idle_handle is not None:
+                self._idle_handle.cancel()
+            self._idle_handle = None
 
-async def _call_later(
-    timeout: float,
-    callback: Callable,
-    task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
-) -> None:
-    cancel_scope = trio.CancelScope()
-    task_status.started(cancel_scope)
-    with cancel_scope:
-        await trio.sleep(timeout)
-        cancel_scope.shield = True
-        await callback()
+    async def _run_idle(
+        self,
+        task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
+    ) -> None:
+        cancel_scope = trio.CancelScope()
+        task_status.started(cancel_scope)
+        with cancel_scope:
+            with trio.move_on_after(self.config.keep_alive_timeout):
+                await self.context.terminated.wait()
+
+            cancel_scope.shield = True
+            await self._initiate_server_close()

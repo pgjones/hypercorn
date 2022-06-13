@@ -50,7 +50,7 @@ class H3Protocol:
     async def handle(self, quic_event: QuicEvent) -> None:
         for event in self.connection.handle_event(quic_event):
             if isinstance(event, HeadersReceived):
-                if not self.context.terminated:
+                if not self.context.terminated.is_set():
                     await self._create_stream(event)
                     if event.stream_ended:
                         await self.streams[event.stream_id].handle(
