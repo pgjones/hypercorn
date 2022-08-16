@@ -9,10 +9,10 @@ Hypercorn is invoked via the command line script ``hypercorn``
 
     $ hypercorn [OPTIONS] MODULE_APP
 
-with ``MODULE_APP`` has the pattern
+where ``MODULE_APP`` has the pattern
 ``$(MODULE_NAME):$(VARIABLE_NAME)`` with the module name as a full
 (dotted) path to a python module containing a named variable that
 conforms to the ASGI framework specification.
 
-See :ref:`how_to_configure` for the fill list of command line
+See :ref:`how_to_configure` for the full list of command line
 arguments.
