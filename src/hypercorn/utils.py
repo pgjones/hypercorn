@@ -80,7 +80,7 @@ def build_and_validate_headers(headers: Iterable[Tuple[bytes, bytes]]) -> List[T
     for name, value in headers:
         if name[0] == b":"[0]:
             raise ValueError("Pseudo headers are not valid")
-        validated_headers.append((bytes(name).lower().strip(), bytes(value).strip()))
+        validated_headers.append((bytes(name).strip(), bytes(value).strip()))
     return validated_headers
 
 
