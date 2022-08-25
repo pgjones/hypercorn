@@ -30,11 +30,11 @@ class StatsdLogger(Logger):
 
     async def error(self, message: str, *args: Any, **kwargs: Any) -> None:
         await super().error(message, *args, **kwargs)
-        self.increment("hypercorn.log.error", 1)
+        await self.increment("hypercorn.log.error", 1)
 
     async def warning(self, message: str, *args: Any, **kwargs: Any) -> None:
         await super().warning(message, *args, **kwargs)
-        self.increment("hypercorn.log.warning", 1)
+        await self.increment("hypercorn.log.warning", 1)
 
     async def info(self, message: str, *args: Any, **kwargs: Any) -> None:
         await super().info(message, *args, **kwargs)

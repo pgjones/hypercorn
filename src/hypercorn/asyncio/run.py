@@ -133,7 +133,7 @@ async def worker_serve(
         _, protocol = await loop.create_datagram_endpoint(
             lambda: UDPServer(app, loop, config, context), sock=sock
         )
-        server_tasks.add(loop.create_task(protocol.run()))  # type: ignore
+        server_tasks.add(loop.create_task(protocol.run()))
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
