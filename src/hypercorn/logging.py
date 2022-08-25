@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -7,6 +8,8 @@ import time
 from http import HTTPStatus
 from logging.config import dictConfig, fileConfig
 from typing import Any, IO, Mapping, Optional, TYPE_CHECKING, Union
+
+import toml
 
 if TYPE_CHECKING:
     from .config import Config
@@ -58,11 +61,18 @@ class Logger:
         )
 
         if config.logconfig is not None:
-            log_config = {
-                "__file__": config.logconfig,
-                "here": os.path.dirname(config.logconfig),
-            }
-            fileConfig(config.logconfig, defaults=log_config, disable_existing_loggers=False)
+            if config.logconfig.startswith("json:"):
+                with open(config.logconfig[5:]) as file_:
+                    dictConfig(json.load(file_))
+            elif config.logconfig.startswith("toml:"):
+                with open(config.logconfig[5:]) as file_:
+                    dictConfig(toml.load(file_))
+            else:
+                log_config = {
+                    "__file__": config.logconfig,
+                    "here": os.path.dirname(config.logconfig),
+                }
+                fileConfig(config.logconfig, defaults=log_config, disable_existing_loggers=False)
         else:
             if config.logconfig_dict is not None:
                 dictConfig(config.logconfig_dict)

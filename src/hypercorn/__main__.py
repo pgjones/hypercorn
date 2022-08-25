@@ -121,7 +121,11 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         action="append",
     )
     parser.add_argument(
-        "--log-config", help="A Python logging configuration file.", default=sentinel
+        "--log-config",
+        help=""""A Python logging configuration file. This can be prefixed with
+        'json:' or 'toml:' to load the configuration from a file in
+        that format. Default is the logging ini format.""",
+        default=sentinel,
     )
     parser.add_argument(
         "--log-level", help="The (error) log level, defaults to info", default="INFO"
