@@ -172,14 +172,14 @@ async def worker_serve(
             await asyncio.wait_for(gathered_server_tasks, config.graceful_timeout)
         except asyncio.TimeoutError:
             pass
+        finally:
+            # Retrieve the Gathered Tasks Cancelled Exception, to
+            # prevent a warning that this hasn't been done.
+            gathered_server_tasks.exception()
 
-        # Retrieve the Gathered Tasks Cancelled Exception, to
-        # prevent a warning that this hasn't been done.
-        gathered_server_tasks.exception()
-
-        await lifespan.wait_for_shutdown()
-        lifespan_task.cancel()
-        await lifespan_task
+            await lifespan.wait_for_shutdown()
+            lifespan_task.cancel()
+            await lifespan_task
 
     if reload_:
         restart()
