@@ -71,7 +71,7 @@ jobs:
 
       - name: Download h2spec
         run: |
-          wget https://github.com/summerwind/h2spec/releases/download/v2.2.0/h2spec_linux_amd64.tar.gz
+          wget https://github.com/summerwind/h2spec/releases/download/v2.6.0/h2spec_linux_amd64.tar.gz
           tar -xvf h2spec_linux_amd64.tar.gz
 
       - name: Run h2spec
