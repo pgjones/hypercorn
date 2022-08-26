@@ -20,8 +20,8 @@ classifiers = [
 include = ["src/hypercorn/py.typed"]
 license = "MIT"
 readme = "README.rst"
-repository = "https://gitlab.com/pgjones/hypercorn/"
-documentation = "https://pgjones.gitlab.io/hypercorn/"
+repository = "https://github.com/pgjones/hypercorn/"
+documentation = "https://hypercorn.readthedocs.io"
 
 [tool.poetry.dependencies]
 python = ">=3.7"

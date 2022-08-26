@@ -93,14 +93,14 @@ html_logo = "_static/logo_small.png"
 #
 html_theme_options = {
     "external_links": [
-        {"name": "Source code", "url": "https://gitlab.com/pgjones/hypercorn"},
-        {"name": "Issues", "url": "https://gitlab.com/pgjones/hypercorn/issues"},
+        {"name": "Source code", "url": "https://github.com/pgjones/hypercorn"},
+        {"name": "Issues", "url": "https://github.com/pgjones/hypercorn/issues"},
     ],
     "icon_links": [
         {
-            "name": "GitLab",
-            "url": "https://gitlab.com/pgjones/hypercorn",
-            "icon": "fab fa-gitlab",
+            "name": "Github",
+            "url": "https://github.com/pgjones/hypercorn",
+            "icon": "fab fa-github",
         },
     ],
 }

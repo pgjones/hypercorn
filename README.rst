@@ -1,7 +1,7 @@
 Hypercorn
 =========
 
-.. image:: https://assets.gitlab-static.net/pgjones/hypercorn/raw/main/artwork/logo.png
+.. image:: https://github.com/pgjones/hypercorn/raw/main/artwork/logo.png
    :alt: Hypercorn logo
 
 |Build Status| |docs| |pypi| |http| |python| |license|
@@ -24,7 +24,7 @@ choose a quic binding e.g. ``hypercorn --quic-bind localhost:4433
 ...``.
 
 Hypercorn was initially part of `Quart
-<https://gitlab.com/pgjones/quart>`_ before being separated out into a
+<https://github.com/pgjones/quart>`_ before being separated out into a
 standalone ASGI server. Hypercorn forked from version 0.5.0 of Quart.
 
 Quickstart
@@ -59,19 +59,19 @@ Alternatively Hypercorn can be used programatically,
     asyncio.run(serve(app, Config()))
 
 learn more (including a Trio example of the above) in the `API usage
-<https://pgjones.gitlab.io/hypercorn/how_to_guides/api_usage.html>`_
+<https://hypercorn.readthedocs.io/en/latest/how_to_guides/api_usage.html>`_
 docs.
 
 Contributing
 ------------
 
-Hypercorn is developed on `GitLab
-<https://gitlab.com/pgjones/hypercorn>`_. If you come across an issue,
+Hypercorn is developed on `Github
+<https://github.com/pgjones/hypercorn>`_. If you come across an issue,
 or have a feature request please open an `issue
-<https://gitlab.com/pgjones/hypercorn/issues>`_.  If you want to
+<https://github.com/pgjones/hypercorn/issues>`_.  If you want to
 contribute a fix or the feature-implementation please do (typo fixes
-welcome), by proposing a `merge request
-<https://gitlab.com/pgjones/hypercorn/merge_requests>`_.
+welcome), by proposing a `pull request
+<https://github.com/pgjones/hypercorn/merge_requests>`_.
 
 Testing
 ~~~~~~~
@@ -89,17 +89,17 @@ this will check the code style and run the tests.
 Help
 ----
 
-The Hypercorn `documentation <https://pgjones.gitlab.io/hypercorn/>`_
-is the best place to start, after that try searching stack overflow,
-if you still can't find an answer please `open an issue
-<https://gitlab.com/pgjones/hypercorn/issues>`_.
+The Hypercorn `documentation <https://hypercorn.readthedocs.io>`_ is
+the best place to start, after that try searching stack overflow, if
+you still can't find an answer please `open an issue
+<https://github.com/pgjones/hypercorn/issues>`_.
 
 
-.. |Build Status| image:: https://gitlab.com/pgjones/hypercorn/badges/main/pipeline.svg
-   :target: https://gitlab.com/pgjones/hypercorn/commits/main
+.. |Build Status| image:: https://github.com/pgjones/hypercorn/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/pgjones/hypercorn/commits/main
 
 .. |docs| image:: https://img.shields.io/badge/docs-passing-brightgreen.svg
-   :target: https://pgjones.gitlab.io/hypercorn/
+   :target: https://hypercorn.readthedocs.io
 
 .. |pypi| image:: https://img.shields.io/pypi/v/hypercorn.svg
    :target: https://pypi.python.org/pypi/Hypercorn/
@@ -111,4 +111,4 @@ if you still can't find an answer please `open an issue
    :target: https://pypi.python.org/pypi/Hypercorn/
 
 .. |license| image:: https://img.shields.io/badge/license-MIT-blue.svg
-   :target: https://gitlab.com/pgjones/hypercorn/blob/main/LICENSE
+   :target: https://github.com/pgjones/hypercorn/blob/main/LICENSE

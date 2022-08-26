@@ -17,14 +17,14 @@ and HTTP/2), ASGI/2, and ASGI/3 specifications. Hypercorn can utilise
 asyncio, uvloop, or trio worker types.
 
 Hypercorn was initially part of `Quart
-<https://gitlab.com/pgjones/quart>`_ before being separated out into a
+<https://github.com/pgjones/quart>`_ before being separated out into a
 standalone ASGI server. Hypercorn forked from version 0.5.0 of Quart.
 
-Hypercorn is developed on `GitLab
-<https://gitlab.com/pgjones/hypercorn>`_.  You are very welcome to
-open `issues <https://gitlab.com/pgjones/hypercorn/issues>`_ or
-propose `merge requests
-<https://gitlab.com/pgjones/hypercorn/merge_requests>`_.
+Hypercorn is developed on `Github
+<https://github.com/pgjones/hypercorn>`_.  You are very welcome to
+open `issues <https://github.com/pgjones/hypercorn/issues>`_ or
+propose `pull requests
+<https://github.com/pgjones/hypercorn/merge_requests>`_.
 
 Contents
 --------
