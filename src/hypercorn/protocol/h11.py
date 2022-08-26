@@ -11,6 +11,7 @@ from .events import (
     EndBody,
     EndData,
     Event as StreamEvent,
+    InformationalResponse,
     Request,
     Response,
     StreamClosed,
@@ -129,6 +130,8 @@ class H11Protocol:
                         status_code=event.status_code,
                     )
                 )
+        elif isinstance(event, InformationalResponse):
+            pass  # Ignore for HTTP/1
         elif isinstance(event, Body):
             await self._send_h11_event(h11.Data(data=event.data))
         elif isinstance(event, EndBody):

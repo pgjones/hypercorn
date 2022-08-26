@@ -14,6 +14,7 @@ from .events import (
     EndBody,
     EndData,
     Event as StreamEvent,
+    InformationalResponse,
     Request,
     Response,
     StreamClosed,
@@ -64,7 +65,7 @@ class H3Protocol:
                     await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
 
     async def stream_send(self, event: StreamEvent) -> None:
-        if isinstance(event, Response):
+        if isinstance(event, (InformationalResponse, Response)):
             self.connection.send_headers(
                 event.stream_id,
                 [(b":status", b"%d" % event.status_code)]

@@ -90,6 +90,11 @@ class HTTPServerPushEvent(TypedDict):
     headers: Iterable[Tuple[bytes, bytes]]
 
 
+class HTTPEarlyHintEvent(TypedDict):
+    type: Literal["http.response.early_hint"]
+    links: Iterable[bytes]
+
+
 class HTTPDisconnectEvent(TypedDict):
     type: Literal["http.disconnect"]
 
@@ -180,6 +185,7 @@ ASGISendEvent = Union[
     HTTPResponseStartEvent,
     HTTPResponseBodyEvent,
     HTTPServerPushEvent,
+    HTTPEarlyHintEvent,
     HTTPDisconnectEvent,
     WebsocketAcceptEvent,
     WebsocketSendEvent,

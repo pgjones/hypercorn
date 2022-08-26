@@ -9,7 +9,14 @@ import pytest_asyncio
 from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from hypercorn.logging import Logger
-from hypercorn.protocol.events import Body, EndBody, Request, Response, StreamClosed
+from hypercorn.protocol.events import (
+    Body,
+    EndBody,
+    InformationalResponse,
+    Request,
+    Response,
+    StreamClosed,
+)
 from hypercorn.protocol.http_stream import ASGIHTTPState, HTTPStream
 from hypercorn.typing import HTTPResponseBodyEvent, HTTPResponseStartEvent, HTTPScope
 from hypercorn.utils import UnexpectedMessageError
@@ -76,7 +83,7 @@ async def test_handle_request_http_2(stream: HTTPStream) -> None:
         "headers": [],
         "client": None,
         "server": None,
-        "extensions": {"http.response.push": {}},
+        "extensions": {"http.response.early_hint": {}, "http.response.push": {}},
     }
 
 
@@ -170,6 +177,24 @@ async def test_send_push(stream: HTTPStream, http_scope: HTTPScope) -> None:
                 http_version="2",
                 method="GET",
                 raw_path=b"/push",
+            )
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_send_early_hint(stream: HTTPStream, http_scope: HTTPScope) -> None:
+    stream.scope = http_scope
+    stream.stream_id = 1
+    await stream.app_send(
+        {"type": "http.response.early_hint", "links": [b'</style.css>; rel="preload"; as="style"']}
+    )
+    assert stream.send.call_args_list == [  # type: ignore
+        call(
+            InformationalResponse(
+                stream_id=1,
+                headers=[(b"link", b'</style.css>; rel="preload"; as="style"')],
+                status_code=103,
             )
         )
     ]

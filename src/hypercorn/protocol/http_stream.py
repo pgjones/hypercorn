@@ -5,7 +5,7 @@ from time import time
 from typing import Awaitable, Callable, Optional, Tuple
 from urllib.parse import unquote
 
-from .events import Body, EndBody, Event, Request, Response, StreamClosed
+from .events import Body, EndBody, Event, InformationalResponse, Request, Response, StreamClosed
 from ..config import Config
 from ..typing import (
     ASGIFramework,
@@ -23,6 +23,7 @@ from ..utils import (
 )
 
 PUSH_VERSIONS = {"2", "3"}
+EARLY_HINTS_VERSIONS = {"2", "3"}
 
 
 class ASGIHTTPState(Enum):
@@ -90,6 +91,9 @@ class HTTPStream:
             if event.http_version in PUSH_VERSIONS:
                 self.scope["extensions"]["http.response.push"] = {}
 
+            if event.http_version in EARLY_HINTS_VERSIONS:
+                self.scope["extensions"]["http.response.early_hint"] = {}
+
             if valid_server_name(self.config, event):
                 self.app_put = await self.task_group.spawn_app(
                     self.app, self.config, self.scope, self.app_send
@@ -140,6 +144,19 @@ class HTTPStream:
                         http_version=self.scope["http_version"],
                         method="GET",
                         raw_path=message["path"].encode(),
+                    )
+                )
+            elif (
+                message["type"] == "http.response.early_hint"
+                and self.scope["http_version"] in EARLY_HINTS_VERSIONS
+                and self.state == ASGIHTTPState.REQUEST
+            ):
+                headers = [(b"link", bytes(link).strip()) for link in message["links"]]
+                await self.send(
+                    InformationalResponse(
+                        stream_id=self.stream_id,
+                        headers=headers,
+                        status_code=103,
                     )
                 )
             elif message["type"] == "http.response.body" and self.state in {

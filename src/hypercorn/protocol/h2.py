@@ -14,6 +14,7 @@ from .events import (
     EndBody,
     EndData,
     Event as StreamEvent,
+    InformationalResponse,
     Request,
     Response,
     StreamClosed,
@@ -194,7 +195,7 @@ class H2Protocol:
 
     async def stream_send(self, event: StreamEvent) -> None:
         try:
-            if isinstance(event, Response):
+            if isinstance(event, (InformationalResponse, Response)):
                 self.connection.send_headers(
                     event.stream_id,
                     [(b":status", b"%d" % event.status_code)]
