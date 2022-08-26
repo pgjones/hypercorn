@@ -57,6 +57,25 @@ async def test_protocol_send_response(protocol: H11Protocol) -> None:
 
 
 @pytest.mark.asyncio
+async def test_protocol_preserve_headers(protocol: H11Protocol) -> None:
+    await protocol.stream_send(
+        Response(stream_id=1, status_code=201, headers=[(b"X-Special", b"Value")])
+    )
+    protocol.send.assert_called()  # type: ignore
+    assert protocol.send.call_args_list == [  # type: ignore
+        call(
+            RawData(
+                data=(
+                    b"HTTP/1.1 201 \r\nX-Special: Value\r\n"
+                    b"date: Thu, 01 Jan 1970 01:23:20 GMT\r\n"
+                    b"server: hypercorn-h11\r\nConnection: close\r\n\r\n"
+                )
+            )
+        )
+    ]
+
+
+@pytest.mark.asyncio
 async def test_protocol_send_data(protocol: H11Protocol) -> None:
     await protocol.stream_send(Data(stream_id=1, data=b"hello"))
     protocol.send.assert_called()  # type: ignore
