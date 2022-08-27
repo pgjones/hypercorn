@@ -71,7 +71,7 @@ class FrameTooLargeError(Exception):
 
 
 def suppress_body(method: str, status_code: int) -> bool:
-    return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304, 412}
+    return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304}
 
 
 def build_and_validate_headers(headers: Iterable[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
