@@ -296,6 +296,7 @@ async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
             )
         )
     assert protocol.send.call_args_list == [  # type: ignore
+        call(Updated(idle=False)),
         call(
             RawData(
                 b"HTTP/1.1 101 \r\n"

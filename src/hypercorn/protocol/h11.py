@@ -161,9 +161,9 @@ class H11Protocol:
                 break
             else:
                 if isinstance(event, h11.Request):
+                    await self.send(Updated(idle=False))
                     await self._check_protocol(event)
                     await self._create_stream(event)
-                    await self.send(Updated(idle=False))
                 elif event is h11.PAUSED:
                     await self.can_read.clear()
                     await self.can_read.wait()
