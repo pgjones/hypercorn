@@ -306,7 +306,7 @@ async def test_protocol_handle_h2c_upgrade(protocol: H11Protocol) -> None:
                 b"upgrade: h2c\r\n"
                 b"\r\n"
             )
-        )
+        ),
     ]
     assert exc_info.value.data == b"bbb"
     assert exc_info.value.headers == [
