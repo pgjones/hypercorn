@@ -3,8 +3,8 @@ from __future__ import annotations
 import trio
 
 from ..config import Config
-from ..typing import ASGIFramework, ASGIReceiveEvent, ASGISendEvent, LifespanScope
-from ..utils import invoke_asgi, LifespanFailureError, LifespanTimeoutError
+from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope
+from ..utils import LifespanFailureError, LifespanTimeoutError
 
 
 class UnexpectedMessageError(Exception):
@@ -12,7 +12,7 @@ class UnexpectedMessageError(Exception):
 
 
 class Lifespan:
-    def __init__(self, app: ASGIFramework, config: Config) -> None:
+    def __init__(self, app: AppWrapper, config: Config) -> None:
         self.app = app
         self.config = config
         self.startup = trio.Event()
@@ -28,7 +28,7 @@ class Lifespan:
         task_status.started()
         scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
         try:
-            await invoke_asgi(self.app, scope, self.asgi_receive, self.asgi_send)
+            await self.app(scope, self.asgi_receive, self.asgi_send, trio.to_thread.run_sync)
         except LifespanFailureError:
             # Lifespan failures should crash the server
             raise

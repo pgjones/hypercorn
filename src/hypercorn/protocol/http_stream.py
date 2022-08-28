@@ -8,7 +8,7 @@ from urllib.parse import unquote
 from .events import Body, EndBody, Event, InformationalResponse, Request, Response, StreamClosed
 from ..config import Config
 from ..typing import (
-    ASGIFramework,
+    AppWrapper,
     ASGISendEvent,
     HTTPResponseStartEvent,
     HTTPScope,
@@ -38,7 +38,7 @@ class ASGIHTTPState(Enum):
 class HTTPStream:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
@@ -76,7 +76,7 @@ class HTTPStream:
             self.scope = {
                 "type": "http",
                 "http_version": event.http_version,
-                "asgi": {"spec_version": "2.1"},
+                "asgi": {"spec_version": "2.1", "version": "3.0"},
                 "method": event.method,
                 "scheme": self.scheme,
                 "path": unquote(path.decode("ascii")),

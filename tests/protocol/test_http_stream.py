@@ -49,7 +49,7 @@ async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> N
     assert scope == {
         "type": "http",
         "http_version": http_version,
-        "asgi": {"spec_version": "2.1"},
+        "asgi": {"spec_version": "2.1", "version": "3.0"},
         "method": "GET",
         "scheme": "http",
         "path": "/",
@@ -73,7 +73,7 @@ async def test_handle_request_http_2(stream: HTTPStream) -> None:
     assert scope == {
         "type": "http",
         "http_version": "2",
-        "asgi": {"spec_version": "2.1"},
+        "asgi": {"spec_version": "2.1", "version": "3.0"},
         "method": "GET",
         "scheme": "http",
         "path": "/",

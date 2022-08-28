@@ -2,23 +2,24 @@ from __future__ import annotations
 
 import asyncio
 import weakref
+from functools import partial
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Optional
 
 from ..config import Config
-from ..typing import ASGIFramework, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
-from ..utils import invoke_asgi
+from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
 
 
 async def _handle(
-    app: ASGIFramework,
+    app: AppWrapper,
     config: Config,
     scope: Scope,
     receive: ASGIReceiveCallable,
     send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+    sync_spawn: Callable,
 ) -> None:
     try:
-        await invoke_asgi(app, scope, receive, send)
+        await app(scope, receive, send, sync_spawn)
     except asyncio.CancelledError:
         raise
     except Exception:
@@ -35,13 +36,21 @@ class TaskGroup:
 
     async def spawn_app(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         scope: Scope,
         send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_queue: asyncio.Queue[ASGIReceiveEvent] = asyncio.Queue(config.max_app_queue_size)
-        self.spawn(_handle, app, config, scope, app_queue.get, send)
+        self.spawn(
+            _handle,
+            app,
+            config,
+            scope,
+            app_queue.get,
+            send,
+            partial(self._loop.run_in_executor, None),
+        )
         return app_queue.put
 
     def spawn(self, func: Callable, *args: Any) -> None:

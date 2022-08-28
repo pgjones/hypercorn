@@ -23,7 +23,7 @@ from wsproto.utilities import generate_accept_token, split_comma_header
 from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
 from ..typing import (
-    ASGIFramework,
+    AppWrapper,
     ASGISendEvent,
     TaskGroup,
     WebsocketAcceptEvent,
@@ -163,7 +163,7 @@ class WebsocketBuffer:
 class WSStream:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
@@ -207,7 +207,7 @@ class WSStream:
             path, _, query_string = event.raw_path.partition(b"?")
             self.scope = {
                 "type": "websocket",
-                "asgi": {"spec_version": "2.3"},
+                "asgi": {"spec_version": "2.3", "version": "3.0"},
                 "scheme": self.scheme,
                 "http_version": event.http_version,
                 "path": unquote(path.decode("ascii")),

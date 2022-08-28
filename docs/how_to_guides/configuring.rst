@@ -163,4 +163,6 @@ worker_class               ``-k``, ``--worker-class``    The type of worker to u
                                                          hypercorn[uvloop]), and trio (pip install
                                                          hypercorn[trio]).
 workers                    ``-w``, ``--workers``         The number of workers to spawn and use.
+wsgi_max_body_size         N/A                           The maximum size of a body that will be
+                                                         accepted in WSGI mode.
 ========================== ============================= ==========================================

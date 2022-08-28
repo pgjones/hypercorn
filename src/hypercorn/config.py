@@ -102,6 +102,7 @@ class Config:
     websocket_ping_interval: Optional[float] = None
     worker_class = "asyncio"
     workers = 1
+    wsgi_max_body_size = 16 * 1024 * 1024 * BYTES
 
     def set_cert_reqs(self, value: int) -> None:
         warnings.warn("Please use verify_mode instead", Warning)

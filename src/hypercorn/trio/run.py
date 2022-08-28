@@ -12,7 +12,7 @@ from .tcp_server import TCPServer
 from .udp_server import UDPServer
 from .worker_context import WorkerContext
 from ..config import Config, Sockets
-from ..typing import ASGIFramework
+from ..typing import AppWrapper
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
@@ -26,7 +26,7 @@ from ..utils import (
 
 
 async def worker_serve(
-    app: ASGIFramework,
+    app: AppWrapper,
     config: Config,
     *,
     sockets: Optional[Sockets] = None,
@@ -121,7 +121,7 @@ def trio_worker(
             sock.listen(config.backlog)
         for sock in sockets.insecure_sockets:
             sock.listen(config.backlog)
-    app = load_application(config.application_path)
+    app = load_application(config.application_path, config.wsgi_max_body_size)
 
     shutdown_trigger = None
     if shutdown_event is not None:

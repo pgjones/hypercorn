@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 
 from ..config import Config
-from ..typing import ASGIFramework, ASGIReceiveEvent, ASGISendEvent, LifespanScope
-from ..utils import invoke_asgi, LifespanFailureError, LifespanTimeoutError
+from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope
+from ..utils import LifespanFailureError, LifespanTimeoutError
 
 
 class UnexpectedMessageError(Exception):
@@ -12,13 +13,14 @@ class UnexpectedMessageError(Exception):
 
 
 class Lifespan:
-    def __init__(self, app: ASGIFramework, config: Config) -> None:
+    def __init__(self, app: AppWrapper, config: Config, loop: asyncio.AbstractEventLoop) -> None:
         self.app = app
         self.config = config
         self.startup = asyncio.Event()
         self.shutdown = asyncio.Event()
         self.app_queue: asyncio.Queue = asyncio.Queue(config.max_app_queue_size)
         self.supported = True
+        self.loop = loop
 
         # This mimics the Trio nursery.start task_status and is
         # required to ensure the support has been checked before
@@ -29,7 +31,9 @@ class Lifespan:
         self._started.set()
         scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
         try:
-            await invoke_asgi(self.app, scope, self.asgi_receive, self.asgi_send)
+            await self.app(
+                scope, self.asgi_receive, self.asgi_send, partial(self.loop.run_in_executor, None)
+            )
         except LifespanFailureError:
             # Lifespan failures should crash the server
             raise

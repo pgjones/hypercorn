@@ -17,7 +17,7 @@ from .tcp_server import TCPServer
 from .udp_server import UDPServer
 from .worker_context import WorkerContext
 from ..config import Config, Sockets
-from ..typing import ASGIFramework
+from ..typing import AppWrapper
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
@@ -48,7 +48,7 @@ def _share_socket(sock: socket) -> socket:
 
 
 async def worker_serve(
-    app: ASGIFramework,
+    app: AppWrapper,
     config: Config,
     *,
     sockets: Optional[Sockets] = None,
@@ -74,7 +74,7 @@ async def worker_serve(
 
         shutdown_trigger = signal_event.wait  # type: ignore
 
-    lifespan = Lifespan(app, config)
+    lifespan = Lifespan(app, config, loop)
     reload_ = False
 
     lifespan_task = loop.create_task(lifespan.handle_lifespan())
@@ -188,7 +188,7 @@ async def worker_serve(
 def asyncio_worker(
     config: Config, sockets: Optional[Sockets] = None, shutdown_event: Optional[EventType] = None
 ) -> None:
-    app = load_application(config.application_path)
+    app = load_application(config.application_path, config.wsgi_max_body_size)
 
     shutdown_trigger = None
     if shutdown_event is not None:
@@ -214,7 +214,7 @@ def uvloop_worker(
     else:
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-    app = load_application(config.application_path)
+    app = load_application(config.application_path, config.wsgi_max_body_size)
 
     shutdown_trigger = None
     if shutdown_event is not None:

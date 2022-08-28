@@ -188,7 +188,7 @@ async def test_handle_request(stream: WSStream) -> None:
     scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
     assert scope == {
         "type": "websocket",
-        "asgi": {"spec_version": "2.3"},
+        "asgi": {"spec_version": "2.3", "version": "3.0"},
         "scheme": "ws",
         "http_version": "2",
         "path": "/",

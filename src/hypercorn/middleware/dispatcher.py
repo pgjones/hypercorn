@@ -6,7 +6,6 @@ from typing import Callable, Dict
 
 from ..asyncio.task_group import TaskGroup
 from ..typing import ASGIFramework, Scope
-from ..utils import invoke_asgi
 
 MAX_QUEUE_SIZE = 10
 
@@ -22,7 +21,7 @@ class _DispatcherMiddleware:
             for path, app in self.mounts.items():
                 if scope["path"].startswith(path):
                     scope["path"] = scope["path"][len(path) :] or "/"
-                    return await invoke_asgi(app, scope, receive, send)
+                    return await app(scope, receive, send)
             await send(
                 {
                     "type": "http.response.start",
@@ -47,7 +46,6 @@ class AsyncioDispatcherMiddleware(_DispatcherMiddleware):
         async with TaskGroup(asyncio.get_event_loop()) as task_group:
             for path, app in self.mounts.items():
                 task_group.spawn(
-                    invoke_asgi,
                     app,
                     scope,
                     self.app_queues[path].get,
@@ -83,7 +81,6 @@ class TrioDispatcherMiddleware(_DispatcherMiddleware):
         async with trio.open_nursery() as nursery:
             for path, app in self.mounts.items():
                 nursery.start_soon(
-                    invoke_asgi,
                     app,
                     scope,
                     self.app_queues[path][1].receive,

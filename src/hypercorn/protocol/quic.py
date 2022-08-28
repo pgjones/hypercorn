@@ -22,13 +22,13 @@ from aioquic.quic.packet import (
 from .h3 import H3Protocol
 from ..config import Config
 from ..events import Closed, Event, RawData
-from ..typing import ASGIFramework, TaskGroup, WorkerContext
+from ..typing import AppWrapper, TaskGroup, WorkerContext
 
 
 class QuicProtocol:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,

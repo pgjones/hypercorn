@@ -6,13 +6,13 @@ from .h2 import H2Protocol
 from .h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
 from ..config import Config
 from ..events import Event, RawData
-from ..typing import ASGIFramework, TaskGroup, WorkerContext
+from ..typing import AppWrapper, TaskGroup, WorkerContext
 
 
 class ProtocolWrapper:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,

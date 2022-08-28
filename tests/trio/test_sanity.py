@@ -8,6 +8,7 @@ import pytest
 import trio
 import wsproto
 
+from hypercorn.app_wrappers import ASGIWrapper
 from hypercorn.config import Config
 from hypercorn.trio.tcp_server import TCPServer
 from hypercorn.trio.worker_context import WorkerContext
@@ -24,7 +25,7 @@ except ImportError:
 async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
     server_stream.socket = MockSocket()
-    server = TCPServer(sanity_framework, Config(), WorkerContext(), server_stream)
+    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(), server_stream)
     nursery.start_soon(server.run)
     client = h11.Connection(h11.CLIENT)
     await client_stream.send_all(
@@ -75,7 +76,7 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
 async def test_http1_websocket(nursery: trio._core._run.Nursery) -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
     server_stream.socket = MockSocket()
-    server = TCPServer(sanity_framework, Config(), WorkerContext(), server_stream)
+    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(), server_stream)
     nursery.start_soon(server.run)
     client = wsproto.WSConnection(wsproto.ConnectionType.CLIENT)
     await client_stream.send_all(client.send(wsproto.events.Request(host="hypercorn", target="/")))
@@ -102,7 +103,7 @@ async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
     server_stream.transport_stream = Mock(return_value=PropertyMock(return_value=MockSocket()))
     server_stream.do_handshake = AsyncMock()
     server_stream.selected_alpn_protocol = Mock(return_value="h2")
-    server = TCPServer(sanity_framework, Config(), WorkerContext(), server_stream)
+    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(), server_stream)
     nursery.start_soon(server.run)
     client = h2.connection.H2Connection()
     client.initiate_connection()
@@ -157,7 +158,7 @@ async def test_http2_websocket(nursery: trio._core._run.Nursery) -> None:
     server_stream.transport_stream = Mock(return_value=PropertyMock(return_value=MockSocket()))
     server_stream.do_handshake = AsyncMock()
     server_stream.selected_alpn_protocol = Mock(return_value="h2")
-    server = TCPServer(sanity_framework, Config(), WorkerContext(), server_stream)
+    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(), server_stream)
     nursery.start_soon(server.run)
     h2_client = h2.connection.H2Connection()
     h2_client.initiate_connection()

@@ -7,7 +7,7 @@ from .task_group import TaskGroup
 from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Event, RawData
-from ..typing import ASGIFramework
+from ..typing import AppWrapper
 from ..utils import parse_socket_addr
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class UDPServer(asyncio.DatagramProtocol):
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         loop: asyncio.AbstractEventLoop,
         config: Config,
         context: WorkerContext,

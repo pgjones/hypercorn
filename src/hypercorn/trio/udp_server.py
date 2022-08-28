@@ -6,7 +6,7 @@ from .task_group import TaskGroup
 from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Event, RawData
-from ..typing import ASGIFramework
+from ..typing import AppWrapper
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
@@ -15,7 +15,7 @@ MAX_RECV = 2**16
 class UDPServer:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         socket: trio.socket.socket,

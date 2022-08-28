@@ -6,6 +6,7 @@ from typing import Awaitable, Callable, Optional
 import trio
 
 from .run import worker_serve
+from ..app_wrappers import ASGIWrapper
 from ..config import Config
 from ..typing import ASGIFramework
 
@@ -41,4 +42,6 @@ async def serve(
     if config.workers != 1:
         warnings.warn("The config `workers` has no affect when using serve", Warning)
 
-    await worker_serve(app, config, shutdown_trigger=shutdown_trigger, task_status=task_status)
+    await worker_serve(
+        ASGIWrapper(app), config, shutdown_trigger=shutdown_trigger, task_status=task_status
+    )

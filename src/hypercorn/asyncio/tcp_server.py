@@ -9,7 +9,7 @@ from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
-from ..typing import ASGIFramework
+from ..typing import AppWrapper
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
@@ -18,7 +18,7 @@ MAX_RECV = 2**16
 class TCPServer:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         loop: asyncio.AbstractEventLoop,
         config: Config,
         context: WorkerContext,

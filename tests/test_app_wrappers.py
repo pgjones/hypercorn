@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from functools import partial
 from typing import Callable, List
 
 import pytest
 import trio
 
-from hypercorn.middleware import AsyncioWSGIMiddleware, TrioWSGIMiddleware
-from hypercorn.middleware.wsgi import _build_environ, InvalidPathError
-from hypercorn.typing import HTTPScope
+from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
+from hypercorn.typing import ASGISendEvent, HTTPScope
 
 
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
@@ -24,7 +24,7 @@ def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
 
 @pytest.mark.trio
 async def test_wsgi_trio() -> None:
-    middleware = TrioWSGIMiddleware(echo_body)
+    app = WSGIWrapper(echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -45,11 +45,11 @@ async def test_wsgi_trio() -> None:
 
     messages = []
 
-    async def _send(message: dict) -> None:
+    async def _send(message: ASGISendEvent) -> None:
         nonlocal messages
         messages.append(message)
 
-    await middleware(scope, receive_channel.receive, _send)
+    await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync)
     assert messages == [
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
@@ -61,8 +61,8 @@ async def test_wsgi_trio() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wsgi_asyncio() -> None:
-    middleware = AsyncioWSGIMiddleware(echo_body)
+async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
+    app = WSGIWrapper(echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -83,11 +83,11 @@ async def test_wsgi_asyncio() -> None:
 
     messages = []
 
-    async def _send(message: dict) -> None:
+    async def _send(message: ASGISendEvent) -> None:
         nonlocal messages
         messages.append(message)
 
-    await middleware(scope, queue.get, _send)
+    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None))
     assert messages == [
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
@@ -99,8 +99,8 @@ async def test_wsgi_asyncio() -> None:
 
 
 @pytest.mark.asyncio
-async def test_max_body_size() -> None:
-    middleware = AsyncioWSGIMiddleware(echo_body, max_body_size=4)
+async def test_max_body_size(event_loop: asyncio.AbstractEventLoop) -> None:
+    app = WSGIWrapper(echo_body, 4)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -120,11 +120,11 @@ async def test_max_body_size() -> None:
     await queue.put({"type": "http.request", "body": b"abcde"})
     messages = []
 
-    async def _send(message: dict) -> None:
+    async def _send(message: ASGISendEvent) -> None:
         nonlocal messages
         messages.append(message)
 
-    await middleware(scope, queue.get, _send)
+    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None))
     assert messages == [
         {"headers": [], "status": 400, "type": "http.response.start"},
         {"body": bytearray(b""), "type": "http.response.body"},

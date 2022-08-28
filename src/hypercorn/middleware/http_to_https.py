@@ -4,7 +4,6 @@ from typing import Callable, Optional
 from urllib.parse import urlunsplit
 
 from ..typing import ASGIFramework, HTTPScope, Scope, WebsocketScope, WWWScope
-from ..utils import invoke_asgi
 
 
 class HTTPToHTTPSRedirectMiddleware:
@@ -24,7 +23,7 @@ class HTTPToHTTPSRedirectMiddleware:
             else:
                 await send({"type": "websocket.close"})
         else:
-            return await invoke_asgi(self.app, scope, receive, send)
+            return await self.app(scope, receive, send)
 
     async def _send_http_redirect(self, scope: HTTPScope, send: Callable) -> None:
         new_url = self._new_url("https", scope)

@@ -22,14 +22,14 @@ from .events import (
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
-from ..typing import ASGIFramework, TaskGroup, WorkerContext
+from ..typing import AppWrapper, TaskGroup, WorkerContext
 from ..utils import filter_pseudo_headers
 
 
 class H3Protocol:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,

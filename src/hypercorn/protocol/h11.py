@@ -20,7 +20,7 @@ from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
-from ..typing import ASGIFramework, H11SendableEvent, TaskGroup, WorkerContext
+from ..typing import AppWrapper, H11SendableEvent, TaskGroup, WorkerContext
 
 STREAM_ID = 1
 
@@ -80,7 +80,7 @@ class H11WSConnection:
 class H11Protocol:
     def __init__(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,

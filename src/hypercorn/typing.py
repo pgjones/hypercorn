@@ -202,19 +202,7 @@ ASGISendEvent = Union[
 ASGIReceiveCallable = Callable[[], Awaitable[ASGIReceiveEvent]]
 ASGISendCallable = Callable[[ASGISendEvent], Awaitable[None]]
 
-
-class ASGI2Protocol(Protocol):
-    # Should replace with a Protocol when PEP 544 is accepted.
-
-    def __init__(self, scope: Scope) -> None:
-        ...
-
-    async def __call__(self, receive: ASGIReceiveCallable, send: ASGISendCallable) -> None:
-        ...
-
-
-ASGI2Framework = Type[ASGI2Protocol]
-ASGI3Framework = Callable[
+ASGIFramework = Callable[
     [
         Scope,
         ASGIReceiveCallable,
@@ -222,7 +210,8 @@ ASGI3Framework = Callable[
     ],
     Awaitable[None],
 ]
-ASGIFramework = Union[ASGI2Framework, ASGI3Framework]
+WSGIFramework = Callable[[dict, Callable], Iterable[bytes]]
+Framework = Union[ASGIFramework, WSGIFramework]
 
 
 class H2SyncStream(Protocol):
@@ -308,7 +297,7 @@ class WorkerContext(Protocol):
 class TaskGroup(Protocol):
     async def spawn_app(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         scope: Scope,
         send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
@@ -328,3 +317,14 @@ class TaskGroup(Protocol):
 class ResponseSummary(TypedDict):
     status: int
     headers: Iterable[Tuple[bytes, bytes]]
+
+
+class AppWrapper(Protocol):
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: ASGIReceiveCallable,
+        send: ASGISendCallable,
+        sync_spawn: Callable,
+    ) -> None:
+        ...

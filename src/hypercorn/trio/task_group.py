@@ -6,19 +6,19 @@ from typing import Any, Awaitable, Callable, Optional
 import trio
 
 from ..config import Config
-from ..typing import ASGIFramework, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
-from ..utils import invoke_asgi
+from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
 
 
 async def _handle(
-    app: ASGIFramework,
+    app: AppWrapper,
     config: Config,
     scope: Scope,
     receive: ASGIReceiveCallable,
     send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+    sync_spawn: Callable,
 ) -> None:
     try:
-        await invoke_asgi(app, scope, receive, send)
+        await app(scope, receive, send, sync_spawn)
     except trio.Cancelled:
         raise
     except trio.MultiError as error:
@@ -43,13 +43,15 @@ class TaskGroup:
 
     async def spawn_app(
         self,
-        app: ASGIFramework,
+        app: AppWrapper,
         config: Config,
         scope: Scope,
         send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_send_channel, app_receive_channel = trio.open_memory_channel(config.max_app_queue_size)
-        self._nursery.start_soon(_handle, app, config, scope, app_receive_channel.receive, send)
+        self._nursery.start_soon(
+            _handle, app, config, scope, app_receive_channel.receive, send, trio.to_thread.run_sync
+        )
         return app_send_channel.send
 
     def spawn(self, func: Callable, *args: Any) -> None:
