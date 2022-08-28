@@ -1,4 +1,4 @@
-async def __call__(scope, receive, send):
+async def app(scope, receive, send):
     while True:
         event = await receive()
         if event['type'] == 'websocket.disconnect':
