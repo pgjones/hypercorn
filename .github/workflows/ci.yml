@@ -67,7 +67,7 @@ jobs:
 
       - name: Run server
         working-directory: compliance/h2spec
-        run: nohup hypercorn --keyfile key.pem --certfile cert.pem -k ${{ matrix.worker }} server:App &
+        run: nohup hypercorn --keyfile key.pem --certfile cert.pem -k ${{ matrix.worker }} server:app &
 
       - name: Download h2spec
         run: |
@@ -103,7 +103,7 @@ jobs:
 
       - name: Run server
         working-directory: compliance/autobahn
-        run: nohup hypercorn -k ${{ matrix.worker }} server:App &
+        run: nohup hypercorn -k ${{ matrix.worker }} server:app &
 
       - name: Run server
         working-directory: compliance/autobahn
