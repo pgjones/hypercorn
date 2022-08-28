@@ -68,10 +68,10 @@ p            process ID
 {Variable}e  environment variable
 ===========  ===========
 
-Customising the access logger
------------------------------
+Customising the logger
+----------------------
 
-The acces logger class can be customised by changing the
-``access_logger_class`` attribute of the ``Config`` class. This is
-only possible when using the python based configuration file. The
-``hypercorn.logging.AccessLogger`` class is used by default.
+The logger class can be customised by changing the ``logger_class``
+attribute of the ``Config`` class. This is only possible when using
+the python based configuration file. The
+``hypercorn.logging.Logger`` class is used by default.
