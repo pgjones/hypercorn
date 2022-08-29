@@ -21,11 +21,8 @@ from ..typing import AppWrapper
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
-    MustReloadError,
-    observe_changes,
     raise_shutdown,
     repr_socket_addr,
-    restart,
     ShutdownError,
 )
 
@@ -75,7 +72,6 @@ async def worker_serve(
         shutdown_trigger = signal_event.wait  # type: ignore
 
     lifespan = Lifespan(app, config, loop)
-    reload_ = False
 
     lifespan_task = loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
@@ -143,17 +139,12 @@ async def worker_serve(
 
     tasks.append(loop.create_task(raise_shutdown(shutdown_trigger)))
 
-    if config.use_reloader:
-        tasks.append(loop.create_task(observe_changes(asyncio.sleep)))
-
     try:
         if len(tasks):
             gathered_tasks = asyncio.gather(*tasks)
             await gathered_tasks
         else:
             loop.run_forever()
-    except MustReloadError:
-        reload_ = True
     except (ShutdownError, KeyboardInterrupt):
         pass
     finally:
@@ -180,9 +171,6 @@ async def worker_serve(
             await lifespan.wait_for_shutdown()
             lifespan_task.cancel()
             await lifespan_task
-
-    if reload_:
-        restart()
 
 
 def asyncio_worker(

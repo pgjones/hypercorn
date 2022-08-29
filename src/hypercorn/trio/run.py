@@ -16,11 +16,8 @@ from ..typing import AppWrapper
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
-    MustReloadError,
-    observe_changes,
     raise_shutdown,
     repr_socket_addr,
-    restart,
     ShutdownError,
 )
 
@@ -36,7 +33,6 @@ async def worker_serve(
     config.set_statsd_logger_class(StatsdLogger)
 
     lifespan = Lifespan(app, config)
-    reload_ = False
     context = WorkerContext()
 
     async with trio.open_nursery() as lifespan_nursery:
@@ -80,9 +76,6 @@ async def worker_serve(
             task_status.started(binds)
             try:
                 async with trio.open_nursery() as nursery:
-                    if config.use_reloader:
-                        nursery.start_soon(observe_changes, trio.sleep)
-
                     if shutdown_trigger is not None:
                         nursery.start_soon(raise_shutdown, shutdown_trigger)
 
@@ -96,10 +89,6 @@ async def worker_serve(
                     )
 
                     await trio.sleep_forever()
-            except trio.MultiError as error:
-                reload_ = any(isinstance(exc, MustReloadError) for exc in error.exceptions)
-            except MustReloadError:
-                reload_ = True
             except (ShutdownError, KeyboardInterrupt):
                 pass
             finally:
@@ -108,9 +97,6 @@ async def worker_serve(
 
         await lifespan.wait_for_shutdown()
         lifespan_nursery.cancel_scope.cancel()
-
-    if reload_:
-        restart()
 
 
 def trio_worker(
