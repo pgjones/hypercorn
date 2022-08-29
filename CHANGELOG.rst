@@ -1,3 +1,23 @@
+0.14.0 2022-08-29
+-----------------
+
+* Bugfix only recycle a HTTP/1.1 connection if client is DONE.
+* Bugfix uvloop may raise a RuntimeError.
+* Bugfix ensure 100ms sleep between Windows workers starting.
+* Bugfix ensure lifespan shutdowns occur.
+* Bugfix close idle Keep-Alive connections on graceful exit.
+* Bugfix don't suppress 412 bodies.
+* Bugfix don't idle close upgrade requests.
+* Allow control over date header addition.
+* Allow for logging configuration to be loaded from JSON or TOML
+  files.
+* Preserve response headers casing for HTTP/1.
+* Support the early hint ASGI-extension.
+* Alter the process and reloading system such that it should work
+  correctly in all configurations.
+* Directly support serving WSGI applications (and drop support for
+  ASGI-2, now ASGI-3 only).
+
 0.13.2 2021-12-23
 -----------------
 
