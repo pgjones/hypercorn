@@ -18,8 +18,8 @@ Config instance,
     config = Config()
     config.bind = ["localhost:8080"]  # As an example configuration setting
 
-Then assuming you have an ASGI framework instance called ``app``,
-using asyncio,
+Then assuming you have an ASGI or WSGI framework instance called
+``app``, using asyncio,
 
 .. code-block:: python
 
@@ -115,3 +115,10 @@ exception handler,
             loop.default_exception_handler(context)
 
     loop.set_exception_handler(_exception_handler)
+
+Forcing ASGI or WSGI mode
+-------------------------
+
+The ``serve`` function takes a ``mode`` argument that can be
+``"asgi"`` or ``"wsgi"`` to force the app to be considered ASGI or
+WSGI as required.

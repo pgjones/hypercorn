@@ -9,11 +9,23 @@ from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    cast,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from .app_wrappers import ASGIWrapper, WSGIWrapper
 from .config import Config
-from .typing import AppWrapper
+from .typing import AppWrapper, ASGIFramework, Framework, WSGIFramework
 
 if TYPE_CHECKING:
     from .protocol.events import Request
@@ -79,11 +91,11 @@ def filter_pseudo_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[byte
 
 
 def load_application(path: str, wsgi_max_body_size: int) -> AppWrapper:
-    mode = None
+    mode: Optional[Literal["asgi", "wsgi"]] = None
     if ":" not in path:
         module_name, app_name = path, "app"
     elif path.count(":") == 2:
-        mode, module_name, app_name = path.split(":", 2)
+        mode, module_name, app_name = path.split(":", 2)  # type: ignore
         if mode not in {"asgi", "wsgi"}:
             raise ValueError("Invalid mode, must be 'asgi', or 'wsgi'")
     else:
@@ -107,12 +119,18 @@ def load_application(path: str, wsgi_max_body_size: int) -> AppWrapper:
     except NameError:
         raise NoAppError()
     else:
-        if mode is None:
-            mode = "asgi" if is_asgi(app) else "wsgi"
-        if mode == "asgi":
-            return ASGIWrapper(app)
-        else:
-            return WSGIWrapper(app, wsgi_max_body_size)
+        return wrap_app(app, wsgi_max_body_size, mode)
+
+
+def wrap_app(
+    app: Framework, wsgi_max_body_size: int, mode: Optional[Literal["asgi", "wsgi"]]
+) -> AppWrapper:
+    if mode is None:
+        mode = "asgi" if is_asgi(app) else "wsgi"
+    if mode == "asgi":
+        return ASGIWrapper(cast(ASGIFramework, app))
+    else:
+        return WSGIWrapper(cast(WSGIFramework, app), wsgi_max_body_size)
 
 
 def wait_for_changes(shutdown_event: EventType) -> None:
