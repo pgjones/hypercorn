@@ -17,7 +17,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Literal,
     Optional,
     Tuple,
     TYPE_CHECKING,
@@ -26,6 +25,11 @@ from typing import (
 from .app_wrappers import ASGIWrapper, WSGIWrapper
 from .config import Config
 from .typing import AppWrapper, ASGIFramework, Framework, WSGIFramework
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # type: ignore
 
 if TYPE_CHECKING:
     from .protocol.events import Request
