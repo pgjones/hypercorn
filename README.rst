@@ -7,13 +7,13 @@ Hypercorn
 |Build Status| |docs| |pypi| |http| |python| |license|
 
 Hypercorn is an `ASGI
-<https://github.com/django/asgiref/blob/main/specs/asgi.rst>`_ web
-server based on the sans-io hyper, `h11
+<https://github.com/django/asgiref/blob/main/specs/asgi.rst>`_ and
+WSGI web server based on the sans-io hyper, `h11
 <https://github.com/python-hyper/h11>`_, `h2
 <https://github.com/python-hyper/hyper-h2>`_, and `wsproto
 <https://github.com/python-hyper/wsproto>`_ libraries and inspired by
 Gunicorn. Hypercorn supports HTTP/1, HTTP/2, WebSockets (over HTTP/1
-and HTTP/2), ASGI/2, and ASGI/3 specifications. Hypercorn can utilise
+and HTTP/2), ASGI, and WSGI specifications. Hypercorn can utilise
 asyncio, uvloop, or trio worker types.
 
 Hypercorn can optionally serve the current draft of the HTTP/3
@@ -25,7 +25,7 @@ choose a quic binding e.g. ``hypercorn --quic-bind localhost:4433
 
 Hypercorn was initially part of `Quart
 <https://github.com/pgjones/quart>`_ before being separated out into a
-standalone ASGI server. Hypercorn forked from version 0.5.0 of Quart.
+standalone server. Hypercorn forked from version 0.5.0 of Quart.
 
 Quickstart
 ----------
