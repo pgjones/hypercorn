@@ -34,6 +34,10 @@ def run(config: Config) -> None:
 
     sockets = config.create_sockets()
 
+    # Load the application so that the correct paths are checked for
+    # changes.
+    load_application(config.application_path, config.wsgi_max_body_size)
+
     active = True
     while active:
         # Ignore SIGINT before creating the processes, so that they
@@ -54,10 +58,6 @@ def run(config: Config) -> None:
                 signal.signal(getattr(signal, signal_name), shutdown)
 
         if config.use_reloader:
-            # Reload the application so that the correct (new) paths
-            # are checked for changes.
-            load_application(config.application_path, config.wsgi_max_body_size)
-
             wait_for_changes(shutdown_event)
             shutdown_event.set()
         else:
