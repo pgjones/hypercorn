@@ -29,7 +29,10 @@ class Lifespan:
 
     async def handle_lifespan(self) -> None:
         self._started.set()
-        scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
+        scope: LifespanScope = {
+            "type": "lifespan",
+            "asgi": {"spec_version": "2.0", "version": "3.0"},
+        }
         try:
             await self.app(
                 scope, self.asgi_receive, self.asgi_send, partial(self.loop.run_in_executor, None)

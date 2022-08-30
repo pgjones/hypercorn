@@ -26,7 +26,10 @@ class Lifespan:
         self, *, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
     ) -> None:
         task_status.started()
-        scope: LifespanScope = {"type": "lifespan", "asgi": {"spec_version": "2.0"}}
+        scope: LifespanScope = {
+            "type": "lifespan",
+            "asgi": {"spec_version": "2.0", "version": "3.0"},
+        }
         try:
             await self.app(scope, self.asgi_receive, self.asgi_send, trio.to_thread.run_sync)
         except LifespanFailureError:
