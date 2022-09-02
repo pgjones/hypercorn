@@ -128,7 +128,7 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         default=sentinel,
     )
     parser.add_argument(
-        "--log-level", help="The (error) log level, defaults to info", default="INFO"
+        "--log-level", help="The (error) log level, defaults to info", default=sentinel
     )
     parser.add_argument(
         "-p", "--pid", help="Location to write the PID (Program ID) to.", default=sentinel
@@ -205,8 +205,9 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     args = parser.parse_args(sys_args or sys.argv[1:])
     config = _load_config(args.config)
     config.application_path = args.application
-    config.loglevel = args.log_level
 
+    if args.log_level is not sentinel:
+        config.loglevel = args.log_level
     if args.access_logformat is not sentinel:
         config.access_log_format = args.access_logformat
     if args.access_log is not sentinel:
