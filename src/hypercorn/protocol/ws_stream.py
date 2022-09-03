@@ -102,7 +102,7 @@ class Handshake:
     ) -> Tuple[int, List[Tuple[bytes, bytes]], Connection]:
         headers = []
         if subprotocol is not None:
-            if subprotocol not in self.subprotocols:
+            if self.subprotocols is None or subprotocol not in self.subprotocols:
                 raise Exception("Invalid Subprotocol")
             else:
                 headers.append((b"sec-websocket-protocol", subprotocol.encode()))
