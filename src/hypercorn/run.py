@@ -3,7 +3,9 @@ from __future__ import annotations
 import platform
 import signal
 import time
-from multiprocessing import Event, Process
+from multiprocessing import get_context
+from multiprocessing.context import BaseContext
+from multiprocessing.process import BaseProcess
 from multiprocessing.synchronize import Event as EventType
 from typing import Any, List
 
@@ -38,6 +40,8 @@ def run(config: Config) -> None:
     # changes.
     load_application(config.application_path, config.wsgi_max_body_size)
 
+    ctx = get_context("spawn")
+
     active = True
     while active:
         # Ignore SIGINT before creating the processes, so that they
@@ -45,8 +49,8 @@ def run(config: Config) -> None:
         # function controls the shutdown.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        shutdown_event = Event()
-        processes = start_processes(config, worker_func, sockets, shutdown_event)
+        shutdown_event = ctx.Event()
+        processes = start_processes(config, worker_func, sockets, shutdown_event, ctx)
 
         def shutdown(*args: Any) -> None:
             nonlocal active, shutdown_event
@@ -75,11 +79,15 @@ def run(config: Config) -> None:
 
 
 def start_processes(
-    config: Config, worker_func: WorkerFunc, sockets: Sockets, shutdown_event: EventType
-) -> List[Process]:
+    config: Config,
+    worker_func: WorkerFunc,
+    sockets: Sockets,
+    shutdown_event: EventType,
+    ctx: BaseContext,
+) -> List[BaseProcess]:
     processes = []
     for _ in range(config.workers):
-        process = Process(
+        process = ctx.Process(
             target=worker_func,
             kwargs={"config": config, "shutdown_event": shutdown_event, "sockets": sockets},
         )
