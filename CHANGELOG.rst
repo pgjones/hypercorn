@@ -1,3 +1,14 @@
+0.14.2 2022-09-03
+-----------------
+
+* Bugfix add missing ASGI version to lifespan scope.
+* Bugfix preserve the HTTP/1 request header casing through to the ASGI
+  app.
+* Bugifx ensure the config loglevel is respected.
+* Bugfix ensure new processes are spawned not forked.
+* Bugfix ignore dunder vars in config objects.
+* Bugfix clarify the subprotocol exception.
+
 0.14.1 2022-08-29
 -----------------
 
