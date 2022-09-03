@@ -391,6 +391,6 @@ class Config:
         mapping = {
             key: getattr(instance, key)
             for key in dir(instance)
-            if not isinstance(getattr(instance, key), types.ModuleType)
+            if not isinstance(getattr(instance, key), types.ModuleType) and not key.startswith("__")
         }
         return cls.from_mapping(mapping)
