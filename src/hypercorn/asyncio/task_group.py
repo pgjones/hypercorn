@@ -17,9 +17,10 @@ async def _handle(
     receive: ASGIReceiveCallable,
     send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     sync_spawn: Callable,
+    call_soon: Callable,
 ) -> None:
     try:
-        await app(scope, receive, send, sync_spawn)
+        await app(scope, receive, send, sync_spawn, call_soon)
     except asyncio.CancelledError:
         raise
     except Exception:
@@ -42,6 +43,11 @@ class TaskGroup:
         send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_queue: asyncio.Queue[ASGIReceiveEvent] = asyncio.Queue(config.max_app_queue_size)
+
+        def _call_soon(func: Callable, *args: Any) -> Any:
+            future = asyncio.run_coroutine_threadsafe(func(*args), self._loop)
+            return future.result()
+
         self.spawn(
             _handle,
             app,
@@ -50,6 +56,7 @@ class TaskGroup:
             app_queue.get,
             send,
             partial(self._loop.run_in_executor, None),
+            _call_soon,
         )
         return app_queue.put
 

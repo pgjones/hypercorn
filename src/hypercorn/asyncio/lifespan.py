@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
+from typing import Any, Callable
 
 from ..config import Config
 from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope
@@ -33,9 +34,18 @@ class Lifespan:
             "type": "lifespan",
             "asgi": {"spec_version": "2.0", "version": "3.0"},
         }
+
+        def _call_soon(func: Callable, *args: Any) -> Any:
+            future = asyncio.run_coroutine_threadsafe(func(*args), self.loop)
+            return future.result()
+
         try:
             await self.app(
-                scope, self.asgi_receive, self.asgi_send, partial(self.loop.run_in_executor, None)
+                scope,
+                self.asgi_receive,
+                self.asgi_send,
+                partial(self.loop.run_in_executor, None),
+                _call_soon,
             )
         except LifespanFailureError:
             # Lifespan failures should crash the server

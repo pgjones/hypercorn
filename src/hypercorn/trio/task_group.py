@@ -16,9 +16,10 @@ async def _handle(
     receive: ASGIReceiveCallable,
     send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     sync_spawn: Callable,
+    call_soon: Callable,
 ) -> None:
     try:
-        await app(scope, receive, send, sync_spawn)
+        await app(scope, receive, send, sync_spawn, call_soon)
     except trio.Cancelled:
         raise
     except trio.MultiError as error:
@@ -50,7 +51,14 @@ class TaskGroup:
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_send_channel, app_receive_channel = trio.open_memory_channel(config.max_app_queue_size)
         self._nursery.start_soon(
-            _handle, app, config, scope, app_receive_channel.receive, send, trio.to_thread.run_sync
+            _handle,
+            app,
+            config,
+            scope,
+            app_receive_channel.receive,
+            send,
+            trio.to_thread.run_sync,
+            trio.from_thread.run,
         )
         return app_send_channel.send
 

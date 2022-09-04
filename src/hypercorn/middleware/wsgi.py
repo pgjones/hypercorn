@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 
 from ..app_wrappers import WSGIWrapper
 from ..typing import ASGIReceiveCallable, ASGISendCallable, Scope, WSGIFramework
@@ -32,7 +32,12 @@ class AsyncioWSGIMiddleware(_WSGIMiddleware):
         self, scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
     ) -> None:
         loop = asyncio.get_event_loop()
-        await self.wsgi_app(scope, receive, send, partial(loop.run_in_executor, None))
+
+        def _call_soon(func: Callable, *args: Any) -> Any:
+            future = asyncio.run_coroutine_threadsafe(func(*args), loop)
+            return future.result()
+
+        await self.wsgi_app(scope, receive, send, partial(loop.run_in_executor, None), _call_soon)
 
 
 class TrioWSGIMiddleware(_WSGIMiddleware):
@@ -41,4 +46,4 @@ class TrioWSGIMiddleware(_WSGIMiddleware):
     ) -> None:
         import trio
 
-        await self.wsgi_app(scope, receive, send, trio.to_thread.run_sync)
+        await self.wsgi_app(scope, receive, send, trio.to_thread.run_sync, trio.from_thread.run)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import partial
 from io import BytesIO
 from typing import Callable, List, Optional, Tuple
 
@@ -27,6 +28,7 @@ class ASGIWrapper:
         receive: ASGIReceiveCallable,
         send: ASGISendCallable,
         sync_spawn: Callable,
+        call_soon: Callable,
     ) -> None:
         await self.app(scope, receive, send)
 
@@ -42,11 +44,10 @@ class WSGIWrapper:
         receive: ASGIReceiveCallable,
         send: ASGISendCallable,
         sync_spawn: Callable,
+        call_soon: Callable,
     ) -> None:
         if scope["type"] == "http":
-            status_code, headers, body = await self.handle_http(scope, receive, send, sync_spawn)
-            await send({"type": "http.response.start", "status": status_code, "headers": headers})  # type: ignore # noqa: E501
-            await send({"type": "http.response.body", "body": body})  # type: ignore
+            await self.handle_http(scope, receive, send, sync_spawn, call_soon)
         elif scope["type"] == "websocket":
             await send({"type": "websocket.close"})  # type: ignore
         elif scope["type"] == "lifespan":
@@ -60,24 +61,28 @@ class WSGIWrapper:
         receive: ASGIReceiveCallable,
         send: ASGISendCallable,
         sync_spawn: Callable,
-    ) -> Tuple[int, list, bytes]:
+        call_soon: Callable,
+    ) -> None:
         body = bytearray()
         while True:
             message = await receive()
             body.extend(message.get("body", b""))  # type: ignore
             if len(body) > self.max_body_size:
-                return 400, [], b""
+                await send({"type": "http.response.start", "status": 400, "headers": []})  # type: ignore # noqa: E501
+                await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore # noqa: E501
+                return
             if not message.get("more_body"):
                 break
 
         try:
             environ = _build_environ(scope, body)
         except InvalidPathError:
-            return 404, [], b""
+            await send({"type": "http.response.start", "status": 404, "headers": []})  # type: ignore # noqa: E501
         else:
-            return await sync_spawn(self.run_app, environ)
+            await sync_spawn(self.run_app, environ, partial(call_soon, send))
+        await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore
 
-    def run_app(self, environ: dict) -> Tuple[int, list, bytes]:
+    def run_app(self, environ: dict, send: Callable) -> None:
         headers: List[Tuple[bytes, bytes]]
         status_code: Optional[int] = None
 
@@ -94,11 +99,10 @@ class WSGIWrapper:
                 (name.lower().encode("ascii"), value.encode("ascii"))
                 for name, value in response_headers
             ]
+            send({"type": "http.response.start", "status": status_code, "headers": headers})
 
-        body = bytearray()
         for output in self.app(environ, start_response):
-            body.extend(output)
-        return status_code, headers, body
+            send({"type": "http.response.body", "body": output, "more_body": True})
 
 
 def _build_environ(scope: HTTPScope, body: bytes) -> dict:

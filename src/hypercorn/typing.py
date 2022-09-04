@@ -326,5 +326,6 @@ class AppWrapper(Protocol):
         receive: ASGIReceiveCallable,
         send: ASGISendCallable,
         sync_spawn: Callable,
+        call_soon: Callable,
     ) -> None:
         ...

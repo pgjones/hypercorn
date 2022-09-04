@@ -31,7 +31,13 @@ class Lifespan:
             "asgi": {"spec_version": "2.0", "version": "3.0"},
         }
         try:
-            await self.app(scope, self.asgi_receive, self.asgi_send, trio.to_thread.run_sync)
+            await self.app(
+                scope,
+                self.asgi_receive,
+                self.asgi_send,
+                trio.to_thread.run_sync,
+                trio.from_thread.run,
+            )
         except LifespanFailureError:
             # Lifespan failures should crash the server
             raise

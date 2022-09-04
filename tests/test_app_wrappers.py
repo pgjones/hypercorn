@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import Callable, List
+from typing import Any, Callable, List
 
 import pytest
 import trio
@@ -49,14 +49,15 @@ async def test_wsgi_trio() -> None:
         nonlocal messages
         messages.append(message)
 
-    await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync)
+    await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync, trio.from_thread.run)
     assert messages == [
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body"},
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
 
@@ -87,14 +88,19 @@ async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
         nonlocal messages
         messages.append(message)
 
-    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None))
+    def _call_soon(func: Callable, *args: Any) -> Any:
+        future = asyncio.run_coroutine_threadsafe(func(*args), event_loop)
+        return future.result()
+
+    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None), _call_soon)
     assert messages == [
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body"},
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
 
@@ -124,10 +130,14 @@ async def test_max_body_size(event_loop: asyncio.AbstractEventLoop) -> None:
         nonlocal messages
         messages.append(message)
 
-    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None))
+    def _call_soon(func: Callable, *args: Any) -> Any:
+        future = asyncio.run_coroutine_threadsafe(func(*args), event_loop)
+        return future.result()
+
+    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None), _call_soon)
     assert messages == [
         {"headers": [], "status": 400, "type": "http.response.start"},
-        {"body": bytearray(b""), "type": "http.response.body"},
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
 
