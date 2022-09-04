@@ -165,7 +165,7 @@ async def test_protocol_handle_closed(protocol: H11Protocol) -> None:
         call(
             Request(
                 stream_id=1,
-                headers=[(b"Host", b"hypercorn"), (b"Connection", b"close")],
+                headers=[(b"host", b"hypercorn"), (b"connection", b"close")],
                 http_version="1.1",
                 method="GET",
                 raw_path=b"/",
@@ -187,7 +187,7 @@ async def test_protocol_handle_request(protocol: H11Protocol) -> None:
         call(
             Request(
                 stream_id=1,
-                headers=[(b"Host", b"hypercorn"), (b"Connection", b"close")],
+                headers=[(b"host", b"hypercorn"), (b"connection", b"close")],
                 http_version="1.1",
                 method="GET",
                 raw_path=b"/?a=b",

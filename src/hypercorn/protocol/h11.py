@@ -222,7 +222,7 @@ class H11Protocol:
         await self.stream.handle(
             Request(
                 stream_id=STREAM_ID,
-                headers=request.headers.raw_items(),
+                headers=list(request.headers),
                 http_version=request.http_version.decode(),
                 method=request.method.decode("ascii").upper(),
                 raw_path=request.target,
