@@ -7,6 +7,7 @@ from multiprocessing import get_context
 from multiprocessing.context import BaseContext
 from multiprocessing.process import BaseProcess
 from multiprocessing.synchronize import Event as EventType
+from pickle import PicklingError
 from typing import Any, List
 
 from .config import Config, Sockets
@@ -92,7 +93,12 @@ def start_processes(
             kwargs={"config": config, "shutdown_event": shutdown_event, "sockets": sockets},
         )
         process.daemon = True
-        process.start()
+        try:
+            process.start()
+        except PicklingError as error:
+            raise RuntimeError(
+                "Cannot pickle the config, see https://docs.python.org/3/library/pickle.html#pickle-picklable"  # noqa: E501
+            ) from error
         processes.append(process)
         if platform.system() == "Windows":
             time.sleep(0.1)
