@@ -30,7 +30,7 @@ h11 = "*"
 h2 = ">=3.1.0"
 priority = "*"
 pydata_sphinx_theme = { version = "*", optional = true }
-toml = "*"
+tomli = { version = "*", python = "<3.11" }
 trio = { version = ">=0.11.0", optional = true }
 typing_extensions = { version = ">=3.7.4", python = "<3.8" }
 uvloop = { version = "*", markers = "platform_system != 'Windows'", optional = true }
