@@ -6,6 +6,7 @@ import logging
 import os
 import socket
 import stat
+import sys
 import types
 import warnings
 from dataclasses import dataclass
@@ -22,7 +23,10 @@ from time import time
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Tuple, Type, Union
 from wsgiref.handlers import format_date_time
 
-import toml
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from .logging import Logger
 
@@ -355,8 +359,8 @@ class Config:
             filename: The filename which gives the path to the file.
         """
         file_path = os.fspath(filename)
-        with open(file_path) as file_:
-            data = toml.load(file_)
+        with open(file_path, "rb") as file_:
+            data = tomllib.load(file_)
         return cls.from_mapping(data)
 
     @classmethod
