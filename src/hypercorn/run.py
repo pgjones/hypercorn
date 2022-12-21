@@ -88,7 +88,7 @@ def start_processes(
 ) -> List[BaseProcess]:
     processes = []
     for _ in range(config.workers):
-        process = ctx.Process(
+        process = ctx.Process(  # type: ignore
             target=worker_func,
             kwargs={"config": config, "shutdown_event": shutdown_event, "sockets": sockets},
         )
