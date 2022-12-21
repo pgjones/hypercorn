@@ -98,7 +98,7 @@ jobs:
           pip install -U wheel
           pip install -U setuptools
           python -m pip install -U pip
-      - run: pip install pyopenssl==19.1.0 cryptography==2.3.1 autobahntestsuite
+      - run: pip install pyopenssl==19.1.0 cryptography==2.3.1 wsaccel==0.6.2 autobahntestsuite
       - run: python3 -m pip install trio .
 
       - name: Run server
