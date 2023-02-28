@@ -96,7 +96,11 @@ class TCPServer:
             try:
                 with trio.fail_after(self.config.read_timeout or inf):
                     data = await self.stream.receive_some(MAX_RECV)
-            except (trio.ClosedResourceError, trio.BrokenResourceError):
+            except (
+                trio.ClosedResourceError,
+                trio.BrokenResourceError,
+                trio.TooSlowError,
+            ):
                 break
             else:
                 await self.protocol.handle(RawData(data))
