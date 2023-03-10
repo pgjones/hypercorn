@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import auto, Enum
 from io import BytesIO, StringIO
 from time import time
-from typing import Awaitable, Callable, Iterable, List, Optional, Tuple, Union
+from typing import Awaitable, Callable, Iterable, List, Optional, Tuple, Union, Dict, Any
 from urllib.parse import unquote
 
 from wsproto.connection import Connection, ConnectionState, ConnectionType
@@ -172,6 +172,7 @@ class WSStream:
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
         stream_id: int,
+        app_state: Dict[str, Any],
     ) -> None:
         self.app = app
         self.app_put: Optional[Callable] = None
@@ -193,6 +194,7 @@ class WSStream:
 
         self.connection: Connection
         self.handshake: Handshake
+        self.app_state = app_state
 
     @property
     def idle(self) -> bool:
@@ -219,6 +221,7 @@ class WSStream:
                 "server": self.server,
                 "subprotocols": self.handshake.subprotocols or [],
                 "extensions": {"websocket.http.response": {}},
+                "state": self.app_state,
             }
 
             if not valid_server_name(self.config, event):

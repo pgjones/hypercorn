@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict, Any
 import trio
 
 from .task_group import TaskGroup
@@ -19,11 +20,13 @@ class UDPServer:
         config: Config,
         context: WorkerContext,
         socket: trio.socket.socket,
+        app_state: Dict[str, Any],
     ) -> None:
         self.app = app
         self.config = config
         self.context = context
         self.socket = trio.socket.from_stdlib_socket(socket)
+        self.app_state = app_state
 
     async def run(
         self, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
@@ -34,7 +37,7 @@ class UDPServer:
         server = parse_socket_addr(self.socket.family, self.socket.getsockname())
         async with TaskGroup() as task_group:
             self.protocol = QuicProtocol(
-                self.app, self.config, self.context, task_group, server, self.protocol_send
+                self.app, self.config, self.context, task_group, server, self.protocol_send, self.app_state
             )
 
             while not self.context.terminated.is_set() or not self.protocol.idle:

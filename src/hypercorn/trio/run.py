@@ -69,7 +69,7 @@ async def worker_serve(
                 await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
 
             for sock in sockets.quic_sockets:
-                await server_nursery.start(UDPServer(app, config, context, sock).run)
+                await server_nursery.start(UDPServer(app, config, context, sock, lifespan.state.copy()).run)
                 bind = repr_socket_addr(sock.family, sock.getsockname())
                 await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
@@ -82,7 +82,7 @@ async def worker_serve(
                     nursery.start_soon(
                         partial(
                             trio.serve_listeners,
-                            partial(TCPServer, app, config, context),
+                            partial(TCPServer, app, config, context, lifespan.state.copy()),
                             listeners,
                             handler_nursery=server_nursery,
                         ),

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import Awaitable, Callable, cast, Optional, Tuple, Type, Union
+from typing import Awaitable, Callable, cast, Optional, Tuple, Type, Union, Dict, Any
 
 import h11
 
@@ -88,6 +88,7 @@ class H11Protocol:
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
+        app_state: Dict[str, Any],
     ) -> None:
         self.app = app
         self.can_read = context.event_class()
@@ -102,6 +103,7 @@ class H11Protocol:
         self.ssl = ssl
         self.stream: Optional[Union[HTTPStream, WSStream]] = None
         self.task_group = task_group
+        self.app_state = app_state
 
     async def initiate(self) -> None:
         pass
@@ -205,6 +207,7 @@ class H11Protocol:
                 self.server,
                 self.stream_send,
                 STREAM_ID,
+                self.app_state
             )
             self.connection = H11WSConnection(cast(h11.Connection, self.connection))
         else:
@@ -218,6 +221,7 @@ class H11Protocol:
                 self.server,
                 self.stream_send,
                 STREAM_ID,
+                self.app_state
             )
         await self.stream.handle(
             Request(

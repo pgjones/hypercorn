@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Optional, Tuple, Union
+from typing import Awaitable, Callable, Optional, Tuple, Union, Dict, Any
 
 from .h2 import H2Protocol
 from .h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
@@ -21,6 +21,7 @@ class ProtocolWrapper:
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
         alpn_protocol: Optional[str] = None,
+        app_state: Dict[str, Any] = None,
     ) -> None:
         self.app = app
         self.config = config
@@ -31,6 +32,7 @@ class ProtocolWrapper:
         self.server = server
         self.send = send
         self.protocol: Union[H11Protocol, H2Protocol]
+        self.app_state = app_state
         if alpn_protocol == "h2":
             self.protocol = H2Protocol(
                 self.app,
@@ -41,6 +43,7 @@ class ProtocolWrapper:
                 self.client,
                 self.server,
                 self.send,
+                self.app_state,
             )
         else:
             self.protocol = H11Protocol(
@@ -52,6 +55,7 @@ class ProtocolWrapper:
                 self.client,
                 self.server,
                 self.send,
+                self.app_state,
             )
 
     async def initiate(self) -> None:
@@ -70,6 +74,7 @@ class ProtocolWrapper:
                 self.client,
                 self.server,
                 self.send,
+                self.app_state,
             )
             await self.protocol.initiate()
             if error.data != b"":
@@ -84,6 +89,7 @@ class ProtocolWrapper:
                 self.client,
                 self.server,
                 self.send,
+                self.app_state,
             )
             await self.protocol.initiate(error.headers, error.settings)
             if error.data != b"":

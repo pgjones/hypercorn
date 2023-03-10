@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Union, Any
 
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
@@ -37,6 +37,7 @@ class H3Protocol:
         server: Optional[Tuple[str, int]],
         quic: QuicConnection,
         send: Callable[[], Awaitable[None]],
+        app_state: Dict[str, Any],
     ) -> None:
         self.app = app
         self.client = client
@@ -47,6 +48,7 @@ class H3Protocol:
         self.server = server
         self.streams: Dict[int, Union[HTTPStream, WSStream]] = {}
         self.task_group = task_group
+        self.app_state = app_state
 
     async def handle(self, quic_event: QuicEvent) -> None:
         for event in self.connection.handle_event(quic_event):
@@ -102,6 +104,7 @@ class H3Protocol:
                 self.server,
                 self.stream_send,
                 request.stream_id,
+                self.app_state,
             )
         else:
             self.streams[request.stream_id] = HTTPStream(
@@ -114,6 +117,7 @@ class H3Protocol:
                 self.server,
                 self.stream_send,
                 request.stream_id,
+                self.app_state,
             )
 
         await self.streams[request.stream_id].handle(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import auto, Enum
 from time import time
-from typing import Awaitable, Callable, Optional, Tuple
+from typing import Awaitable, Callable, Optional, Tuple, Dict, Any
 from urllib.parse import unquote
 
 from .events import Body, EndBody, Event, InformationalResponse, Request, Response, StreamClosed
@@ -47,6 +47,7 @@ class HTTPStream:
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
         stream_id: int,
+        app_state: Dict[str, Any],
     ) -> None:
         self.app = app
         self.client = client
@@ -62,6 +63,7 @@ class HTTPStream:
         self.state = ASGIHTTPState.REQUEST
         self.stream_id = stream_id
         self.task_group = task_group
+        self.app_state = app_state
 
     @property
     def idle(self) -> bool:
@@ -87,6 +89,7 @@ class HTTPStream:
                 "client": self.client,
                 "server": self.server,
                 "extensions": {},
+                "state": self.app_state,
             }
             if event.http_version in PUSH_VERSIONS:
                 self.scope["extensions"]["http.response.push"] = {}

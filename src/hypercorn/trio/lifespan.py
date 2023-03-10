@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict, Any
 import trio
 
 from ..config import Config
@@ -21,6 +22,7 @@ class Lifespan:
             config.max_app_queue_size
         )
         self.supported = True
+        self.state: Dict[str, Any] = {}
 
     async def handle_lifespan(
         self, *, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
@@ -29,6 +31,7 @@ class Lifespan:
         scope: LifespanScope = {
             "type": "lifespan",
             "asgi": {"spec_version": "2.0", "version": "3.0"},
+            "state": self.state,
         }
         try:
             await self.app(

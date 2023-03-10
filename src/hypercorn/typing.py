@@ -39,6 +39,7 @@ class HTTPScope(TypedDict):
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
     extensions: Dict[str, dict]
+    state: Dict[str, Any]
 
 
 class WebsocketScope(TypedDict):
@@ -55,11 +56,13 @@ class WebsocketScope(TypedDict):
     server: Optional[Tuple[str, Optional[int]]]
     subprotocols: Iterable[str]
     extensions: Dict[str, dict]
+    state: Dict[str, Any]
 
 
 class LifespanScope(TypedDict):
     type: Literal["lifespan"]
     asgi: ASGIVersions
+    state: Dict[str, Any]
 
 
 WWWScope = Union[HTTPScope, WebsocketScope]

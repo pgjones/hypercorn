@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 from ..config import Config
 from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope
@@ -27,12 +27,14 @@ class Lifespan:
         # required to ensure the support has been checked before
         # waiting on timeouts.
         self._started = asyncio.Event()
+        self.state: Dict[str, Any] = {}
 
     async def handle_lifespan(self) -> None:
         self._started.set()
         scope: LifespanScope = {
             "type": "lifespan",
             "asgi": {"spec_version": "2.0", "version": "3.0"},
+            "state": self.state,
         }
 
         def _call_soon(func: Callable, *args: Any) -> Any:

@@ -93,7 +93,7 @@ async def worker_serve(
 
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         server_tasks.add(asyncio.current_task(loop))
-        await TCPServer(app, loop, config, context, reader, writer)
+        await TCPServer(app, loop, config, context, reader, writer, lifespan.state.copy())
 
     servers = []
     for sock in sockets.secure_sockets:
@@ -127,7 +127,7 @@ async def worker_serve(
             sock = _share_socket(sock)
 
         _, protocol = await loop.create_datagram_endpoint(
-            lambda: UDPServer(app, loop, config, context), sock=sock
+            lambda: UDPServer(app, loop, config, context, lifespan.state.copy()), sock=sock
         )
         server_tasks.add(loop.create_task(protocol.run()))
         bind = repr_socket_addr(sock.family, sock.getsockname())

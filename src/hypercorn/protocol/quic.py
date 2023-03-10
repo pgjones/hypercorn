@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Awaitable, Callable, Dict, Optional, Tuple
+from typing import Awaitable, Callable, Dict, Optional, Tuple, Any
 
 from aioquic.buffer import Buffer
 from aioquic.h3.connection import H3_ALPN
@@ -34,6 +34,7 @@ class QuicProtocol:
         task_group: TaskGroup,
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
+        app_state: Dict[str, Any],
     ) -> None:
         self.app = app
         self.config = config
@@ -46,6 +47,7 @@ class QuicProtocol:
 
         self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
+        self.app_state = app_state
 
     @property
     def idle(self) -> bool:
@@ -110,6 +112,7 @@ class QuicProtocol:
                     self.server,
                     connection,
                     partial(self.send_all, connection),
+                    self.app_state,
                 )
             elif isinstance(event, ConnectionIdIssued):
                 self.connections[event.connection_id] = connection
