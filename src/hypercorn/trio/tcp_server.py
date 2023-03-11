@@ -10,7 +10,7 @@ from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
-from ..typing import AppWrapper
+from ..typing import AppWrapper, ConnectionState, LifespanState
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
@@ -18,7 +18,12 @@ MAX_RECV = 2**16
 
 class TCPServer:
     def __init__(
-        self, app: AppWrapper, config: Config, context: WorkerContext, stream: trio.abc.Stream
+        self,
+        app: AppWrapper,
+        config: Config,
+        context: WorkerContext,
+        stream: trio.abc.Stream,
+        state: LifespanState,
     ) -> None:
         self.app = app
         self.config = config
@@ -27,6 +32,7 @@ class TCPServer:
         self.send_lock = trio.Lock()
         self.idle_lock = trio.Lock()
         self.stream = stream
+        self.state = state
 
         self._idle_handle: Optional[trio.CancelScope] = None
 
@@ -59,6 +65,7 @@ class TCPServer:
                     self.config,
                     self.context,
                     task_group,
+                    ConnectionState(self.state.copy()),
                     ssl,
                     client,
                     server,

@@ -22,7 +22,7 @@ from aioquic.quic.packet import (
 from .h3 import H3Protocol
 from ..config import Config
 from ..events import Closed, Event, RawData
-from ..typing import AppWrapper, TaskGroup, WorkerContext
+from ..typing import AppWrapper, ConnectionState, TaskGroup, WorkerContext
 
 
 class QuicProtocol:
@@ -32,6 +32,7 @@ class QuicProtocol:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
+        state: ConnectionState,
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
     ) -> None:
@@ -43,6 +44,7 @@ class QuicProtocol:
         self.send = send
         self.server = server
         self.task_group = task_group
+        self.state = state
 
         self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
@@ -106,6 +108,7 @@ class QuicProtocol:
                     self.config,
                     self.context,
                     self.task_group,
+                    self.state,
                     client,
                     self.server,
                     connection,

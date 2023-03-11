@@ -8,7 +8,7 @@ import pytest
 import trio
 
 from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
-from hypercorn.typing import ASGISendEvent, HTTPScope
+from hypercorn.typing import ASGISendEvent, ConnectionState, HTTPScope
 
 
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
@@ -39,6 +39,7 @@ async def test_wsgi_trio() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     send_channel, receive_channel = trio.open_memory_channel(1)
     await send_channel.send({"type": "http.request"})
@@ -78,6 +79,7 @@ async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     queue: asyncio.Queue = asyncio.Queue()
     await queue.put({"type": "http.request"})
@@ -121,6 +123,7 @@ async def test_max_body_size(event_loop: asyncio.AbstractEventLoop) -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     queue: asyncio.Queue = asyncio.Queue()
     await queue.put({"type": "http.request", "body": b"abcde"})
@@ -156,6 +159,7 @@ def test_build_environ_encoding() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     environ = _build_environ(scope, b"")
     assert environ["SCRIPT_NAME"] == "/中".encode("utf8").decode("latin-1")
@@ -177,6 +181,7 @@ def test_build_environ_root_path() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     with pytest.raises(InvalidPathError):
         _build_environ(scope, b"")

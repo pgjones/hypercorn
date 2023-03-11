@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from multiprocessing.synchronize import Event as EventType
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
+from typing import Any, Awaitable, Callable, Dict, Iterable, NewType, Optional, Tuple, Type, Union
 
 import h2.events
 import h11
@@ -18,6 +18,10 @@ from .config import Config, Sockets
 H11SendableEvent = Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response]
 
 WorkerFunc = Callable[[Config, Optional[Sockets], Optional[EventType]], None]
+
+LifespanState = Dict[str, Any]
+
+ConnectionState = NewType("ConnectionState", Dict[str, Any])
 
 
 class ASGIVersions(TypedDict, total=False):
@@ -38,6 +42,7 @@ class HTTPScope(TypedDict):
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
+    state: ConnectionState
     extensions: Dict[str, dict]
 
 
@@ -54,12 +59,14 @@ class WebsocketScope(TypedDict):
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
     subprotocols: Iterable[str]
+    state: ConnectionState
     extensions: Dict[str, dict]
 
 
 class LifespanScope(TypedDict):
     type: Literal["lifespan"]
     asgi: ASGIVersions
+    state: LifespanState
 
 
 WWWScope = Union[HTTPScope, WebsocketScope]

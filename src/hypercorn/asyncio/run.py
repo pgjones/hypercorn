@@ -17,7 +17,7 @@ from .tcp_server import TCPServer
 from .udp_server import UDPServer
 from .worker_context import WorkerContext
 from ..config import Config, Sockets
-from ..typing import AppWrapper
+from ..typing import AppWrapper, LifespanState
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
@@ -71,7 +71,8 @@ async def worker_serve(
 
         shutdown_trigger = signal_event.wait  # type: ignore
 
-    lifespan = Lifespan(app, config, loop)
+    lifespan_state: LifespanState = {}
+    lifespan = Lifespan(app, config, loop, lifespan_state)
 
     lifespan_task = loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
@@ -93,7 +94,7 @@ async def worker_serve(
 
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         server_tasks.add(asyncio.current_task(loop))
-        await TCPServer(app, loop, config, context, reader, writer)
+        await TCPServer(app, loop, config, context, lifespan_state, reader, writer)
 
     servers = []
     for sock in sockets.secure_sockets:
@@ -127,7 +128,7 @@ async def worker_serve(
             sock = _share_socket(sock)
 
         _, protocol = await loop.create_datagram_endpoint(
-            lambda: UDPServer(app, loop, config, context), sock=sock
+            lambda: UDPServer(app, loop, config, context, lifespan_state), sock=sock
         )
         server_tasks.add(loop.create_task(protocol.run()))
         bind = repr_socket_addr(sock.family, sock.getsockname())

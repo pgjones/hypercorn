@@ -19,6 +19,7 @@ async def test_completes_on_closed(event_loop: asyncio.AbstractEventLoop) -> Non
         event_loop,
         Config(),
         WorkerContext(),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
@@ -35,6 +36,7 @@ async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> 
         event_loop,
         Config(),
         WorkerContext(),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )

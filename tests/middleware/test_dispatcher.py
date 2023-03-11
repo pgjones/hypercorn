@@ -72,7 +72,7 @@ async def test_asyncio_dispatcher_lifespan() -> None:
     async def receive() -> dict:
         return {"type": "lifespan.shutdown"}
 
-    await app({"type": "lifespan", "asgi": {"version": "3.0"}}, receive, send)
+    await app({"type": "lifespan", "asgi": {"version": "3.0"}, "state": {}}, receive, send)
     assert sent_events == [{"type": "lifespan.startup.complete"}]
 
 
@@ -89,5 +89,5 @@ async def test_trio_dispatcher_lifespan() -> None:
     async def receive() -> dict:
         return {"type": "lifespan.shutdown"}
 
-    await app({"type": "lifespan", "asgi": {"version": "3.0"}}, receive, send)
+    await app({"type": "lifespan", "asgi": {"version": "3.0"}, "state": {}}, receive, send)
     assert sent_events == [{"type": "lifespan.startup.complete"}]

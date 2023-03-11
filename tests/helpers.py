@@ -11,7 +11,6 @@ SANITY_BODY = b"Hello Hypercorn"
 
 
 class MockSocket:
-
     family = AF_INET
 
     def getsockname(self) -> Tuple[str, int]:
@@ -94,6 +93,7 @@ async def sanity_framework(
         if event["type"] in {"http.disconnect", "websocket.disconnect"}:
             break
         elif event["type"] == "lifespan.startup":
+            assert "state" in scope
             await send({"type": "lifspan.startup.complete"})  # type: ignore
         elif event["type"] == "lifespan.shutdown":
             await send({"type": "lifspan.shutdown.complete"})  # type: ignore
