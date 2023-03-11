@@ -219,6 +219,7 @@ class WSStream:
                 "headers": event.headers,
                 "client": self.client,
                 "server": self.server,
+                "state": event.state,
                 "subprotocols": self.handshake.subprotocols or [],
                 "extensions": {"websocket.http.response": {}},
             }

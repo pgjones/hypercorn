@@ -21,6 +21,7 @@ from hypercorn.protocol.ws_stream import (
     WSStream,
 )
 from hypercorn.typing import (
+    ConnectionState,
     WebsocketAcceptEvent,
     WebsocketCloseEvent,
     WebsocketResponseBodyEvent,
@@ -182,6 +183,7 @@ async def test_handle_request(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/?a=b",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     stream.task_group.spawn_app.assert_called()  # type: ignore
@@ -200,6 +202,7 @@ async def test_handle_request(stream: WSStream) -> None:
         "server": None,
         "subprotocols": [],
         "extensions": {"websocket.http.response": {}},
+        "state": ConnectionState({}),
     }
 
 
@@ -212,6 +215,7 @@ async def test_handle_data_before_acceptance(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/?a=b",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.handle(
@@ -241,6 +245,7 @@ async def test_handle_connection(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/?a=b",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
@@ -270,6 +275,7 @@ async def test_send_accept(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
@@ -289,6 +295,7 @@ async def test_send_accept_with_additional_headers(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(
@@ -313,6 +320,7 @@ async def test_send_reject(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(
@@ -347,6 +355,7 @@ async def test_invalid_server_name(stream: WSStream) -> None:
             headers=[(b"host", b"example.com"), (b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     assert stream.send.call_args_list == [  # type: ignore
@@ -372,6 +381,7 @@ async def test_send_app_error_handshake(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(None)
@@ -399,6 +409,7 @@ async def test_send_app_error_connected(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
@@ -421,6 +432,7 @@ async def test_send_connection(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     await stream.app_send(cast(WebsocketAcceptEvent, {"type": "websocket.accept"}))
@@ -447,6 +459,7 @@ async def test_pings(stream: WSStream) -> None:
             headers=[(b"sec-websocket-version", b"13")],
             raw_path=b"/?a=b",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     async with TaskGroup(event_loop) as task_group:

@@ -9,6 +9,7 @@ from typing import (
     Dict,
     Iterable,
     Literal,
+    NewType,
     Optional,
     Protocol,
     Tuple,
@@ -31,6 +32,10 @@ H11SendableEvent = Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, 
 
 WorkerFunc = Callable[[Config, Optional[Sockets], Optional[EventType]], None]
 
+LifespanState = Dict[str, Any]
+
+ConnectionState = NewType("ConnectionState", Dict[str, Any])
+
 
 class ASGIVersions(TypedDict, total=False):
     spec_version: str
@@ -50,6 +55,7 @@ class HTTPScope(TypedDict):
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
+    state: ConnectionState
     extensions: Dict[str, dict]
 
 
@@ -66,12 +72,14 @@ class WebsocketScope(TypedDict):
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
     subprotocols: Iterable[str]
+    state: ConnectionState
     extensions: Dict[str, dict]
 
 
 class LifespanScope(TypedDict):
     type: Literal["lifespan"]
     asgi: ASGIVersions
+    state: LifespanState
 
 
 WWWScope = Union[HTTPScope, WebsocketScope]

@@ -9,7 +9,7 @@ from .worker_context import AsyncioSingleTask, WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
-from ..typing import AppWrapper
+from ..typing import AppWrapper, ConnectionState, LifespanState
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
@@ -22,6 +22,7 @@ class TCPServer:
         loop: asyncio.AbstractEventLoop,
         config: Config,
         context: WorkerContext,
+        state: LifespanState,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
     ) -> None:
@@ -33,6 +34,7 @@ class TCPServer:
         self.reader = reader
         self.writer = writer
         self.send_lock = asyncio.Lock()
+        self.state = state
         self.idle_task = AsyncioSingleTask()
 
     def __await__(self) -> Generator[Any, None, None]:
@@ -58,6 +60,7 @@ class TCPServer:
                     self.config,
                     self.context,
                     task_group,
+                    ConnectionState(self.state.copy()),
                     ssl,
                     client,
                     server,

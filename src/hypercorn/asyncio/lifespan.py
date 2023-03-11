@@ -5,7 +5,7 @@ from functools import partial
 from typing import Any, Callable
 
 from ..config import Config
-from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope
+from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope, LifespanState
 from ..utils import LifespanFailureError, LifespanTimeoutError
 
 
@@ -14,7 +14,13 @@ class UnexpectedMessageError(Exception):
 
 
 class Lifespan:
-    def __init__(self, app: AppWrapper, config: Config, loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(
+        self,
+        app: AppWrapper,
+        config: Config,
+        loop: asyncio.AbstractEventLoop,
+        lifespan_state: LifespanState,
+    ) -> None:
         self.app = app
         self.config = config
         self.startup = asyncio.Event()
@@ -22,6 +28,7 @@ class Lifespan:
         self.app_queue: asyncio.Queue = asyncio.Queue(config.max_app_queue_size)
         self.supported = True
         self.loop = loop
+        self.state = lifespan_state
 
         # This mimics the Trio nursery.start task_status and is
         # required to ensure the support has been checked before
@@ -33,6 +40,7 @@ class Lifespan:
         scope: LifespanScope = {
             "type": "lifespan",
             "asgi": {"spec_version": "2.0", "version": "3.0"},
+            "state": self.state,
         }
 
         def _call_soon(func: Callable, *args: Any) -> Any:

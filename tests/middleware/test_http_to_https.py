@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from hypercorn.middleware import HTTPToHTTPSRedirectMiddleware
-from hypercorn.typing import HTTPScope, WebsocketScope
+from hypercorn.typing import ConnectionState, HTTPScope, WebsocketScope
 from ..helpers import empty_framework
 
 
@@ -31,6 +31,7 @@ async def test_http_to_https_redirect_middleware_http(raw_path: bytes) -> None:
         "client": ("127.0.0.1", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
 
     await app(scope, None, send)
@@ -69,6 +70,7 @@ async def test_http_to_https_redirect_middleware_websocket(raw_path: bytes) -> N
         "server": None,
         "subprotocols": [],
         "extensions": {"websocket.http.response": {}},
+        "state": ConnectionState({}),
     }
     await app(scope, None, send)
 
@@ -105,6 +107,7 @@ async def test_http_to_https_redirect_middleware_websocket_http2() -> None:
         "server": None,
         "subprotocols": [],
         "extensions": {"websocket.http.response": {}},
+        "state": ConnectionState({}),
     }
     await app(scope, None, send)
 
@@ -141,6 +144,7 @@ async def test_http_to_https_redirect_middleware_websocket_no_rejection() -> Non
         "server": None,
         "subprotocols": [],
         "extensions": {},
+        "state": ConnectionState({}),
     }
     await app(scope, None, send)
 
@@ -165,6 +169,7 @@ def test_http_to_https_redirect_new_url_header() -> None:
             "client": None,
             "server": None,
             "extensions": {},
+            "state": ConnectionState({}),
         },
     )
     assert new_url == "https://localhost/"

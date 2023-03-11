@@ -20,7 +20,7 @@ from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
-from ..typing import AppWrapper, H11SendableEvent, TaskGroup, WorkerContext
+from ..typing import AppWrapper, ConnectionState, H11SendableEvent, TaskGroup, WorkerContext
 
 STREAM_ID = 1
 
@@ -84,6 +84,7 @@ class H11Protocol:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
+        connection_state: ConnectionState,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
@@ -103,6 +104,7 @@ class H11Protocol:
         self.ssl = ssl
         self.stream: Optional[Union[HTTPStream, WSStream]] = None
         self.task_group = task_group
+        self.connection_state = connection_state
 
     async def initiate(self) -> None:
         pass
@@ -236,6 +238,7 @@ class H11Protocol:
                 http_version=request.http_version.decode(),
                 method=request.method.decode("ascii").upper(),
                 raw_path=request.target,
+                state=self.connection_state,
             )
         )
         self.keep_alive_requests += 1

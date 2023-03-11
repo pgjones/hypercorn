@@ -24,6 +24,7 @@ async def test_http1_request() -> None:
         event_loop,
         Config(),
         WorkerContext(None),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
@@ -83,6 +84,7 @@ async def test_http1_websocket() -> None:
         event_loop,
         Config(),
         WorkerContext(None),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
@@ -122,6 +124,7 @@ async def test_http2_request() -> None:
         event_loop,
         Config(),
         WorkerContext(None),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )
@@ -187,6 +190,7 @@ async def test_http2_websocket() -> None:
         event_loop,
         Config(),
         WorkerContext(None),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )

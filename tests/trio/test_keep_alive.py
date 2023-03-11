@@ -47,7 +47,7 @@ def _client_stream(
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
     client_stream, server_stream = trio.testing.memory_stream_pair()
     server_stream.socket = MockSocket()
-    server = TCPServer(ASGIWrapper(slow_framework), config, WorkerContext(None), server_stream)
+    server = TCPServer(ASGIWrapper(slow_framework), config, WorkerContext(None), {}, server_stream)
     nursery.start_soon(server.run)
     yield client_stream
 

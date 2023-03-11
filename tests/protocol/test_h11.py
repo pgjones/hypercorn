@@ -16,7 +16,7 @@ from hypercorn.events import Closed, RawData, Updated
 from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Response, StreamClosed
 from hypercorn.protocol.h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
 from hypercorn.protocol.http_stream import HTTPStream
-from hypercorn.typing import Event as IOEvent
+from hypercorn.typing import ConnectionState, Event as IOEvent
 
 try:
     from unittest.mock import AsyncMock
@@ -39,7 +39,17 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     context.terminate = context.event_class()
     context.terminated = context.event_class()
     context.terminated.is_set.return_value = False
-    return H11Protocol(AsyncMock(), Config(), context, AsyncMock(), False, None, None, AsyncMock())
+    return H11Protocol(
+        AsyncMock(),
+        Config(),
+        context,
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
+    )
 
 
 @pytest.mark.asyncio
@@ -183,6 +193,7 @@ async def test_protocol_handle_closed(protocol: H11Protocol) -> None:
                 http_version="1.1",
                 method="GET",
                 raw_path=b"/",
+                state=ConnectionState({}),
             )
         ),
         call(EndBody(stream_id=1)),
@@ -205,6 +216,7 @@ async def test_protocol_handle_request(protocol: H11Protocol) -> None:
                 http_version="1.1",
                 method="GET",
                 raw_path=b"/?a=b",
+                state=ConnectionState({}),
             )
         ),
         call(EndBody(stream_id=1)),
@@ -232,6 +244,7 @@ async def test_protocol_handle_request_with_raw_headers(protocol: H11Protocol) -
                 http_version="1.1",
                 method="GET",
                 raw_path=b"/?a=b",
+                state=ConnectionState({}),
             )
         ),
         call(EndBody(stream_id=1)),
@@ -309,7 +322,15 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
     context = Mock()
     context.event_class.return_value = AsyncMock(spec=IOEvent)
     protocol = H11Protocol(
-        AsyncMock(), config, context, AsyncMock(), False, None, None, AsyncMock()
+        AsyncMock(),
+        config,
+        context,
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
     )
     await protocol.handle(RawData(data=b"GET / HTTP/1.1\r\nHost: hypercorn\r\n"))
     protocol.send.assert_called()  # type: ignore

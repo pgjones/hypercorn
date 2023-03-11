@@ -97,6 +97,7 @@ class HTTPStream:
                 "headers": event.headers,
                 "client": self.client,
                 "server": self.server,
+                "state": event.state,
                 "extensions": {},
             }
 
@@ -158,6 +159,7 @@ class HTTPStream:
                         http_version=self.scope["http_version"],
                         method="GET",
                         raw_path=message["path"].encode(),
+                        state=self.scope["state"],
                     )
                 )
             elif (
