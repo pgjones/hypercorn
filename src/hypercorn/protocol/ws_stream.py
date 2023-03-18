@@ -257,7 +257,7 @@ class WSStream:
                     self.scope, {"status": 500, "headers": []}, time() - self.start_time
                 )
             elif self.state == ASGIWebsocketState.CONNECTED:
-                await self._send_wsproto_event(CloseConnection(code=CloseReason.ABNORMAL_CLOSURE))
+                await self._send_wsproto_event(CloseConnection(code=CloseReason.INTERNAL_ERROR))
             await self.send(StreamClosed(stream_id=self.stream_id))
         else:
             if message["type"] == "websocket.accept" and self.state == ASGIWebsocketState.HANDSHAKE:
