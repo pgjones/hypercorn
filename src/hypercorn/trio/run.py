@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from typing import Awaitable, Callable, Optional
+import exceptiongroup
 
 import trio
 
@@ -75,22 +76,21 @@ async def worker_serve(
 
             task_status.started(binds)
             try:
-                async with trio.open_nursery() as nursery:
-                    if shutdown_trigger is not None:
-                        nursery.start_soon(raise_shutdown, shutdown_trigger)
+                with exceptiongroup.catch({(ShutdownError, KeyboardInterrupt): lambda grp: None}):
+                    async with trio.open_nursery() as nursery:
+                        if shutdown_trigger is not None:
+                            nursery.start_soon(raise_shutdown, shutdown_trigger)
 
-                    nursery.start_soon(
-                        partial(
-                            trio.serve_listeners,
-                            partial(TCPServer, app, config, context),
-                            listeners,
-                            handler_nursery=server_nursery,
-                        ),
-                    )
+                        nursery.start_soon(
+                            partial(
+                                trio.serve_listeners,
+                                partial(TCPServer, app, config, context),
+                                listeners,
+                                handler_nursery=server_nursery,
+                            ),
+                        )
 
-                    await trio.sleep_forever()
-            except (ShutdownError, KeyboardInterrupt):
-                pass
+                        await trio.sleep_forever()
             finally:
                 await context.terminated.set()
                 server_nursery.cancel_scope.deadline = trio.current_time() + config.graceful_timeout
