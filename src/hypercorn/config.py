@@ -77,6 +77,7 @@ class Config:
     read_timeout: Optional[int] = None
     group: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
+    h11_pass_raw_headers = False
     h2_max_concurrent_streams = 100
     h2_max_header_list_size = 2**16
     h2_max_inbound_frame_size = 2**14 * OCTETS
