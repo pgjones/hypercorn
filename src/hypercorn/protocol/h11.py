@@ -219,10 +219,16 @@ class H11Protocol:
                 self.stream_send,
                 STREAM_ID,
             )
+
+        if self.config.h11_pass_raw_headers:
+            headers = request.headers.raw_items()
+        else:
+            headers = list(request.headers)
+
         await self.stream.handle(
             Request(
                 stream_id=STREAM_ID,
-                headers=list(request.headers),
+                headers=headers,
                 http_version=request.http_version.decode(),
                 method=request.method.decode("ascii").upper(),
                 raw_path=request.target,

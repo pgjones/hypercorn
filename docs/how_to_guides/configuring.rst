@@ -108,6 +108,9 @@ read_timeout               ``--read-timeout``            Seconds to wait before 
 group                      ``-g``, ``--group``           Group to own any unix sockets.
 h11_max_incomplete_size    N/A                           The max HTTP/1.1 request line + headers         16KiB
                                                          size in bytes.
+h11_pass_raw_headers       N/A                           Pass the raw headers from h11 to the            ``False``
+                                                         Request object, which preserves header
+                                                         casing.
 h2_max_concurrent_streams  N/A                           Maximum number of HTTP/2 concurrent             100
                                                          streams.
 h2_max_header_list_size    N/A                           Maximum number of HTTP/2 headers.               65536

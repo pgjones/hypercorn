@@ -198,6 +198,33 @@ async def test_protocol_handle_request(protocol: H11Protocol) -> None:
 
 
 @pytest.mark.asyncio
+async def test_protocol_handle_request_with_raw_headers(protocol: H11Protocol) -> None:
+    protocol.config.h11_pass_raw_headers = True
+    client = h11.Connection(h11.CLIENT)
+    headers = BASIC_HEADERS + [("FOO_BAR", "foobar")]
+    await protocol.handle(
+        RawData(data=client.send(h11.Request(method="GET", target="/?a=b", headers=headers)))
+    )
+    protocol.stream.handle.assert_called()  # type: ignore
+    assert protocol.stream.handle.call_args_list == [  # type: ignore
+        call(
+            Request(
+                stream_id=1,
+                headers=[
+                    (b"Host", b"hypercorn"),
+                    (b"Connection", b"close"),
+                    (b"FOO_BAR", b"foobar"),
+                ],
+                http_version="1.1",
+                method="GET",
+                raw_path=b"/?a=b",
+            )
+        ),
+        call(EndBody(stream_id=1)),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_protocol_handle_protocol_error(protocol: H11Protocol) -> None:
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
     protocol.send.assert_called()  # type: ignore
