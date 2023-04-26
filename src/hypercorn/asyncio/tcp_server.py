@@ -91,6 +91,8 @@ class TCPServer:
                 await self._stop_idle()
 
     async def _read_data(self) -> None:
+        closed_sent = False
+
         while not self.reader.at_eof():
             try:
                 data = await asyncio.wait_for(self.reader.read(MAX_RECV), self.config.read_timeout)
@@ -102,9 +104,18 @@ class TCPServer:
                 SSLError,
             ):
                 await self.protocol.handle(Closed())
+                closed_sent = True
                 break
             else:
                 await self.protocol.handle(RawData(data))
+
+        # It happens with TLS connections that we don't got a
+        # `ConnectionError`, but the connection gets closed at some point. We
+        # want to make sure that a `Closed()` got fed into the protocol, so
+        # that protocol handlers will be unblocked.
+        # See: https://github.com/pgjones/hypercorn/issues/50
+        if not closed_sent:
+            await self.protocol.handle(Closed())
 
     async def _close(self) -> None:
         try:
