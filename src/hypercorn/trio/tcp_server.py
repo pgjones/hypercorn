@@ -83,8 +83,9 @@ class TCPServer:
                 except (trio.BrokenResourceError, trio.ClosedResourceError):
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
-            await self._close()
-            await self.protocol.handle(Closed())
+            async with self.send_lock:
+                await self._close()
+                await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
             if event.idle:
                 await self._start_idle()

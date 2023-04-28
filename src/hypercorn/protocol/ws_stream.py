@@ -333,7 +333,9 @@ class WSStream:
         )
 
     async def _send_wsproto_event(self, event: WSProtoEvent) -> None:
-        data = self.connection.send(event)
+        data = b""
+        if self.connection.state != ConnectionState.CLOSED:
+            data = self.connection.send(event)
         await self.send(Data(stream_id=self.stream_id, data=data))
 
     async def _accept(self, message: WebsocketAcceptEvent) -> None:
