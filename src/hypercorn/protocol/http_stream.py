@@ -111,7 +111,7 @@ class HTTPStream:
         elif isinstance(event, StreamClosed):
             self.closed = True
             if self.app_put is not None:
-                await self.app_put({"type": "http.disconnect"})  # type: ignore
+                await self.app_put({"type": "http.disconnect"})
 
     async def app_send(self, message: Optional[ASGISendEvent]) -> None:
         if self.closed:

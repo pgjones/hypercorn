@@ -68,8 +68,8 @@ class WSGIWrapper:
             message = await receive()
             body.extend(message.get("body", b""))  # type: ignore
             if len(body) > self.max_body_size:
-                await send({"type": "http.response.start", "status": 400, "headers": []})  # type: ignore # noqa: E501
-                await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore # noqa: E501
+                await send({"type": "http.response.start", "status": 400, "headers": []})
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
                 return
             if not message.get("more_body"):
                 break
@@ -77,10 +77,10 @@ class WSGIWrapper:
         try:
             environ = _build_environ(scope, body)
         except InvalidPathError:
-            await send({"type": "http.response.start", "status": 404, "headers": []})  # type: ignore # noqa: E501
+            await send({"type": "http.response.start", "status": 404, "headers": []})
         else:
             await sync_spawn(self.run_app, environ, partial(call_soon, send))
-        await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     def run_app(self, environ: dict, send: Callable) -> None:
         headers: List[Tuple[bytes, bytes]]

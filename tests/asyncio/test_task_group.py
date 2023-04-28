@@ -25,7 +25,7 @@ async def test_spawn_app(event_loop: asyncio.AbstractEventLoop, http_scope: HTTP
         put = await task_group.spawn_app(
             ASGIWrapper(_echo_app), Config(), http_scope, app_queue.put
         )
-        await put({"type": "http.disconnect"})  # type: ignore
+        await put({"type": "http.disconnect"})
         assert (await app_queue.get()) == {"type": "http.disconnect"}
         await put(None)
 

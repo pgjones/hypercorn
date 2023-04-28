@@ -231,7 +231,7 @@ class WSStream:
                 self.app_put = await self.task_group.spawn_app(
                     self.app, self.config, self.scope, self.app_send
                 )
-                await self.app_put({"type": "websocket.connect"})  # type: ignore
+                await self.app_put({"type": "websocket.connect"})
         elif isinstance(event, (Body, Data)):
             self.connection.receive_data(event.data)
             await self._handle_events()

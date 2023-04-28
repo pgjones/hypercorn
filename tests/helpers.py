@@ -11,7 +11,6 @@ SANITY_BODY = b"Hello Hypercorn"
 
 
 class MockSocket:
-
     family = AF_INET
 
     def getsockname(self) -> Tuple[str, int]:
@@ -58,13 +57,13 @@ async def echo_framework(
                 response = dumps({"scope": scope, "request_body": body.decode()}).encode()
                 content_length = len(response)
                 await send(
-                    {  # type: ignore
+                    {
                         "type": "http.response.start",
                         "status": 200,
                         "headers": [(b"content-length", str(content_length).encode())],
                     }
                 )
-                await send({"type": "http.response.body", "body": response, "more_body": False})  # type: ignore # noqa: E501
+                await send({"type": "http.response.body", "body": response, "more_body": False})
                 break
         elif event["type"] == "websocket.connect":
             await send({"type": "websocket.accept"})  # type: ignore
@@ -78,7 +77,7 @@ async def lifespan_failure(
     while True:
         message = await receive()
         if message["type"] == "lifespan.startup":
-            await send({"type": "lifespan.startup.failed", "message": "Failure"})  # type: ignore
+            await send({"type": "lifespan.startup.failed", "message": "Failure"})
         break
 
 
@@ -105,13 +104,13 @@ async def sanity_framework(
             response = b"Hello & Goodbye"
             content_length = len(response)
             await send(
-                {  # type: ignore
+                {
                     "type": "http.response.start",
                     "status": 200,
                     "headers": [(b"content-length", str(content_length).encode())],
                 }
             )
-            await send({"type": "http.response.body", "body": response, "more_body": False})  # type: ignore # noqa: E501
+            await send({"type": "http.response.body", "body": response, "more_body": False})
             break
         elif event["type"] == "websocket.receive":
             assert event["bytes"] == SANITY_BODY
