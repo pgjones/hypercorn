@@ -23,9 +23,15 @@ async def _handle(
     except trio.Cancelled:
         raise
     except trio.MultiError as error:
-        errors = trio.MultiError.filter(
-            lambda exc: None if isinstance(exc, trio.Cancelled) else exc, root_exc=error
-        )
+        if hasattr(error, "subgroup"):
+            # If we have a recent version of Trio, use the subgroup() method (inherited from
+            # BaseExceptionGroup) because it correctly handles nested BaseExceptionGroups
+            errors = error.subgroup(lambda exc: not isinstance(exc, trio.Cancelled))
+        else:
+            # On old versions of Trio, fall back to trio.MultiError.filter()
+            errors = trio.MultiError.filter(
+                lambda exc: None if isinstance(exc, trio.Cancelled) else exc, root_exc=error
+            )
         if errors is not None:
             await config.log.exception("Error in ASGI Framework")
             await send(None)
