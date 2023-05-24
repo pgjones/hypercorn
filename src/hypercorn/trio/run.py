@@ -82,7 +82,7 @@ async def worker_serve(
                     nursery.start_soon(
                         partial(
                             trio.serve_listeners,
-                            partial(TCPServer, app, config, context, lifespan.state.copy()),
+                            partial(TCPServer, app, config, context, app_state=lifespan.state.copy()),
                             listeners,
                             handler_nursery=server_nursery,
                         ),
