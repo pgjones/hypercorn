@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Optional
 
@@ -7,6 +8,9 @@ import trio
 
 from ..config import Config
 from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
 
 
 async def _handle(
@@ -22,10 +26,17 @@ async def _handle(
         await app(scope, receive, send, sync_spawn, call_soon)
     except trio.Cancelled:
         raise
-    except trio.MultiError as error:
-        errors = trio.MultiError.filter(
-            lambda exc: None if isinstance(exc, trio.Cancelled) else exc, root_exc=error
-        )
+    except (trio.MultiError, BaseExceptionGroup) as error:
+        if isinstance(error, BaseExceptionGroup):
+            # As of Trio 0.22.0, MultiError is now a subclass of BaseExceptionGroup. So this code
+            # path will correctly handle both MultiError and BaseExceptionGroup.
+            errors = error.split(trio.Cancelled)[1]
+        else:
+            # On older versions of Trio, MultiError is not a subclass of BaseExceptionGroup, so we
+            # fall back to trio.MultiError.filter().
+            errors = trio.MultiError.filter(
+                lambda exc: None if isinstance(exc, trio.Cancelled) else exc, root_exc=error
+            )
         if errors is not None:
             await config.log.exception("Error in ASGI Framework")
             await send(None)
