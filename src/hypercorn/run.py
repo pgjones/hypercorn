@@ -68,16 +68,15 @@ def run(config: Config) -> None:
         else:
             active = False
 
-    for process in processes:
-        process.join()
-    for process in processes:
-        process.terminate()
-
     for sock in sockets.secure_sockets:
         sock.close()
     for sock in sockets.insecure_sockets:
         sock.close()
 
+    for process in processes:
+        process.join()
+    for process in processes:
+        process.terminate()
 
 def start_processes(
     config: Config,
