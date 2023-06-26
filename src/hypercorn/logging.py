@@ -25,6 +25,7 @@ def _create_logger(
     target: Union[logging.Logger, str, None],
     level: Optional[str],
     sys_default: IO,
+    formatter,
     *,
     propagate: bool = True,
 ) -> Optional[logging.Logger]:
@@ -37,10 +38,6 @@ def _create_logger(
             logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)  # type: ignore # noqa: E501
         ]
         logger.propagate = propagate
-        formatter = logging.Formatter(
-            "%(asctime)s [%(process)d] [%(levelname)s] %(message)s",
-            "[%Y-%m-%d %H:%M:%S %z]",
-        )
         logger.handlers[0].setFormatter(formatter)
         if level is not None:
             logger.setLevel(logging.getLevelName(level.upper()))
@@ -57,11 +54,17 @@ class Logger:
             "hypercorn.access",
             config.accesslog,
             config.loglevel,
-            sys.stdout,
-            propagate=False,
+            config.access_log_sys_default,
+            config.log_formatter,
+            propagate=config.propagate_access_log,
         )
         self.error_logger = _create_logger(
-            "hypercorn.error", config.errorlog, config.loglevel, sys.stderr
+            "hypercorn.error",
+            config.errorlog,
+            config.loglevel,
+            config.error_log_sys_default,
+            config.log_formatter,
+            propagate=config.propagate_error_log
         )
 
         if config.logconfig is not None:

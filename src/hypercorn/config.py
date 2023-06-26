@@ -61,6 +61,12 @@ class Config:
     _log: Optional[Logger] = None
     _root_path: str = ""
 
+    log_formatter = logging.Formatter(fmt="%(asctime)s [%(process)d] [%(levelname)s] %(message)s",
+                                      datefmt="[%Y-%m-%d %H:%M:%S %z]")
+    propagate_access_log = False
+    propagate_error_log = True
+    access_log_sys_default = sys.stdout
+    error_log_sys_default = sys.stderr
     access_log_format = '%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
     accesslog: Union[logging.Logger, str, None] = None
     alpn_protocols = ["h2", "http/1.1"]
