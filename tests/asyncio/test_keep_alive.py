@@ -32,13 +32,13 @@ async def slow_framework(
         elif event["type"] == "http.request" and not event.get("more_body", False):
             await asyncio.sleep(2 * KEEP_ALIVE_TIMEOUT)
             await send(
-                {  # type: ignore
+                {
                     "type": "http.response.start",
                     "status": 200,
                     "headers": [(b"content-length", b"0")],
                 }
             )
-            await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore # noqa: E501
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
             break
 
 

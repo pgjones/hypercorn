@@ -127,15 +127,15 @@ async def test_send_response(stream: HTTPStream) -> None:
     await stream.app_send(
         cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b"Body"})
     )
-    assert stream.state == ASGIHTTPState.CLOSED
-    stream.send.assert_called()  # type: ignore
-    assert stream.send.call_args_list == [  # type: ignore
+    assert stream.state == ASGIHTTPState.CLOSED  # type: ignore
+    stream.send.assert_called()
+    assert stream.send.call_args_list == [
         call(Response(stream_id=1, headers=[], status_code=200)),
         call(Body(stream_id=1, data=b"Body")),
         call(EndBody(stream_id=1)),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._log.access.assert_called()  # type: ignore
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.asyncio
