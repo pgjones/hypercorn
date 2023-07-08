@@ -1,3 +1,21 @@
+0.14.4 2023-07-08
+-----------------
+
+* Bugfix Use tomllib/tomli for .toml support replacing the
+  unmaintained toml library.
+* Bugfix server hanging on startup failure.
+* Bugfix close websocket with 1011 on internal error (1006 is a
+  client-only code).
+* Bugfix support trio > 0.22 utilising exception groups (note trio <=
+  0.22 is not supported).
+* Bugfix except ConnectionAbortedError which can be raised on Windows
+  machines.
+* Bugfix ensure that closed is sent on reading end.
+* Bugfix handle read_timeout exception on trio.
+* Support and test against Python 3.11.
+* Add explanation of PicklingErrors.
+* Add config option to pass raw h11 headers.
+
 0.14.3 2022-09-04
 -----------------
 
