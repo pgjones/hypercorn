@@ -377,7 +377,7 @@ async def test_send_app_error_connected(stream: WSStream) -> None:
     stream.send.assert_called()  # type: ignore
     assert stream.send.call_args_list == [  # type: ignore
         call(Response(stream_id=1, headers=[], status_code=200)),
-        call(Data(stream_id=1, data=b"\x88\x02\x03\xe8")),
+        call(Data(stream_id=1, data=b"\x88\x02\x03\xf3")),
         call(StreamClosed(stream_id=1)),
     ]
     stream.config._log.access.assert_called()  # type: ignore
