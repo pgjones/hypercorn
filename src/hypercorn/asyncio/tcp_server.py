@@ -101,10 +101,11 @@ class TCPServer:
                 TimeoutError,
                 SSLError,
             ):
-                await self.protocol.handle(Closed())
                 break
             else:
                 await self.protocol.handle(RawData(data))
+
+        await self.protocol.handle(Closed())
 
     async def _close(self) -> None:
         try:
