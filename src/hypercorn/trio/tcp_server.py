@@ -68,7 +68,7 @@ class TCPServer:
                 await self.protocol.initiate()
                 await self._start_idle()
                 await self._read_data()
-        except (trio.MultiError, OSError):
+        except OSError:
             pass
         finally:
             await self._close()
