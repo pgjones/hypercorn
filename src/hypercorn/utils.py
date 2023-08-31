@@ -115,13 +115,13 @@ def load_application(path: str, wsgi_max_body_size: int) -> AppWrapper:
         module = import_module(import_name)
     except ModuleNotFoundError as error:
         if error.name == import_name:
-            raise NoAppError()
+            raise NoAppError(f"Cannot load application from '{path}', module not found.")
         else:
             raise
     try:
         app = eval(app_name, vars(module))
     except NameError:
-        raise NoAppError()
+        raise NoAppError(f"Cannot load application from '{path}', application not found.")
     else:
         return wrap_app(app, wsgi_max_body_size, mode)
 
