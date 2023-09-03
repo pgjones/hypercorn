@@ -127,6 +127,8 @@ insecure_bind              ``--insecure-bind``           The TCP host/address to
 keep_alive_timeout         ``--keep-alive``              Seconds to keep inactive connections alive      5s
                                                          before closing.
 keyfile                    ``--keyfile``                 Path to the SSL key file.
+keyfile_password           ``--keyfile-password``        Password for the keyfile if the keyfile is
+                                                         password-protected.
 logconfig                  ``--log-config``              A Python logging configuration file. This       The logging ini format.
                                                          can be prefixed with 'json:' or 'toml:' to
                                                          load the configuration from a file in that
