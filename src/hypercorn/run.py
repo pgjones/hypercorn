@@ -37,9 +37,10 @@ def run(config: Config) -> None:
 
     sockets = config.create_sockets()
 
-    # Load the application so that the correct paths are checked for
-    # changes.
-    load_application(config.application_path, config.wsgi_max_body_size)
+    if config.use_reloader:
+        # Load the application so that the correct paths are checked for
+        # changes, but only when the reloader is being used.
+        load_application(config.application_path, config.wsgi_max_body_size)
 
     ctx = get_context("spawn")
 
