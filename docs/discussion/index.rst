@@ -9,5 +9,6 @@ Discussions
    closing.rst
    design_choices.rst
    dos_mitigations.rst
+   flow.rst
    http2.rst
    workers.rst

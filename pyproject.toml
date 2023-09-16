@@ -33,6 +33,7 @@ h11 = "*"
 h2 = ">=3.1.0"
 priority = "*"
 pydata_sphinx_theme = { version = "*", optional = true }
+sphinxcontrib_mermaid = { version = "*", optional = true }
 tomli = { version = "*", python = "<3.11" }
 trio = { version = ">=0.22.0", optional = true }
 typing_extensions = { version = ">=3.7.4", python = "<3.8" }
@@ -51,7 +52,7 @@ trio = "*"
 hypercorn = "hypercorn.__main__:main"
 
 [tool.poetry.extras]
-docs = ["pydata_sphinx_theme"]
+docs = ["pydata_sphinx_theme", "sphinxcontrib_mermaid"]
 h3 = ["aioquic"]
 trio = ["exceptiongroup", "trio"]
 uvloop = ["uvloop"]
