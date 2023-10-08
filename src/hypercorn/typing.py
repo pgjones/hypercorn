@@ -2,16 +2,23 @@ from __future__ import annotations
 
 from multiprocessing.synchronize import Event as EventType
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    Literal,
+    Optional,
+    Protocol,
+    Tuple,
+    Type,
+    TypedDict,
+    Union,
+)
 
 import h2.events
 import h11
-
-# Till PEP 544 is accepted
-try:
-    from typing import Literal, Protocol, TypedDict
-except ImportError:
-    from typing_extensions import Literal, Protocol, TypedDict  # type: ignore
 
 from .config import Config, Sockets
 
