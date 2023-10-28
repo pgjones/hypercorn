@@ -132,7 +132,7 @@ def _build_environ(scope: HTTPScope, body: bytes) -> dict:
         "wsgi.run_once": False,
     }
 
-    if "client" in scope:
+    if scope.get("client") is not None:
         environ["REMOTE_ADDR"] = scope["client"][0]
 
     for raw_name, raw_value in scope.get("headers", []):
