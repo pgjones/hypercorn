@@ -28,12 +28,13 @@ documentation = "https://hypercorn.readthedocs.io"
 [tool.poetry.dependencies]
 python = ">=3.7"
 aioquic = { version = ">= 0.9.0, < 1.0", optional = true }
-exceptiongroup = { version = ">= 1.1.0", python = "<3.11", optional = true }
+exceptiongroup = ">= 1.1.0"
 h11 = "*"
 h2 = ">=3.1.0"
 priority = "*"
 pydata_sphinx_theme = { version = "*", optional = true }
 sphinxcontrib_mermaid = { version = "*", optional = true }
+taskgroup = { version = "*", python = "<3.11", allow-prereleases = true }
 tomli = { version = "*", python = "<3.11" }
 trio = { version = ">=0.22.0", optional = true }
 uvloop = { version = "*", markers = "platform_system != 'Windows'", optional = true }
