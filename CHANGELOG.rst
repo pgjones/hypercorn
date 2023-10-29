@@ -1,3 +1,19 @@
+0.14.5 2023-10-29
+-----------------
+
+* Improve the NoAppError to help diagnose why the app has not been
+  found.
+* Log cancelled requests as well as successful to aid diagnositics of
+  failures.
+* Use more modern asyncio apis. This will hopefully fix reported
+  memory leak issues.
+* Bugfix only load the application in the main process if the reloader
+  is being used.
+* Bugfix Autoreload error because reausing old sockets.
+* Bugfix scope client usage for sock binding.
+* Bugfix disable multiprocessing if number of workers is 0 to support
+  systems that don't support multiprocessing.
+
 0.14.4 2023-07-08
 -----------------
 
