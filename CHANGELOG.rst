@@ -1,4 +1,4 @@
-0.14.5 2023-10-29
+0.15.0 2023-10-29
 -----------------
 
 * Improve the NoAppError to help diagnose why the app has not been
