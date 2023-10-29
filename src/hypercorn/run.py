@@ -37,50 +37,56 @@ def run(config: Config) -> None:
 
     sockets = config.create_sockets()
 
-    if config.use_reloader:
+    if config.use_reloader and config.workers == 0:
+        raise RuntimeError("Cannot reload without workers")
+
+    if config.use_reloader or config.workers == 0:
         # Load the application so that the correct paths are checked for
         # changes, but only when the reloader is being used.
         load_application(config.application_path, config.wsgi_max_body_size)
 
-    ctx = get_context("spawn")
+    if config.workers == 0:
+        worker_func(config, sockets)
+    else:
+        ctx = get_context("spawn")
 
-    active = True
-    while active:
-        # Ignore SIGINT before creating the processes, so that they
-        # inherit the signal handling. This means that the shutdown
-        # function controls the shutdown.
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        active = True
+        while active:
+            # Ignore SIGINT before creating the processes, so that they
+            # inherit the signal handling. This means that the shutdown
+            # function controls the shutdown.
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        shutdown_event = ctx.Event()
-        processes = start_processes(config, worker_func, sockets, shutdown_event, ctx)
+            shutdown_event = ctx.Event()
+            processes = start_processes(config, worker_func, sockets, shutdown_event, ctx)
 
-        def shutdown(*args: Any) -> None:
-            nonlocal active, shutdown_event
-            shutdown_event.set()
-            active = False
+            def shutdown(*args: Any) -> None:
+                nonlocal active, shutdown_event
+                shutdown_event.set()
+                active = False
 
-        for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
-            if hasattr(signal, signal_name):
-                signal.signal(getattr(signal, signal_name), shutdown)
+            for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
+                if hasattr(signal, signal_name):
+                    signal.signal(getattr(signal, signal_name), shutdown)
 
-        if config.use_reloader:
-            wait_for_changes(shutdown_event)
-            shutdown_event.set()
-            # Recreate the sockets to be used again in the next
-            # iteration of the loop.
-            sockets = config.create_sockets()
-        else:
-            active = False
+            if config.use_reloader:
+                wait_for_changes(shutdown_event)
+                shutdown_event.set()
+                # Recreate the sockets to be used again in the next
+                # iteration of the loop.
+                sockets = config.create_sockets()
+            else:
+                active = False
 
-    for process in processes:
-        process.join()
-    for process in processes:
-        process.terminate()
+        for process in processes:
+            process.join()
+        for process in processes:
+            process.terminate()
 
-    for sock in sockets.secure_sockets:
-        sock.close()
-    for sock in sockets.insecure_sockets:
-        sock.close()
+        for sock in sockets.secure_sockets:
+            sock.close()
+        for sock in sockets.insecure_sockets:
+            sock.close()
 
 
 def start_processes(
