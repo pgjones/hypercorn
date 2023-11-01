@@ -13,7 +13,7 @@ async def serve(
     app: Framework,
     config: Config,
     *,
-    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+    shutdown_trigger: Optional[Callable[..., Awaitable]] = None,
     mode: Optional[Literal["asgi", "wsgi"]] = None,
 ) -> None:
     """Serve an ASGI or WSGI framework app given the config.
