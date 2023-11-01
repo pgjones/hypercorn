@@ -45,7 +45,7 @@ async def worker_serve(
     config: Config,
     *,
     sockets: Optional[Sockets] = None,
-    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+    shutdown_trigger: Optional[Callable[..., Awaitable]] = None,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 

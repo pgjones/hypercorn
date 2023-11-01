@@ -164,7 +164,7 @@ def wait_for_changes(shutdown_event: EventType) -> None:
                     last_updates[path] = mtime
 
 
-async def raise_shutdown(shutdown_event: Callable[..., Awaitable[None]]) -> None:
+async def raise_shutdown(shutdown_event: Callable[..., Awaitable]) -> None:
     await shutdown_event()
     raise ShutdownError()
 
