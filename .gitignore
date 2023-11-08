@@ -13,3 +13,6 @@ docs/reference/source/
 dist/
 .coverage
 poetry.lock
+
+# Pycharm
+.idea/
