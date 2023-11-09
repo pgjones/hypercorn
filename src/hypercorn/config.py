@@ -243,7 +243,7 @@ class Config:
                 except (ValueError, IndexError):
                     host, port = bind, 8000
                 sock = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, type_)
-                if self.workers > 1:
+                if self.workers > 1 or self.use_reloader:
                     try:
                         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
                     except AttributeError:
