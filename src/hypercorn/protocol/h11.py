@@ -154,7 +154,8 @@ class H11Protocol:
 
             try:
                 event = self.connection.next_event()
-            except h11.RemoteProtocolError:
+            except h11.RemoteProtocolError as e:
+                await self.config.log.exception("RemoteProtocolError processing event chain", exc_info=e)
                 if self.connection.our_state in {h11.IDLE, h11.SEND_RESPONSE}:
                     await self._send_error_response(400)
                 await self.send(Closed())
@@ -232,8 +233,9 @@ class H11Protocol:
     async def _send_h11_event(self, event: H11SendableEvent) -> None:
         try:
             data = self.connection.send(event)
-        except h11.LocalProtocolError:
+        except h11.LocalProtocolError as e:
             if self.connection.their_state != h11.ERROR:
+                await self.config.log.exception("LocalProtocolError processing event and client state not error", self.connection.their_state, exc_info=e)
                 raise
         else:
             await self.send(RawData(data=data))
