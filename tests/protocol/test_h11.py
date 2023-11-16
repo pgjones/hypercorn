@@ -314,7 +314,7 @@ async def test_protocol_handle_max_incomplete(monkeypatch: MonkeyPatch) -> None:
     assert protocol.send.call_args_list == [  # type: ignore
         call(
             RawData(
-                data=b"HTTP/1.1 400 \r\ncontent-length: 0\r\nconnection: close\r\n"
+                data=b"HTTP/1.1 431 \r\ncontent-length: 0\r\nconnection: close\r\n"
                 b"date: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\n\r\n"
             )
         ),
