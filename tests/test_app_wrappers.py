@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import partial
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, Iterable, List, Self
 
 import pytest
 import trio
@@ -27,7 +27,7 @@ class ResponseHelperBase:
     def __init__(self, body_parts: list[bytes] = []):
         self.body_parts = iter(body_parts)
 
-    def __iter__(self):
+    def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> bytes:
@@ -58,7 +58,9 @@ def simple_wsgi_app(response: ResponseHelperBase) -> WSGIFramework:
     return app
 
 
-async def wsgi_helper(wsgi_app: WSGIFramework, event_loop: asyncio.AbstractEventLoop) -> list[dict]:
+async def wsgi_helper(
+    wsgi_app: WSGIFramework, event_loop: asyncio.AbstractEventLoop
+) -> list[ASGISendEvent]:
     app = WSGIWrapper(wsgi_app, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",

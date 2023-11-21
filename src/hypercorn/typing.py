@@ -217,6 +217,7 @@ ASGIFramework = Callable[
     ],
     Awaitable[None],
 ]
+# TODO: Iterable[bytes] is not really the correct return type as it misses .close()/.__len__()
 WSGIFramework = Callable[[dict, Callable], Iterable[bytes]]
 Framework = Union[ASGIFramework, WSGIFramework]
 

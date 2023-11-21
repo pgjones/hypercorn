@@ -102,7 +102,7 @@ class WSGIWrapper:
                 for name, value in response_headers
             ]
 
-        def send_headers(content_length: int):
+        def send_headers(content_length: int) -> None:
             nonlocal headers, headers_sent
             if not headers:
                 raise AssertionError("missing call to start_response")
@@ -115,7 +115,7 @@ class WSGIWrapper:
             send({"type": "http.response.start", "status": status_code, "headers": headers})
             headers_sent = True
 
-        def send_body(data: bytes = b"", more_body: bool = False):
+        def send_body(data: bytes = b"", more_body: bool = False) -> None:
             if not headers_sent:
                 send_headers(len(data))
             send({"type": "http.response.body", "body": data, "more_body": more_body})
@@ -124,7 +124,7 @@ class WSGIWrapper:
 
         body_part_count: Optional[int] = None
         if hasattr(response_body, "__len__"):
-            body_part_count = len(response_body)
+            body_part_count = len(response_body)  # type: ignore
 
         try:
             # Optimize the common case of one body part
