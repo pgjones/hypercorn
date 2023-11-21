@@ -16,7 +16,6 @@ def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
     output = environ["wsgi.input"].read()
     headers = [
         ("Content-Type", "text/plain; charset=utf-8"),
-        ("Content-Length", str(len(output))),
     ]
     start_response(status, headers)
     return [output]
@@ -56,7 +55,6 @@ async def test_wsgi_trio() -> None:
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
         {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
@@ -99,7 +97,6 @@ async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
         {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
