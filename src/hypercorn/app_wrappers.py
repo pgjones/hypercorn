@@ -83,8 +83,7 @@ class WSGIWrapper:
             await sync_spawn(self.run_app, environ, partial(call_soon, send))
 
     def run_app(self, environ: dict, send: Callable) -> None:
-        headers: List[Tuple[bytes, bytes]]
-        headers_set: bool = False
+        headers: Optional[List[Tuple[bytes, bytes]]] = None
         headers_sent: bool = False
         implicit_content_length: bool = False
         status_code: Optional[int] = None
@@ -94,7 +93,7 @@ class WSGIWrapper:
             response_headers: List[Tuple[str, str]],
             exc_info: Optional[Exception] = None,
         ) -> None:
-            nonlocal headers, headers_set, status_code
+            nonlocal headers, status_code
 
             raw, _ = status.split(" ", 1)
             status_code = int(raw)
@@ -102,11 +101,10 @@ class WSGIWrapper:
                 (name.lower().encode("ascii"), value.encode("ascii"))
                 for name, value in response_headers
             ]
-            headers_set = True
 
         def send_headers(content_length: int):
             nonlocal headers, headers_sent
-            if not headers_set:
+            if not headers:
                 raise AssertionError("missing call to start_response")
             if implicit_content_length:  # We can determine the content-length ourself if not set
                 for name, _ in headers:
@@ -117,24 +115,32 @@ class WSGIWrapper:
             send({"type": "http.response.start", "status": status_code, "headers": headers})
             headers_sent = True
 
-        def send_body(data: bytes):
+        def send_body(data: bytes = b"", more_body: bool = False):
             if not headers_sent:
                 send_headers(len(data))
-            send({"type": "http.response.body", "body": data, "more_body": True if data else False})
+            send({"type": "http.response.body", "body": data, "more_body": more_body})
 
-        response_body_iter = self.app(environ, start_response)
+        response_body = self.app(environ, start_response)
 
-        if hasattr(response_body_iter, "__len__") and len(response_body_iter) == 1:
-            implicit_content_length = True
+        body_part_count: Optional[int] = None
+        if hasattr(response_body, "__len__"):
+            body_part_count = len(response_body)
 
         try:
-            for output in response_body_iter:
-                if output:
-                    send_body(output)
-            send_body(b"")
+            # Optimize the common case of one body part
+            if body_part_count == 1:
+                implicit_content_length = True
+                send_body(next(iter(response_body)))
+            elif body_part_count == 0:
+                send_body()
+            else:
+                for output in response_body:
+                    if output:
+                        send_body(output, more_body=True)
+                send_body()
         finally:
-            if hasattr(response_body_iter, "close"):
-                response_body_iter.close()
+            if hasattr(response_body, "close"):
+                response_body.close()
 
 
 def _build_environ(scope: HTTPScope, body: bytes) -> dict:
