@@ -134,10 +134,12 @@ class WSGIWrapper:
             elif body_part_count == 0:
                 send_body()
             else:
-                for output in response_body:
+                for idx, output in enumerate(response_body, start=1):
                     if output:
-                        send_body(output, more_body=True)
-                send_body()
+                        more_body = body_part_count is None or idx != body_part_count
+                        send_body(output, more_body=more_body)
+                if body_part_count is None:
+                    send_body()
         finally:
             if hasattr(response_body, "close"):
                 response_body.close()
