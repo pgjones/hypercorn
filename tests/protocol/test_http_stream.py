@@ -83,7 +83,11 @@ async def test_handle_request_http_2(stream: HTTPStream) -> None:
         "headers": [],
         "client": None,
         "server": None,
-        "extensions": {"http.response.early_hint": {}, "http.response.push": {}},
+        "extensions": {
+            "http.response.trailers": {},
+            "http.response.early_hint": {},
+            "http.response.push": {},
+        },
     }
 
 
