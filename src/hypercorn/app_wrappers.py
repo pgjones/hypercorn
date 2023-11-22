@@ -132,6 +132,7 @@ class WSGIWrapper:
                 implicit_content_length = True
                 send_body(next(iter(response_body)))
             elif body_part_count == 0:
+                implicit_content_length = True
                 send_body()
             else:
                 for idx, output in enumerate(response_body, start=1):

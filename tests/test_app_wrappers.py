@@ -14,9 +14,7 @@ from hypercorn.typing import ASGISendEvent, HTTPScope, WSGIFramework
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
     status = "200 OK"
     output = environ["wsgi.input"].read()
-    headers = [
-        ("Content-Type", "text/plain; charset=utf-8"),
-    ]
+    headers = [("Content-Type", "text/plain; charset=utf-8")]
     start_response(status, headers)
     return [output]
 
@@ -49,9 +47,7 @@ class ResponseHelper(ResponseHelperBase):
 def simple_wsgi_app(response: ResponseHelperBase) -> WSGIFramework:
     def app(environ: dict, start_response: Callable) -> Iterable[bytes]:
         status = "200 OK"
-        headers = [
-            ("Content-Type", "text/plain; charset=utf-8"),
-        ]
+        headers = [("Content-Type", "text/plain; charset=utf-8")]
         start_response(status, headers)
         return response
 
@@ -102,6 +98,34 @@ async def test_wsgi_close(event_loop: asyncio.AbstractEventLoop) -> None:
 
 
 @pytest.mark.asyncio
+async def test_empty_response_without_length(event_loop: asyncio.AbstractEventLoop) -> None:
+    response = ResponseHelperBase([])
+    messages = await wsgi_helper(simple_wsgi_app(response), event_loop)
+    assert messages == [
+        {
+            "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+            "status": 200,
+            "type": "http.response.start",
+        },
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_empty_response_length(event_loop: asyncio.AbstractEventLoop) -> None:
+    response = ResponseHelper([])
+    messages = await wsgi_helper(simple_wsgi_app(response), event_loop)
+    assert messages == [
+        {
+            "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
+            "status": 200,
+            "type": "http.response.start",
+        },
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_implicit_content_type(event_loop: asyncio.AbstractEventLoop) -> None:
     response = ResponseHelper([b"testing len"])
     messages = await wsgi_helper(simple_wsgi_app(response), event_loop)
@@ -124,9 +148,7 @@ async def test_no_content_type(event_loop: asyncio.AbstractEventLoop) -> None:
     messages = await wsgi_helper(simple_wsgi_app(response), event_loop)
     assert messages == [
         {
-            "headers": [
-                (b"content-type", b"text/plain; charset=utf-8"),
-            ],
+            "headers": [(b"content-type", b"text/plain; charset=utf-8")],
             "status": 200,
             "type": "http.response.start",
         },
@@ -141,9 +163,7 @@ async def test_multiple_parts(event_loop: asyncio.AbstractEventLoop) -> None:
     messages = await wsgi_helper(simple_wsgi_app(response), event_loop)
     assert messages == [
         {
-            "headers": [
-                (b"content-type", b"text/plain; charset=utf-8"),
-            ],
+            "headers": [(b"content-type", b"text/plain; charset=utf-8")],
             "status": 200,
             "type": "http.response.start",
         },
@@ -160,9 +180,7 @@ async def test_multiple_parts_with_length(event_loop: asyncio.AbstractEventLoop)
     messages = await wsgi_helper(simple_wsgi_app(response), event_loop)
     assert messages == [
         {
-            "headers": [
-                (b"content-type", b"text/plain; charset=utf-8"),
-            ],
+            "headers": [(b"content-type", b"text/plain; charset=utf-8")],
             "status": 200,
             "type": "http.response.start",
         },
