@@ -42,7 +42,7 @@ class HTTPStream:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
-        ssl: bool,
+        tls: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
@@ -56,7 +56,7 @@ class HTTPStream:
         self.response: HTTPResponseStartEvent
         self.scope: HTTPScope
         self.send = send
-        self.scheme = "https" if ssl else "http"
+        self.scheme = "https" if tls else "http"
         self.server = server
         self.start_time: float
         self.state = ASGIHTTPState.REQUEST

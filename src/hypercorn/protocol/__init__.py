@@ -16,7 +16,7 @@ class ProtocolWrapper:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
-        ssl: bool,
+        tls: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
@@ -26,7 +26,7 @@ class ProtocolWrapper:
         self.config = config
         self.context = context
         self.task_group = task_group
-        self.ssl = ssl
+        self.tls = tls
         self.client = client
         self.server = server
         self.send = send
@@ -37,7 +37,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
-                self.ssl,
+                self.tls,
                 self.client,
                 self.server,
                 self.send,
@@ -48,7 +48,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
-                self.ssl,
+                self.tls,
                 self.client,
                 self.server,
                 self.send,
@@ -66,7 +66,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
-                self.ssl,
+                self.tls,
                 self.client,
                 self.server,
                 self.send,
@@ -80,7 +80,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
-                self.ssl,
+                self.tls,
                 self.client,
                 self.server,
                 self.send,

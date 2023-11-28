@@ -167,7 +167,7 @@ class WSStream:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
-        ssl: bool,
+        tls: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         send: Callable[[Event], Awaitable[None]],
@@ -185,7 +185,7 @@ class WSStream:
         self.scope: WebsocketScope
         self.send = send
         # RFC 8441 for HTTP/2 says use http or https, ASGI says ws or wss
-        self.scheme = "wss" if ssl else "ws"
+        self.scheme = "wss" if tls else "ws"
         self.server = server
         self.start_time: float
         self.state = ASGIWebsocketState.HANDSHAKE
