@@ -115,7 +115,13 @@ class TCPServer:
         try:
             self.writer.close()
             await self.writer.wait_closed()
-        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError, RuntimeError):
+        except (
+            BrokenPipeError,
+            ConnectionAbortedError,
+            ConnectionResetError,
+            RuntimeError,
+            asyncio.CancelledError,
+        ):
             pass  # Already closed
 
         await self._stop_idle()
