@@ -23,7 +23,7 @@ def _load_config(config_path: Optional[str]) -> Config:
         return Config.from_toml(config_path)
 
 
-def main(sys_args: Optional[List[str]] = None) -> None:
+def main(sys_args: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "application", help="The application to dispatch to as path.to.module:instance.path"
@@ -284,8 +284,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     if len(args.server_names) > 0:
         config.server_names = args.server_names
 
-    run(config)
+    return run(config)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -15,7 +15,9 @@ from .typing import WorkerFunc
 from .utils import load_application, wait_for_changes, write_pid_file
 
 
-def run(config: Config) -> None:
+def run(config: Config) -> int:
+    exit_code = 0
+
     if config.pid_path is not None:
         write_pid_file(config.pid_path)
 
@@ -80,13 +82,19 @@ def run(config: Config) -> None:
 
         for process in processes:
             process.join()
+            if process.exitcode != 0:
+                exit_code = process.exitcode
+
         for process in processes:
             process.terminate()
 
         for sock in sockets.secure_sockets:
             sock.close()
+
         for sock in sockets.insecure_sockets:
             sock.close()
+
+    return exit_code
 
 
 def start_processes(
