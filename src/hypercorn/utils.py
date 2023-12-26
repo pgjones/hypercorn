@@ -185,7 +185,7 @@ def write_pid_file(pid_path: str) -> None:
 
 def parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
     if family == socket.AF_INET:
-        return address  # type: ignore
+        return address
     elif family == socket.AF_INET6:
         return (address[0], address[1])
     else:

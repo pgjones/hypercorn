@@ -65,7 +65,7 @@ async def worker_serve(
                     # Add signal handler may not be implemented on Windows
                     signal.signal(getattr(signal, signal_name), _signal_handler)
 
-        shutdown_trigger = signal_event.wait  # type: ignore
+        shutdown_trigger = signal_event.wait
 
     lifespan = Lifespan(app, config, loop)
 

@@ -68,7 +68,7 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
             reason=b"",
         ),
         h11.Data(data=b"Hello & Goodbye"),
-        h11.EndOfMessage(headers=[]),  # type: ignore
+        h11.EndOfMessage(headers=[]),
     ]
 
 
