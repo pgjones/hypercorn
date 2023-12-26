@@ -84,6 +84,7 @@ class Config:
     include_date_header = True
     include_server_header = True
     keep_alive_timeout = 5 * SECONDS
+    keep_alive_max_requests = 1000
     keyfile: Optional[str] = None
     keyfile_password: Optional[str] = None
     logconfig: Optional[str] = None

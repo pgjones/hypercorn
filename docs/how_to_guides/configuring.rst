@@ -124,6 +124,8 @@ insecure_bind              ``--insecure-bind``           The TCP host/address to
                                                          See *bind* for formatting options.
                                                          Care must be taken! See HTTP -> HTTPS
                                                          redirection docs.
+keep_alive_max_requests    N/A                           Maximum number of requests before connection    1000
+                                                         is closed. HTTP/1 & HTTP/2 only.
 keep_alive_timeout         ``--keep-alive``              Seconds to keep inactive connections alive      5s
                                                          before closing.
 keyfile                    ``--keyfile``                 Path to the SSL key file.
