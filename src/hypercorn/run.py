@@ -72,9 +72,6 @@ def run(config: Config) -> None:
             if config.use_reloader:
                 wait_for_changes(shutdown_event)
                 shutdown_event.set()
-                # Recreate the sockets to be used again in the next
-                # iteration of the loop.
-                sockets = config.create_sockets()
             else:
                 active = False
 
