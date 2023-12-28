@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from functools import partial
 from io import BytesIO
 from typing import Callable, List, Optional, Tuple
@@ -141,7 +142,7 @@ def _build_environ(scope: HTTPScope, body: bytes) -> dict:
         "wsgi.version": (1, 0),
         "wsgi.url_scheme": scope.get("scheme", "http"),
         "wsgi.input": BytesIO(body),
-        "wsgi.errors": BytesIO(),
+        "wsgi.errors": sys.stdout,
         "wsgi.multithread": True,
         "wsgi.multiprocess": True,
         "wsgi.run_once": False,
