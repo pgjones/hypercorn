@@ -9,12 +9,6 @@ Hypercorn directly serves WSGI applications:
 
     $ hypercorn module:wsgi_app
 
-.. warning::
-
-    The full response from the WSGI app will be stored in memory
-    before being sent. This prevents the WSGI app from streaming a
-    response.
-
 WSGI Middleware
 ---------------
 
