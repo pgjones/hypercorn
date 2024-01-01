@@ -140,6 +140,11 @@ logger_class               N/A                           Type of class to use fo
 loglevel                   ``--log-level``               The (error) log level.                          ``INFO``
 max_app_queue_size         N/A                           The maximum number of events to queue up        10
                                                          sending to the ASGI application.
+max_requests               ``--max-requests``            Maximum number of requests a worker will
+                                                         process before restarting.
+max_requests_jitter        ``--max-requests-jitter``     This jitter causes the max-requests per worker  0
+                                                         to be randomized by
+                                                         ``randint(0, max_requests_jitter)``
 pid_path                   ``-p``, ``--pid``             Location to write the PID (Program ID) to.
 quic_bind                  ``--quic-bind``               The UDP/QUIC host/address to bind to. See
                                                          *bind* for formatting options.
