@@ -1,4 +1,4 @@
-0.16.0 2023-01-01
+0.16.0 2024-01-01
 -----------------
 
 * Add a max keep alive requests configuration option, this mitigates
