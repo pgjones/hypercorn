@@ -92,6 +92,8 @@ class Config:
     logger_class = Logger
     loglevel: str = "INFO"
     max_app_queue_size: int = 10
+    max_requests: Optional[int] = None
+    max_requests_jitter: int = 0
     pid_path: Optional[str] = None
     server_names: List[str] = []
     shutdown_timeout = 60 * SECONDS

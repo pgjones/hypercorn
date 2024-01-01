@@ -4,9 +4,11 @@ import asyncio
 import platform
 import signal
 import ssl
+import sys
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from os import getpid
+from random import randint
 from socket import socket
 from typing import Any, Awaitable, Callable, Optional, Set
 
@@ -29,6 +31,14 @@ try:
     from asyncio import Runner
 except ImportError:
     from taskgroup import Runner  # type: ignore
+
+try:
+    from asyncio import TaskGroup
+except ImportError:
+    from taskgroup import TaskGroup  # type: ignore
+
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
 
 
 def _share_socket(sock: socket) -> socket:
@@ -84,7 +94,10 @@ async def worker_serve(
         ssl_context = config.create_ssl_context()
         ssl_handshake_timeout = config.ssl_handshake_timeout
 
-    context = WorkerContext()
+    max_requests = None
+    if config.max_requests is not None:
+        max_requests = config.max_requests + randint(0, config.max_requests_jitter)
+    context = WorkerContext(max_requests)
     server_tasks: Set[asyncio.Task] = set()
 
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -136,7 +149,13 @@ async def worker_serve(
         await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
     try:
-        await raise_shutdown(shutdown_trigger)
+        async with TaskGroup() as task_group:
+            task_group.create_task(raise_shutdown(shutdown_trigger))
+            task_group.create_task(raise_shutdown(context.terminate.wait))
+    except BaseExceptionGroup as error:
+        _, other_errors = error.split((ShutdownError, KeyboardInterrupt))
+        if other_errors is not None:
+            raise other_errors
     except (ShutdownError, KeyboardInterrupt):
         pass
     finally:

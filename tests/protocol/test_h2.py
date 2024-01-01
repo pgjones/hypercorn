@@ -75,7 +75,7 @@ async def test_stream_buffer_complete(event_loop: asyncio.AbstractEventLoop) -> 
 @pytest.mark.asyncio
 async def test_protocol_handle_protocol_error() -> None:
     protocol = H2Protocol(
-        Mock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock()
+        Mock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock()
     )
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
     protocol.send.assert_awaited()  # type: ignore
@@ -85,7 +85,7 @@ async def test_protocol_handle_protocol_error() -> None:
 @pytest.mark.asyncio
 async def test_protocol_keep_alive_max_requests() -> None:
     protocol = H2Protocol(
-        Mock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock()
+        Mock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock()
     )
     protocol.config.keep_alive_max_requests = 0
     client = H2Connection()

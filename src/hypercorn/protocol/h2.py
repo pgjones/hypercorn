@@ -354,6 +354,7 @@ class H2Protocol:
             )
         )
         self.keep_alive_requests += 1
+        await self.context.mark_request()
 
     async def _create_server_push(
         self, stream_id: int, path: bytes, headers: List[Tuple[bytes, bytes]]

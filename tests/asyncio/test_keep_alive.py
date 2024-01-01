@@ -50,7 +50,7 @@ async def _server(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[TCPSe
         ASGIWrapper(slow_framework),
         event_loop,
         config,
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )

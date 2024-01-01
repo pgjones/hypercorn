@@ -236,6 +236,7 @@ class H11Protocol:
             )
         )
         self.keep_alive_requests += 1
+        await self.context.mark_request()
 
     async def _send_h11_event(self, event: H11SendableEvent) -> None:
         try:

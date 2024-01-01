@@ -31,7 +31,7 @@ except ImportError:
 @pytest_asyncio.fixture(name="stream")  # type: ignore[misc]
 async def _stream() -> HTTPStream:
     stream = HTTPStream(
-        AsyncMock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock(), 1
+        AsyncMock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock(), 1
     )
     stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)

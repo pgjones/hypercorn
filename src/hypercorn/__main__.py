@@ -90,6 +90,19 @@ def main(sys_args: Optional[List[str]] = None) -> int:
         type=int,
     )
     parser.add_argument(
+        "--max-requests",
+        help="""Maximum number of requests a worker will process before restarting""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
+        "--max-requests-jitter",
+        help="This jitter causes the max-requests per worker to be "
+        "randomized by randint(0, max_requests_jitter)",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
         "-g", "--group", help="Group to own any unix sockets.", default=sentinel, type=int
     )
     parser.add_argument(
@@ -252,6 +265,10 @@ def main(sys_args: Optional[List[str]] = None) -> int:
         config.keyfile_password = args.keyfile_password
     if args.log_config is not sentinel:
         config.logconfig = args.log_config
+    if args.max_requests is not sentinel:
+        config.max_requests = args.max_requests
+    if args.max_requests_jitter is not sentinel:
+        config.max_requests_jitter = args.max_requests
     if args.pid is not sentinel:
         config.pid_path = args.pid
     if args.root_path is not sentinel:

@@ -4,7 +4,6 @@ import inspect
 import os
 import socket
 import sys
-import time
 from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
@@ -133,7 +132,7 @@ def wrap_app(
         return WSGIWrapper(cast(WSGIFramework, app), wsgi_max_body_size)
 
 
-def wait_for_changes(shutdown_event: EventType) -> None:
+def files_to_watch() -> Dict[Path, float]:
     last_updates: Dict[Path, float] = {}
     for module in list(sys.modules.values()):
         filename = getattr(module, "__file__", None)
@@ -144,24 +143,21 @@ def wait_for_changes(shutdown_event: EventType) -> None:
             last_updates[Path(filename)] = path.stat().st_mtime
         except (FileNotFoundError, NotADirectoryError):
             pass
+    return last_updates
 
-    while not shutdown_event.is_set():
-        time.sleep(1)
 
-        for index, (path, last_mtime) in enumerate(last_updates.items()):
-            if index % 10 == 0:
-                # Yield to the event loop
-                time.sleep(0)
-
-            try:
-                mtime = path.stat().st_mtime
-            except FileNotFoundError:
-                return
+def check_for_updates(files: Dict[Path, float]) -> bool:
+    for path, last_mtime in files.items():
+        try:
+            mtime = path.stat().st_mtime
+        except FileNotFoundError:
+            return True
+        else:
+            if mtime > last_mtime:
+                return True
             else:
-                if mtime > last_mtime:
-                    return
-                else:
-                    last_updates[path] = mtime
+                files[path] = mtime
+    return False
 
 
 async def raise_shutdown(shutdown_event: Callable[..., Awaitable]) -> None:

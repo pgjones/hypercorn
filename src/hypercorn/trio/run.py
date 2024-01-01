@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
+from random import randint
 from typing import Awaitable, Callable, Optional
 
 import trio
@@ -37,7 +38,10 @@ async def worker_serve(
     config.set_statsd_logger_class(StatsdLogger)
 
     lifespan = Lifespan(app, config)
-    context = WorkerContext()
+    max_requests = None
+    if config.max_requests is not None:
+        max_requests = config.max_requests + randint(0, config.max_requests_jitter)
+    context = WorkerContext(max_requests)
 
     async with trio.open_nursery() as lifespan_nursery:
         await lifespan_nursery.start(lifespan.handle_lifespan)
@@ -82,6 +86,7 @@ async def worker_serve(
                 async with trio.open_nursery(strict_exception_groups=True) as nursery:
                     if shutdown_trigger is not None:
                         nursery.start_soon(raise_shutdown, shutdown_trigger)
+                    nursery.start_soon(raise_shutdown, context.terminate.wait)
 
                     nursery.start_soon(
                         partial(

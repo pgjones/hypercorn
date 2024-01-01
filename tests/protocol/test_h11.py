@@ -35,6 +35,8 @@ async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     monkeypatch.setattr(hypercorn.protocol.h11, "HTTPStream", MockHTTPStream)
     context = Mock()
     context.event_class.return_value = AsyncMock(spec=IOEvent)
+    context.mark_request = AsyncMock()
+    context.terminate = context.event_class()
     context.terminated = context.event_class()
     context.terminated.is_set.return_value = False
     return H11Protocol(AsyncMock(), Config(), context, AsyncMock(), False, None, None, AsyncMock())

@@ -290,7 +290,11 @@ class Event(Protocol):
 
 class WorkerContext(Protocol):
     event_class: Type[Event]
+    terminate: Event
     terminated: Event
+
+    async def mark_request(self) -> None:
+        ...
 
     @staticmethod
     async def sleep(wait: Union[float, int]) -> None:

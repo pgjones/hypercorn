@@ -165,7 +165,7 @@ def test_handshake_accept_additional_headers() -> None:
 @pytest_asyncio.fixture(name="stream")  # type: ignore[misc]
 async def _stream() -> WSStream:
     stream = WSStream(
-        AsyncMock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock(), 1
+        AsyncMock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock(), 1
     )
     stream.task_group.spawn_app.return_value = AsyncMock()  # type: ignore
     stream.app_put = AsyncMock()
