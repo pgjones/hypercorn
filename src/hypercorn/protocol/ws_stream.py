@@ -18,7 +18,7 @@ from wsproto.events import (
 from wsproto.extensions import Extension, PerMessageDeflate
 from wsproto.frame_protocol import CloseReason
 from wsproto.handshake import server_extensions_handshake, WEBSOCKET_VERSION
-from wsproto.utilities import generate_accept_token, split_comma_header
+from wsproto.utilities import generate_accept_token, LocalProtocolError, split_comma_header
 
 from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
@@ -333,8 +333,12 @@ class WSStream:
         )
 
     async def _send_wsproto_event(self, event: WSProtoEvent) -> None:
-        data = self.connection.send(event)
-        await self.send(Data(stream_id=self.stream_id, data=data))
+        try:
+            data = self.connection.send(event)
+        except LocalProtocolError:
+            pass
+        else:
+            await self.send(Data(stream_id=self.stream_id, data=data))
 
     async def _accept(self, message: WebsocketAcceptEvent) -> None:
         self.state = ASGIWebsocketState.CONNECTED
