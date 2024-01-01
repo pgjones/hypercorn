@@ -18,9 +18,10 @@ class ProxyFixMiddleware:
         self.trusted_hops = trusted_hops
 
     async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
-        if scope["type"] in {"http", "websocket"}:
+        # Keep the `or` instead of `in {'http' …}` to allow type narrowing
+        if scope["type"] == "http" or scope["type"] == "websocket":
             scope = deepcopy(scope)
-            headers = scope["headers"]  # type: ignore
+            headers = scope["headers"]
             client: Optional[str] = None
             scheme: Optional[str] = None
             host: Optional[str] = None
@@ -44,10 +45,10 @@ class ProxyFixMiddleware:
                 host = _get_trusted_value(b"x-forwarded-host", headers, self.trusted_hops)
 
             if client is not None:
-                scope["client"] = (client, 0)  # type: ignore
+                scope["client"] = (client, 0)
 
             if scheme is not None:
-                scope["scheme"] = scheme  # type: ignore
+                scope["scheme"] = scheme
 
             if host is not None:
                 headers = [
@@ -55,8 +56,8 @@ class ProxyFixMiddleware:
                     for name, header_value in headers
                     if name.lower() != b"host"
                 ]
-                headers.append((b"host", host))
-                scope["headers"] = headers  # type: ignore
+                headers.append((b"host", host.encode()))
+                scope["headers"] = headers
 
         await self.app(scope, receive, send)
 
