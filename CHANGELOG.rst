@@ -1,3 +1,24 @@
+0.16.0 2023-01-01
+-----------------
+
+* Add a max keep alive requests configuration option, this mitigates
+  the HTTP/2 rapid reset attack.
+* Return subprocess exit code if non-zero.
+* Add ProxyFix middleware to make it easier to run Hypercorn behind a
+  proxy.
+* Support restarting workers after max requests to make it easier to
+  manage memory leaks in apps.
+* Bugfix ensure the idle task is stopped on error.
+* Bugfix revert autoreload error because reausing old sockets.
+* Bugfix send the hinted error from h11 on RemoteProtocolErrors.
+* Bugfix handle asyncio.CancelledError when socket is closed without
+  flushing.
+* Bugfix improve WSGI compliance by closing iterators, only sending
+  headers on first response byte, erroring if ``start_response`` is
+  not called, and switching wsgi.errors to stdout.
+* Don't error on LocalProtoclErrors for ws streams to better cope with
+  race conditions.
+
 0.15.0 2023-10-29
 -----------------
 

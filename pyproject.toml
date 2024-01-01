@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Hypercorn"
-version = "0.15.0"
+version = "0.16.0"
 description = "A ASGI Server based on Hyper libraries and inspired by Gunicorn"
 authors = ["pgjones <philip.graham.jones@googlemail.com>"]
 classifiers = [
