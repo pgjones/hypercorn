@@ -110,7 +110,8 @@ class HTTPStream:
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
         elif isinstance(event, StreamClosed):
             self.closed = True
-            await self.config.log.access(self.scope, None, time() - self.start_time)
+            if not self.scope.get("logged_access"):
+                await self.config.log.access(self.scope, None, time() - self.start_time)
             if self.app_put is not None:
                 await self.app_put({"type": "http.disconnect"})
 
@@ -186,6 +187,7 @@ class HTTPStream:
                         await self.config.log.access(
                             self.scope, self.response, time() - self.start_time
                         )
+                        self.scope["logged_access"] = True
                         await self.send(EndBody(stream_id=self.stream_id))
                         await self.send(StreamClosed(stream_id=self.stream_id))
             else:
