@@ -256,7 +256,12 @@ class H2Protocol:
                     event.flow_controlled_length, event.stream_id
                 )
             elif isinstance(event, h2.events.StreamEnded):
-                await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
+                try:
+                    await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
+                except KeyError:
+                    # Response sent before full request received,
+                    # nothing to do already closed.
+                    pass
             elif isinstance(event, h2.events.StreamReset):
                 await self._close_stream(event.stream_id)
                 await self._window_updated(event.stream_id)
