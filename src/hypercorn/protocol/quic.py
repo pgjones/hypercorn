@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Awaitable, Callable, Dict, Optional, Tuple
+from typing import Awaitable, Callable, Dict, Optional, Set, Tuple
 
 from aioquic.buffer import Buffer
 from aioquic.h3.connection import H3_ALPN
@@ -22,7 +22,21 @@ from aioquic.quic.packet import (
 from .h3 import H3Protocol
 from ..config import Config
 from ..events import Closed, Event, RawData
-from ..typing import AppWrapper, TaskGroup, WorkerContext
+from ..typing import AppWrapper, TaskGroup, WorkerContext, Timer
+
+
+class ConnectionState:
+    def __init__(self, connection: QuicConnection):
+        self.connection = connection
+        self.timer: Optional[Timer] = None
+        self.cids: Set[bytes] = set()
+        self.h3_protocol: Optional[H3Protocol] = None
+
+    def add_cid(self, cid: bytes) -> None:
+        self.cids.add(cid)
+
+    def remove_cid(self, cid: bytes) -> None:
+        self.cids.remove(cid)
 
 
 class QuicProtocol:
@@ -38,8 +52,7 @@ class QuicProtocol:
         self.app = app
         self.config = config
         self.context = context
-        self.connections: Dict[bytes, QuicConnection] = {}
-        self.http_connections: Dict[QuicConnection, H3Protocol] = {}
+        self.connections: Dict[bytes, ConnectionState] = {}
         self.send = send
         self.server = server
         self.task_group = task_group
@@ -49,7 +62,7 @@ class QuicProtocol:
 
     @property
     def idle(self) -> bool:
-        return len(self.connections) == 0 and len(self.http_connections) == 0
+        return len(self.connections) == 0
 
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
@@ -69,9 +82,13 @@ class QuicProtocol:
                 await self.send(RawData(data=data, address=event.address))
                 return
 
-            connection = self.connections.get(header.destination_cid)
+            state = self.connections.get(header.destination_cid)
+            if state is not None:
+                connection = state.connection
+            else:
+                connection = None
             if (
-                connection is None
+                state is None
                 and len(event.data) >= 1200
                 and header.packet_type == PACKET_TYPE_INITIAL
                 and not self.context.terminated.is_set()
@@ -80,12 +97,18 @@ class QuicProtocol:
                     configuration=self.quic_config,
                     original_destination_connection_id=header.destination_cid,
                 )
-                self.connections[header.destination_cid] = connection
-                self.connections[connection.host_cid] = connection
+                # This partial() needs python >= 3.8
+                state = ConnectionState(connection)
+                timer = self.task_group.create_timer(partial(self._timeout, state))
+                state.timer = timer
+                state.add_cid(header.destination_cid)
+                self.connections[header.destination_cid] = state
+                state.add_cid(connection.host_cid)
+                self.connections[connection.host_cid] = state
 
             if connection is not None:
                 connection.receive_datagram(event.data, event.address, now=self.context.time())
-                await self._handle_events(connection, event.address)
+                await self._wake_up_timer(state)
         elif isinstance(event, Closed):
             pass
 
@@ -94,14 +117,18 @@ class QuicProtocol:
             await self.send(RawData(data=data, address=address))
 
     async def _handle_events(
-        self, connection: QuicConnection, client: Optional[Tuple[str, int]] = None
+        self, state: ConnectionState, client: Optional[Tuple[str, int]] = None
     ) -> None:
+        connection = state.connection
         event = connection.next_event()
         while event is not None:
             if isinstance(event, ConnectionTerminated):
-                pass
+                await state.timer.stop()
+                for cid in state.cids:
+                    del self.connections[cid]
+                state.cids = set()
             elif isinstance(event, ProtocolNegotiated):
-                self.http_connections[connection] = H3Protocol(
+                state.h3_protocol = H3Protocol(
                     self.app,
                     self.config,
                     self.context,
@@ -109,27 +136,31 @@ class QuicProtocol:
                     client,
                     self.server,
                     connection,
-                    partial(self.send_all, connection),
+                    partial(self._wake_up_timer, state),
                 )
             elif isinstance(event, ConnectionIdIssued):
-                self.connections[event.connection_id] = connection
+                state.add_cid(event.connection_id)
+                self.connections[event.connection_id] = state
             elif isinstance(event, ConnectionIdRetired):
+                state.remove_cid(event.connection_id)
                 del self.connections[event.connection_id]
 
-            if connection in self.http_connections:
-                await self.http_connections[connection].handle(event)
+            elif state.h3_protocol is not None:
+                await state.h3_protocol.handle(event)
 
             event = connection.next_event()
 
+    async def _wake_up_timer(self, state: ConnectionState) -> None:
+        # When new output is send, or new input is received, we
+        # fire the timer right away so we update our state.
+        await state.timer.schedule(0.0)
+
+    async def _timeout(self, state: ConnectionState) -> None:
+        connection = state.connection
+        now = self.context.time()
+        when = connection.get_timer()
+        if when is not None and now > when:
+            connection.handle_timer(now)
+        await self._handle_events(state, None)
         await self.send_all(connection)
-
-        timer = connection.get_timer()
-        if timer is not None:
-            self.task_group.spawn(self._handle_timer, timer, connection)
-
-    async def _handle_timer(self, timer: float, connection: QuicConnection) -> None:
-        wait = max(0, timer - self.context.time())
-        await self.context.sleep(wait)
-        if connection._close_at is not None:
-            connection.handle_timer(now=self.context.time())
-            await self._handle_events(connection, None)
+        await state.timer.schedule(connection.get_timer())
