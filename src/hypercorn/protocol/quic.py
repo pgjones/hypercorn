@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
+from secrets import token_bytes
 from typing import Awaitable, Callable, Dict, Optional, Set, Tuple
 
 from aioquic.buffer import Buffer
@@ -15,9 +16,12 @@ from aioquic.quic.events import (
 )
 from aioquic.quic.packet import (
     encode_quic_version_negotiation,
+    encode_quic_retry,
     PACKET_TYPE_INITIAL,
     pull_quic_header,
 )
+from aioquic.quic.retry import QuicRetryTokenHandler
+from aioquic.tls import SessionTicket
 
 from .h3 import H3Protocol
 from ..config import Config
@@ -59,6 +63,12 @@ class QuicProtocol:
 
         self.quic_config = QuicConfiguration(alpn_protocols=H3_ALPN, is_client=False)
         self.quic_config.load_cert_chain(certfile=config.certfile, keyfile=config.keyfile)
+        self.retry: Optional[QuicRetryTokenHandler]
+        if config.quic_retry:
+            self.retry = QuicRetryTokenHandler()
+        else:
+            self.retry = None
+        self.session_tickets: Dict[bytes, bytes] = {}
 
     @property
     def idle(self) -> bool:
@@ -93,11 +103,49 @@ class QuicProtocol:
                 and header.packet_type == PACKET_TYPE_INITIAL
                 and not self.context.terminated.is_set()
             ):
+                cid = header.destination_cid
+                retry_cid = None
+                if self.retry is not None:
+                    if not header.token:
+                        if header.version is None:
+                            return
+                        source_cid = token_bytes(8)
+                        wire = encode_quic_retry(
+                            version=header.version,
+                            source_cid=source_cid,
+                            destination_cid=header.source_cid,
+                            original_destination_cid=header.destination_cid,
+                            retry_token=self.retry.create_token(
+                                event.address, header.destination_cid, source_cid
+                            ),
+                        )
+                        await self.send(RawData(data=wire, address=event.address))
+                        return
+                    else:
+                        try:
+                            (cid, retry_cid) = self.retry.validate_token(
+                                event.address, header.token
+                            )
+                            if self.connections.get(cid) is not None:
+                                # duplicate!
+                                return
+                        except ValueError:
+                            return
+                fetcher: Optional[Callable]
+                handler: Optional[Callable]
+                if self.config.quic_max_saved_sessions > 0:
+                    fetcher = self._get_session_ticket
+                    handler = self._store_session_ticket
+                else:
+                    fetcher = None
+                    handler = None
                 connection = QuicConnection(
                     configuration=self.quic_config,
-                    original_destination_connection_id=header.destination_cid,
+                    original_destination_connection_id=cid,
+                    retry_source_connection_id=retry_cid,
+                    session_ticket_fetcher=fetcher,
+                    session_ticket_handler=handler,
                 )
-                # This partial() needs python >= 3.8
                 state = ConnectionState(connection)
                 timer = self.task_group.create_timer(partial(self._timeout, state))
                 state.timer = timer
@@ -164,3 +212,18 @@ class QuicProtocol:
         await self._handle_events(state, None)
         await self.send_all(connection)
         await state.timer.schedule(connection.get_timer())
+
+    def _get_session_ticket(self, ticket: bytes) -> None:
+        try:
+            self.session_tickets.pop(ticket)
+        except KeyError:
+            return None
+
+    def _store_session_ticket(self, session_ticket: SessionTicket) -> None:
+        self.session_tickets[session_ticket.ticket] = session_ticket
+        # Implement a simple FIFO remembering the self.config.quic_max_saved_sessions
+        # most recent sessions.
+        while len(self.session_tickets) > self.config.quic_max_saved_sessions:
+            # Grab the first key
+            key = next(iter(self.session_tickets.keys()))
+            del self.session_tickets[key]
