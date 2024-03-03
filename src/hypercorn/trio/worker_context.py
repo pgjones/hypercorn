@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Awaitable, Optional, Type, Union
+from typing import Optional, Type, Union
 
 import trio
 
