@@ -99,7 +99,7 @@ class WSGIWrapper:
             raw, _ = status.split(" ", 1)
             status_code = int(raw)
             headers = [
-                (name.lower().encode("ascii"), value.encode("ascii"))
+                (name.lower().encode("latin-1"), value.encode("latin-1"))
                 for name, value in response_headers
             ]
             response_started = True
