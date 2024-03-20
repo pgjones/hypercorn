@@ -47,6 +47,11 @@ async def worker_serve(
         await lifespan_nursery.start(lifespan.handle_lifespan)
         await lifespan.wait_for_startup()
 
+        if lifespan.shutdown.is_set():
+            await lifespan.wait_for_shutdown()
+            lifespan_nursery.cancel_scope.cancel()
+            return
+
         async with trio.open_nursery() as server_nursery:
             if sockets is None:
                 sockets = config.create_sockets()
