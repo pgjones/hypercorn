@@ -13,7 +13,8 @@ from ..helpers import echo_framework
 
 
 @pytest.mark.asyncio
-async def test_completes_on_closed(event_loop: asyncio.AbstractEventLoop) -> None:
+async def test_completes_on_closed() -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
     server = TCPServer(
         ASGIWrapper(echo_framework),
         event_loop,
@@ -29,7 +30,8 @@ async def test_completes_on_closed(event_loop: asyncio.AbstractEventLoop) -> Non
 
 
 @pytest.mark.asyncio
-async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> None:
+async def test_complets_on_half_close() -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
     server = TCPServer(
         ASGIWrapper(echo_framework),
         event_loop,

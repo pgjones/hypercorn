@@ -407,7 +407,9 @@ async def test_send_connection(stream: WSStream) -> None:
 
 
 @pytest.mark.asyncio
-async def test_pings(stream: WSStream, event_loop: asyncio.AbstractEventLoop) -> None:
+async def test_pings(stream: WSStream) -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+
     stream.config.websocket_ping_interval = 0.1
     await stream.handle(
         Request(
