@@ -136,10 +136,9 @@ async def test_protocol_send_stream_closed(
 
 
 @pytest.mark.asyncio
-async def test_protocol_instant_recycle(
-    protocol: H11Protocol
-) -> None:
+async def test_protocol_instant_recycle(protocol: H11Protocol) -> None:
     event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+
     # This test task acts as the asgi app, spawned tasks act as the
     # server.
     data = b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n"
