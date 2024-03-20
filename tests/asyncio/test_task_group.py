@@ -12,7 +12,8 @@ from hypercorn.typing import HTTPScope, Scope
 
 
 @pytest.mark.asyncio
-async def test_spawn_app(event_loop: asyncio.AbstractEventLoop, http_scope: HTTPScope) -> None:
+async def test_spawn_app(http_scope: HTTPScope) -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
     async def _echo_app(scope: Scope, receive: Callable, send: Callable) -> None:
         while True:
             message = await receive()
@@ -32,8 +33,9 @@ async def test_spawn_app(event_loop: asyncio.AbstractEventLoop, http_scope: HTTP
 
 @pytest.mark.asyncio
 async def test_spawn_app_error(
-    event_loop: asyncio.AbstractEventLoop, http_scope: HTTPScope
+    http_scope: HTTPScope
 ) -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
     async def _error_app(scope: Scope, receive: Callable, send: Callable) -> None:
         raise Exception()
 

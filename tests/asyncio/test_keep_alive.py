@@ -43,7 +43,8 @@ async def slow_framework(
 
 
 @pytest_asyncio.fixture(name="server", scope="function")  # type: ignore[misc]
-async def _server(event_loop: asyncio.AbstractEventLoop) -> AsyncGenerator[TCPServer, None]:
+async def _server() -> AsyncGenerator[TCPServer, None]:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
     server = TCPServer(
