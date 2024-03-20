@@ -50,18 +50,23 @@ class Lifespan:
         except LifespanFailureError:
             # Lifespan failures should crash the server
             raise
-        except Exception:
+        except Exception as exception:
+
             self.supported = False
             if not self.startup.is_set():
                 await self.config.log.warning(
-                    "ASGI Framework Lifespan error, continuing without Lifespan support"
+                    f"ASGI Framework Lifespan error, continuing without Lifespan support: "
+                    f"{str(exception)}"
                 )
             elif not self.shutdown.is_set():
                 await self.config.log.exception(
-                    "ASGI Framework Lifespan error, shutdown without Lifespan support"
+                    f"ASGI Framework Lifespan error, shutdown without Lifespan support: "
+                    f"{str(exception)}"
                 )
             else:
-                await self.config.log.exception("ASGI Framework Lifespan errored after shutdown.")
+                await self.config.log.exception(
+                    f"ASGI Framework Lifespan errored after shutdown: {str(exception)}"
+                )
         finally:
             self.startup.set()
             self.shutdown.set()
