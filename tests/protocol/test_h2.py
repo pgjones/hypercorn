@@ -22,6 +22,7 @@ except ImportError:
 @pytest.mark.asyncio
 async def test_stream_buffer_push_and_pop() -> None:
     event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+
     stream_buffer = StreamBuffer(EventWrapper)
 
     async def _push_over_limit() -> bool:
@@ -39,6 +40,7 @@ async def test_stream_buffer_push_and_pop() -> None:
 @pytest.mark.asyncio
 async def test_stream_buffer_drain() -> None:
     event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+
     stream_buffer = StreamBuffer(EventWrapper)
     await stream_buffer.push(b"a" * 10)
 

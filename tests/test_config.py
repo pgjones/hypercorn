@@ -53,12 +53,23 @@ def test_create_ssl_context() -> None:
     path = os.path.join(os.path.dirname(__file__), "assets/config_ssl.py")
     config = Config.from_pyfile(path)
     context = config.create_ssl_context()
-    assert context.options & (
-        ssl.OP_NO_SSLv2
-        | ssl.OP_NO_SSLv3
-        | ssl.OP_NO_TLSv1
-        | ssl.OP_NO_TLSv1_1
-        | ssl.OP_NO_COMPRESSION
+
+    # NOTE: In earlier versions of python context.options is equal to <Options.OP_NO_COMPRESSION: 0>
+    #       hence the ANDing context.options with the specified ssl options results in
+    #       "<Options.OP_NO_COMPRESSION: 0>", which as a Boolean value, is False.
+    #
+    #       To overcome this, instead of checking that the result in True, we will check that it is
+    #        equal to "context.options".
+    assert (
+        context.options
+        & (
+            ssl.OP_NO_SSLv2
+            | ssl.OP_NO_SSLv3
+            | ssl.OP_NO_TLSv1
+            | ssl.OP_NO_TLSv1_1
+            | ssl.OP_NO_COMPRESSION
+        )
+        == context.options
     )
 
 
