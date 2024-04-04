@@ -72,7 +72,8 @@ class StatsdLogger(Logger):
         await super().access(request, response, request_time)
         await self.histogram("hypercorn.request.duration", request_time * 1_000)
         await self.increment("hypercorn.requests", 1)
-        await self.increment(f"hypercorn.request.status.{response['status']}", 1)
+        status = 'unknown' if response is None else response['status']
+        await self.increment(f"hypercorn.request.status.{status}", 1)
 
     async def gauge(self, name: str, value: int) -> None:
         await self._send(f"{self.prefix}{name}:{value}|g")
