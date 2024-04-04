@@ -31,7 +31,7 @@ except ImportError:
 @pytest_asyncio.fixture(name="stream")  # type: ignore[misc]
 async def _stream() -> HTTPStream:
     stream = HTTPStream(
-        AsyncMock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock(), 1
+        AsyncMock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock(), 1
     )
     stream.app_put = AsyncMock()
     stream.config._log = AsyncMock(spec=Logger)
@@ -108,6 +108,9 @@ async def test_handle_end_body(stream: HTTPStream) -> None:
 
 @pytest.mark.asyncio
 async def test_handle_closed(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+    )
     await stream.handle(StreamClosed(stream_id=1))
     stream.app_put.assert_called()  # type: ignore
     assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]  # type: ignore
@@ -127,15 +130,15 @@ async def test_send_response(stream: HTTPStream) -> None:
     await stream.app_send(
         cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b"Body"})
     )
-    assert stream.state == ASGIHTTPState.CLOSED
-    stream.send.assert_called()  # type: ignore
-    assert stream.send.call_args_list == [  # type: ignore
+    assert stream.state == ASGIHTTPState.CLOSED  # type: ignore
+    stream.send.assert_called()
+    assert stream.send.call_args_list == [
         call(Response(stream_id=1, headers=[], status_code=200)),
         call(Body(stream_id=1, data=b"Body")),
         call(EndBody(stream_id=1)),
         call(StreamClosed(stream_id=1)),
     ]
-    stream.config._log.access.assert_called()  # type: ignore
+    stream.config._log.access.assert_called()
 
 
 @pytest.mark.asyncio
@@ -275,6 +278,9 @@ def test_stream_idle(stream: HTTPStream) -> None:
 
 @pytest.mark.asyncio
 async def test_closure(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+    )
     assert not stream.closed
     await stream.handle(StreamClosed(stream_id=1))
     assert stream.closed

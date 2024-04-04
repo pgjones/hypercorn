@@ -1,24 +1,19 @@
 from __future__ import annotations
 
 import warnings
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Literal, Optional
 
 from .run import worker_serve
 from ..config import Config
 from ..typing import Framework
 from ..utils import wrap_app
 
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type: ignore
-
 
 async def serve(
     app: Framework,
     config: Config,
     *,
-    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+    shutdown_trigger: Optional[Callable[..., Awaitable]] = None,
     mode: Optional[Literal["asgi", "wsgi"]] = None,
 ) -> None:
     """Serve an ASGI or WSGI framework app given the config.

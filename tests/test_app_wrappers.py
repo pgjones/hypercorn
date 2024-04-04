@@ -61,8 +61,28 @@ async def test_wsgi_trio() -> None:
     ]
 
 
+async def _run_app(app: WSGIWrapper, scope: HTTPScope, body: bytes = b"") -> List[ASGISendEvent]:
+    queue: asyncio.Queue = asyncio.Queue()
+    await queue.put({"type": "http.request", "body": body})
+
+    messages = []
+
+    async def _send(message: ASGISendEvent) -> None:
+        nonlocal messages
+        messages.append(message)
+
+    event_loop = asyncio.get_running_loop()
+
+    def _call_soon(func: Callable, *args: Any) -> Any:
+        future = asyncio.run_coroutine_threadsafe(func(*args), event_loop)
+        return future.result()
+
+    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None), _call_soon)
+    return messages
+
+
 @pytest.mark.asyncio
-async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
+async def test_wsgi_asyncio() -> None:
     app = WSGIWrapper(echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
@@ -79,20 +99,7 @@ async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
         "server": None,
         "extensions": {},
     }
-    queue: asyncio.Queue = asyncio.Queue()
-    await queue.put({"type": "http.request"})
-
-    messages = []
-
-    async def _send(message: ASGISendEvent) -> None:
-        nonlocal messages
-        messages.append(message)
-
-    def _call_soon(func: Callable, *args: Any) -> Any:
-        future = asyncio.run_coroutine_threadsafe(func(*args), event_loop)
-        return future.result()
-
-    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None), _call_soon)
+    messages = await _run_app(app, scope)
     assert messages == [
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
@@ -105,7 +112,7 @@ async def test_wsgi_asyncio(event_loop: asyncio.AbstractEventLoop) -> None:
 
 
 @pytest.mark.asyncio
-async def test_max_body_size(event_loop: asyncio.AbstractEventLoop) -> None:
+async def test_max_body_size() -> None:
     app = WSGIWrapper(echo_body, 4)
     scope: HTTPScope = {
         "http_version": "1.1",
@@ -122,23 +129,37 @@ async def test_max_body_size(event_loop: asyncio.AbstractEventLoop) -> None:
         "server": None,
         "extensions": {},
     }
-    queue: asyncio.Queue = asyncio.Queue()
-    await queue.put({"type": "http.request", "body": b"abcde"})
-    messages = []
-
-    async def _send(message: ASGISendEvent) -> None:
-        nonlocal messages
-        messages.append(message)
-
-    def _call_soon(func: Callable, *args: Any) -> Any:
-        future = asyncio.run_coroutine_threadsafe(func(*args), event_loop)
-        return future.result()
-
-    await app(scope, queue.get, _send, partial(event_loop.run_in_executor, None), _call_soon)
+    messages = await _run_app(app, scope, b"abcde")
     assert messages == [
         {"headers": [], "status": 400, "type": "http.response.start"},
         {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
+
+
+def no_start_response(environ: dict, start_response: Callable) -> List[bytes]:
+    return [b"result"]
+
+
+@pytest.mark.asyncio
+async def test_no_start_response() -> None:
+    app = WSGIWrapper(no_start_response, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+    }
+    with pytest.raises(RuntimeError):
+        await _run_app(app, scope)
 
 
 def test_build_environ_encoding() -> None:

@@ -23,7 +23,7 @@ def _load_config(config_path: Optional[str]) -> Config:
         return Config.from_toml(config_path)
 
 
-def main(sys_args: Optional[List[str]] = None) -> None:
+def main(sys_args: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "application", help="The application to dispatch to as path.to.module:instance.path"
@@ -86,6 +86,19 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--read-timeout",
         help="""Seconds to wait before timing out reads on TCP sockets""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
+        "--max-requests",
+        help="""Maximum number of requests a worker will process before restarting""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
+        "--max-requests-jitter",
+        help="This jitter causes the max-requests per worker to be "
+        "randomized by randint(0, max_requests_jitter)",
         default=sentinel,
         type=int,
     )
@@ -252,6 +265,10 @@ def main(sys_args: Optional[List[str]] = None) -> None:
         config.keyfile_password = args.keyfile_password
     if args.log_config is not sentinel:
         config.logconfig = args.log_config
+    if args.max_requests is not sentinel:
+        config.max_requests = args.max_requests
+    if args.max_requests_jitter is not sentinel:
+        config.max_requests_jitter = args.max_requests
     if args.pid is not sentinel:
         config.pid_path = args.pid
     if args.root_path is not sentinel:
@@ -284,8 +301,8 @@ def main(sys_args: Optional[List[str]] = None) -> None:
     if len(args.server_names) > 0:
         config.server_names = args.server_names
 
-    run(config)
+    return run(config)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

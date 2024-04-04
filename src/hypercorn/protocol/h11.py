@@ -97,6 +97,7 @@ class H11Protocol:
             h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size
         )
         self.context = context
+        self.keep_alive_requests = 0
         self.send = send
         self.server = server
         self.ssl = ssl
@@ -154,9 +155,9 @@ class H11Protocol:
 
             try:
                 event = self.connection.next_event()
-            except h11.RemoteProtocolError:
+            except h11.RemoteProtocolError as error:
                 if self.connection.our_state in {h11.IDLE, h11.SEND_RESPONSE}:
-                    await self._send_error_response(400)
+                    await self._send_error_response(error.error_status_hint)
                 await self.send(Closed())
                 break
             else:
@@ -219,15 +220,23 @@ class H11Protocol:
                 self.stream_send,
                 STREAM_ID,
             )
+
+        if self.config.h11_pass_raw_headers:
+            headers = request.headers.raw_items()
+        else:
+            headers = list(request.headers)
+
         await self.stream.handle(
             Request(
                 stream_id=STREAM_ID,
-                headers=list(request.headers),
+                headers=headers,
                 http_version=request.http_version.decode(),
                 method=request.method.decode("ascii").upper(),
                 raw_path=request.target,
             )
         )
+        self.keep_alive_requests += 1
+        await self.context.mark_request()
 
     async def _send_h11_event(self, event: H11SendableEvent) -> None:
         try:
@@ -258,6 +267,7 @@ class H11Protocol:
             not self.context.terminated.is_set()
             and self.connection.our_state is h11.DONE
             and self.connection.their_state is h11.DONE
+            and self.keep_alive_requests <= self.config.keep_alive_max_requests
         ):
             try:
                 self.connection.start_next_cycle()

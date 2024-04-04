@@ -110,19 +110,17 @@ class HTTPStream:
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
         elif isinstance(event, StreamClosed):
             self.closed = True
+            await self.config.log.access(self.scope, None, time() - self.start_time)
             if self.app_put is not None:
-                await self.app_put({"type": "http.disconnect"})  # type: ignore
+                await self.app_put({"type": "http.disconnect"})
 
     async def app_send(self, message: Optional[ASGISendEvent]) -> None:
-        if self.closed:
-            # Allow app to finish after close
-            return
-
         if message is None:  # ASGI App has finished sending messages
-            # Cleanup if required
-            if self.state == ASGIHTTPState.REQUEST:
-                await self._send_error_response(500)
-            await self.send(StreamClosed(stream_id=self.stream_id))
+            if not self.closed:
+                # Cleanup if required
+                if self.state == ASGIHTTPState.REQUEST:
+                    await self._send_error_response(500)
+                await self.send(StreamClosed(stream_id=self.stream_id))
         else:
             if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
                 self.response = message

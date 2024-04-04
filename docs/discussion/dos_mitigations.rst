@@ -169,3 +169,14 @@ data that it cannot send to the client.
 
 To mitigate this Hypercorn responds to the backpressure and pauses
 (blocks) the coroutine writing the response.
+
+Rapid reset
+^^^^^^^^^^^
+
+This attack works by opening and closing streams in quick succession
+in the expectation that this is more costly for the server than the
+client.
+
+To mitigate Hypercorn will only allow a maximum number of requests per
+kept-alive connection before closing it. This ensures that cost of the
+attack is equally born by the client.

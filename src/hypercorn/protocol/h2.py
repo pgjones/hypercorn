@@ -109,6 +109,7 @@ class H2Protocol:
             },
         )
 
+        self.keep_alive_requests = 0
         self.send = send
         self.server = server
         self.ssl = ssl
@@ -244,6 +245,9 @@ class H2Protocol:
                 else:
                     await self._create_stream(event)
                     await self.send(Updated(idle=False))
+
+                if self.keep_alive_requests > self.config.keep_alive_max_requests:
+                    self.connection.close_connection()
             elif isinstance(event, h2.events.DataReceived):
                 await self.streams[event.stream_id].handle(
                     Body(stream_id=event.stream_id, data=event.data)
@@ -349,6 +353,8 @@ class H2Protocol:
                 raw_path=raw_path,
             )
         )
+        self.keep_alive_requests += 1
+        await self.context.mark_request()
 
     async def _create_server_push(
         self, stream_id: int, path: bytes, headers: List[Tuple[bytes, bytes]]
@@ -374,6 +380,7 @@ class H2Protocol:
             event.headers = request_headers
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
+            self.keep_alive_requests += 1
 
     async def _close_stream(self, stream_id: int) -> None:
         if stream_id in self.streams:

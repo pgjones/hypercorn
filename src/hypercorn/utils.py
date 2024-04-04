@@ -4,7 +4,6 @@ import inspect
 import os
 import socket
 import sys
-import time
 from enum import Enum
 from importlib import import_module
 from multiprocessing.synchronize import Event as EventType
@@ -17,6 +16,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     Tuple,
     TYPE_CHECKING,
@@ -25,11 +25,6 @@ from typing import (
 from .app_wrappers import ASGIWrapper, WSGIWrapper
 from .config import Config
 from .typing import AppWrapper, ASGIFramework, Framework, WSGIFramework
-
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type: ignore
 
 if TYPE_CHECKING:
     from .protocol.events import Request
@@ -115,13 +110,13 @@ def load_application(path: str, wsgi_max_body_size: int) -> AppWrapper:
         module = import_module(import_name)
     except ModuleNotFoundError as error:
         if error.name == import_name:
-            raise NoAppError()
+            raise NoAppError(f"Cannot load application from '{path}', module not found.")
         else:
             raise
     try:
         app = eval(app_name, vars(module))
     except NameError:
-        raise NoAppError()
+        raise NoAppError(f"Cannot load application from '{path}', application not found.")
     else:
         return wrap_app(app, wsgi_max_body_size, mode)
 
@@ -137,7 +132,7 @@ def wrap_app(
         return WSGIWrapper(cast(WSGIFramework, app), wsgi_max_body_size)
 
 
-def wait_for_changes(shutdown_event: EventType) -> None:
+def files_to_watch() -> Dict[Path, float]:
     last_updates: Dict[Path, float] = {}
     for module in list(sys.modules.values()):
         filename = getattr(module, "__file__", None)
@@ -148,27 +143,24 @@ def wait_for_changes(shutdown_event: EventType) -> None:
             last_updates[Path(filename)] = path.stat().st_mtime
         except (FileNotFoundError, NotADirectoryError):
             pass
+    return last_updates
 
-    while not shutdown_event.is_set():
-        time.sleep(1)
 
-        for index, (path, last_mtime) in enumerate(last_updates.items()):
-            if index % 10 == 0:
-                # Yield to the event loop
-                time.sleep(0)
-
-            try:
-                mtime = path.stat().st_mtime
-            except FileNotFoundError:
-                return
+def check_for_updates(files: Dict[Path, float]) -> bool:
+    for path, last_mtime in files.items():
+        try:
+            mtime = path.stat().st_mtime
+        except FileNotFoundError:
+            return True
+        else:
+            if mtime > last_mtime:
+                return True
             else:
-                if mtime > last_mtime:
-                    return
-                else:
-                    last_updates[path] = mtime
+                files[path] = mtime
+    return False
 
 
-async def raise_shutdown(shutdown_event: Callable[..., Awaitable[None]]) -> None:
+async def raise_shutdown(shutdown_event: Callable[..., Awaitable]) -> None:
     await shutdown_event()
     raise ShutdownError()
 
@@ -189,7 +181,7 @@ def write_pid_file(pid_path: str) -> None:
 
 def parse_socket_addr(family: int, address: tuple) -> Optional[Tuple[str, int]]:
     if family == socket.AF_INET:
-        return address  # type: ignore
+        return address
     elif family == socket.AF_INET6:
         return (address[0], address[1])
     else:

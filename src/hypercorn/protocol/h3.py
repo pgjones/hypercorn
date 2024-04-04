@@ -125,6 +125,7 @@ class H3Protocol:
                 raw_path=raw_path,
             )
         )
+        await self.context.mark_request()
 
     async def _create_server_push(
         self, stream_id: int, path: bytes, headers: List[Tuple[bytes, bytes]]

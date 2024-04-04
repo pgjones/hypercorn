@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from functools import partial
 from io import BytesIO
 from typing import Callable, List, Optional, Tuple
@@ -68,8 +69,8 @@ class WSGIWrapper:
             message = await receive()
             body.extend(message.get("body", b""))  # type: ignore
             if len(body) > self.max_body_size:
-                await send({"type": "http.response.start", "status": 400, "headers": []})  # type: ignore # noqa: E501
-                await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore # noqa: E501
+                await send({"type": "http.response.start", "status": 400, "headers": []})
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
                 return
             if not message.get("more_body"):
                 break
@@ -77,13 +78,15 @@ class WSGIWrapper:
         try:
             environ = _build_environ(scope, body)
         except InvalidPathError:
-            await send({"type": "http.response.start", "status": 404, "headers": []})  # type: ignore # noqa: E501
+            await send({"type": "http.response.start", "status": 404, "headers": []})
         else:
             await sync_spawn(self.run_app, environ, partial(call_soon, send))
-        await send({"type": "http.response.body", "body": b"", "more_body": False})  # type: ignore
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     def run_app(self, environ: dict, send: Callable) -> None:
         headers: List[Tuple[bytes, bytes]]
+        headers_sent = False
+        response_started = False
         status_code: Optional[int] = None
 
         def start_response(
@@ -91,7 +94,7 @@ class WSGIWrapper:
             response_headers: List[Tuple[str, str]],
             exc_info: Optional[Exception] = None,
         ) -> None:
-            nonlocal headers, status_code
+            nonlocal headers, response_started, status_code
 
             raw, _ = status.split(" ", 1)
             status_code = int(raw)
@@ -99,10 +102,23 @@ class WSGIWrapper:
                 (name.lower().encode("ascii"), value.encode("ascii"))
                 for name, value in response_headers
             ]
-            send({"type": "http.response.start", "status": status_code, "headers": headers})
+            response_started = True
 
-        for output in self.app(environ, start_response):
-            send({"type": "http.response.body", "body": output, "more_body": True})
+        response_body = self.app(environ, start_response)
+
+        if not response_started:
+            raise RuntimeError("WSGI app did not call start_response")
+
+        try:
+            for output in response_body:
+                if not headers_sent:
+                    send({"type": "http.response.start", "status": status_code, "headers": headers})
+                    headers_sent = True
+
+                send({"type": "http.response.body", "body": output, "more_body": True})
+        finally:
+            if hasattr(response_body, "close"):
+                response_body.close()
 
 
 def _build_environ(scope: HTTPScope, body: bytes) -> dict:
@@ -126,13 +142,13 @@ def _build_environ(scope: HTTPScope, body: bytes) -> dict:
         "wsgi.version": (1, 0),
         "wsgi.url_scheme": scope.get("scheme", "http"),
         "wsgi.input": BytesIO(body),
-        "wsgi.errors": BytesIO(),
+        "wsgi.errors": sys.stdout,
         "wsgi.multithread": True,
         "wsgi.multiprocess": True,
         "wsgi.run_once": False,
     }
 
-    if "client" in scope:
+    if scope.get("client") is not None:
         environ["REMOTE_ADDR"] = scope["client"][0]
 
     for raw_name, raw_value in scope.get("headers", []):

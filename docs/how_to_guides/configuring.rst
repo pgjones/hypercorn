@@ -108,6 +108,9 @@ read_timeout               ``--read-timeout``            Seconds to wait before 
 group                      ``-g``, ``--group``           Group to own any unix sockets.
 h11_max_incomplete_size    N/A                           The max HTTP/1.1 request line + headers         16KiB
                                                          size in bytes.
+h11_pass_raw_headers       N/A                           Pass the raw headers from h11 to the            ``False``
+                                                         Request object, which preserves header
+                                                         casing.
 h2_max_concurrent_streams  N/A                           Maximum number of HTTP/2 concurrent             100
                                                          streams.
 h2_max_header_list_size    N/A                           Maximum number of HTTP/2 headers.               65536
@@ -121,9 +124,13 @@ insecure_bind              ``--insecure-bind``           The TCP host/address to
                                                          See *bind* for formatting options.
                                                          Care must be taken! See HTTP -> HTTPS
                                                          redirection docs.
+keep_alive_max_requests    N/A                           Maximum number of requests before connection    1000
+                                                         is closed. HTTP/1 & HTTP/2 only.
 keep_alive_timeout         ``--keep-alive``              Seconds to keep inactive connections alive      5s
                                                          before closing.
 keyfile                    ``--keyfile``                 Path to the SSL key file.
+keyfile_password           ``--keyfile-password``        Password for the keyfile if the keyfile is
+                                                         password-protected.
 logconfig                  ``--log-config``              A Python logging configuration file. This       The logging ini format.
                                                          can be prefixed with 'json:' or 'toml:' to
                                                          load the configuration from a file in that
@@ -133,6 +140,11 @@ logger_class               N/A                           Type of class to use fo
 loglevel                   ``--log-level``               The (error) log level.                          ``INFO``
 max_app_queue_size         N/A                           The maximum number of events to queue up        10
                                                          sending to the ASGI application.
+max_requests               ``--max-requests``            Maximum number of requests a worker will
+                                                         process before restarting.
+max_requests_jitter        ``--max-requests-jitter``     This jitter causes the max-requests per worker  0
+                                                         to be randomized by
+                                                         ``randint(0, max_requests_jitter)``
 pid_path                   ``-p``, ``--pid``             Location to write the PID (Program ID) to.
 quic_bind                  ``--quic-bind``               The UDP/QUIC host/address to bind to. See
                                                          *bind* for formatting options.

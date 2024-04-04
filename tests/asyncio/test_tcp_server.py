@@ -18,7 +18,7 @@ async def test_completes_on_closed(event_loop: asyncio.AbstractEventLoop) -> Non
         ASGIWrapper(echo_framework),
         event_loop,
         Config(),
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
@@ -34,17 +34,16 @@ async def test_complets_on_half_close(event_loop: asyncio.AbstractEventLoop) -> 
         ASGIWrapper(echo_framework),
         event_loop,
         Config(),
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
     task = event_loop.create_task(server.run())
     await server.reader.send(b"GET / HTTP/1.1\r\nHost: hypercorn\r\n\r\n")  # type: ignore
     server.reader.close()  # type: ignore
-    await asyncio.sleep(0)
+    await task
     data = await server.writer.receive()  # type: ignore
     assert (
         data
         == b"HTTP/1.1 200 \r\ncontent-length: 335\r\ndate: Thu, 01 Jan 1970 01:23:20 GMT\r\nserver: hypercorn-h11\r\n\r\n"  # noqa: E501
     )
-    await task

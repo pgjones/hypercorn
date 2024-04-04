@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Literal, Optional
 
 import trio
 
@@ -9,11 +9,6 @@ from .run import worker_serve
 from ..config import Config
 from ..typing import Framework
 from ..utils import wrap_app
-
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal  # type: ignore
 
 
 async def serve(
