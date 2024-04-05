@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import weakref
 from functools import partial
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Optional
 
 from ..config import Config
 from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+
+try:
+    from asyncio import TaskGroup as AsyncioTaskGroup
+except ImportError:
+    from taskgroup import TaskGroup as AsyncioTaskGroup  # type: ignore
 
 
 async def _handle(
@@ -32,8 +36,7 @@ async def _handle(
 class TaskGroup:
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
-        self._tasks: weakref.WeakSet = weakref.WeakSet()
-        self._exiting = False
+        self._task_group = AsyncioTaskGroup()
 
     async def spawn_app(
         self,
@@ -61,28 +64,11 @@ class TaskGroup:
         return app_queue.put
 
     def spawn(self, func: Callable, *args: Any) -> None:
-        if self._exiting:
-            raise RuntimeError("Spawning whilst exiting")
-        self._tasks.add(self._loop.create_task(func(*args)))
+        self._task_group.create_task(func(*args))
 
     async def __aenter__(self) -> "TaskGroup":
+        await self._task_group.__aenter__()
         return self
 
     async def __aexit__(self, exc_type: type, exc_value: BaseException, tb: TracebackType) -> None:
-        self._exiting = True
-        if exc_type is not None:
-            self._cancel_tasks()
-
-        try:
-            task = asyncio.gather(*self._tasks)
-            await task
-        finally:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-    def _cancel_tasks(self) -> None:
-        for task in self._tasks:
-            task.cancel()
+        await self._task_group.__aexit__(exc_type, exc_value, tb)

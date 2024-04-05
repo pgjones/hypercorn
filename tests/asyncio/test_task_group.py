@@ -25,7 +25,7 @@ async def test_spawn_app(event_loop: asyncio.AbstractEventLoop, http_scope: HTTP
         put = await task_group.spawn_app(
             ASGIWrapper(_echo_app), Config(), http_scope, app_queue.put
         )
-        await put({"type": "http.disconnect"})  # type: ignore
+        await put({"type": "http.disconnect"})
         assert (await app_queue.get()) == {"type": "http.disconnect"}
         await put(None)
 
@@ -40,18 +40,4 @@ async def test_spawn_app_error(
     app_queue: asyncio.Queue = asyncio.Queue()
     async with TaskGroup(event_loop) as task_group:
         await task_group.spawn_app(ASGIWrapper(_error_app), Config(), http_scope, app_queue.put)
-    assert (await app_queue.get()) is None
-
-
-@pytest.mark.asyncio
-async def test_spawn_app_cancelled(
-    event_loop: asyncio.AbstractEventLoop, http_scope: HTTPScope
-) -> None:
-    async def _error_app(scope: Scope, receive: Callable, send: Callable) -> None:
-        raise asyncio.CancelledError()
-
-    app_queue: asyncio.Queue = asyncio.Queue()
-    with pytest.raises(asyncio.CancelledError):
-        async with TaskGroup(event_loop) as task_group:
-            await task_group.spawn_app(ASGIWrapper(_error_app), Config(), http_scope, app_queue.put)
     assert (await app_queue.get()) is None

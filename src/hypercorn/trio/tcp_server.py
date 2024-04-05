@@ -68,7 +68,7 @@ class TCPServer:
                 await self.protocol.initiate()
                 await self._start_idle()
                 await self._read_data()
-        except (trio.MultiError, OSError):
+        except OSError:
             pass
         finally:
             await self._close()
@@ -96,13 +96,17 @@ class TCPServer:
             try:
                 with trio.fail_after(self.config.read_timeout or inf):
                     data = await self.stream.receive_some(MAX_RECV)
-            except (trio.ClosedResourceError, trio.BrokenResourceError):
-                await self.protocol.handle(Closed())
+            except (
+                trio.ClosedResourceError,
+                trio.BrokenResourceError,
+                trio.TooSlowError,
+            ):
                 break
             else:
                 await self.protocol.handle(RawData(data))
                 if data == b"":
                     break
+        await self.protocol.handle(Closed())
 
     async def _close(self) -> None:
         try:

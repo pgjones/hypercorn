@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import sys
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
+from random import randint
 from typing import Awaitable, Callable, Optional
-import exceptiongroup
 
 import trio
 
@@ -22,6 +23,9 @@ from ..utils import (
     ShutdownError,
 )
 
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
+
 
 async def worker_serve(
     app: AppWrapper,
@@ -34,7 +38,10 @@ async def worker_serve(
     config.set_statsd_logger_class(StatsdLogger)
 
     lifespan = Lifespan(app, config)
-    context = WorkerContext()
+    max_requests = None
+    if config.max_requests is not None:
+        max_requests = config.max_requests + randint(0, config.max_requests_jitter)
+    context = WorkerContext(max_requests)
 
     async with trio.open_nursery() as lifespan_nursery:
         await lifespan_nursery.start(lifespan.handle_lifespan)
@@ -76,21 +83,25 @@ async def worker_serve(
 
             task_status.started(binds)
             try:
-                with exceptiongroup.catch({(ShutdownError, KeyboardInterrupt): lambda grp: None}):
-                    async with trio.open_nursery() as nursery:
-                        if shutdown_trigger is not None:
-                            nursery.start_soon(raise_shutdown, shutdown_trigger)
+                async with trio.open_nursery(strict_exception_groups=True) as nursery:
+                    if shutdown_trigger is not None:
+                        nursery.start_soon(raise_shutdown, shutdown_trigger)
+                    nursery.start_soon(raise_shutdown, context.terminate.wait)
 
-                        nursery.start_soon(
-                            partial(
-                                trio.serve_listeners,
-                                partial(TCPServer, app, config, context),
-                                listeners,
-                                handler_nursery=server_nursery,
-                            ),
-                        )
+                    nursery.start_soon(
+                        partial(
+                            trio.serve_listeners,
+                            partial(TCPServer, app, config, context),
+                            listeners,
+                            handler_nursery=server_nursery,
+                        ),
+                    )
 
-                        await trio.sleep_forever()
+                    await trio.sleep_forever()
+            except BaseExceptionGroup as error:
+                _, other_errors = error.split((ShutdownError, KeyboardInterrupt))
+                if other_errors is not None:
+                    raise other_errors
             finally:
                 await context.terminated.set()
                 server_nursery.cancel_scope.deadline = trio.current_time() + config.graceful_timeout

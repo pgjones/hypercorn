@@ -4,6 +4,8 @@ import asyncio
 from unittest.mock import call, Mock
 
 import pytest
+from h2.connection import H2Connection
+from h2.events import ConnectionTerminated
 
 from hypercorn.asyncio.worker_context import EventWrapper, WorkerContext
 from hypercorn.config import Config
@@ -73,8 +75,29 @@ async def test_stream_buffer_complete(event_loop: asyncio.AbstractEventLoop) -> 
 @pytest.mark.asyncio
 async def test_protocol_handle_protocol_error() -> None:
     protocol = H2Protocol(
-        Mock(), Config(), WorkerContext(), AsyncMock(), False, None, None, AsyncMock()
+        Mock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock()
     )
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
     protocol.send.assert_awaited()  # type: ignore
     assert protocol.send.call_args_list == [call(Closed())]  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_protocol_keep_alive_max_requests() -> None:
+    protocol = H2Protocol(
+        Mock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock()
+    )
+    protocol.config.keep_alive_max_requests = 0
+    client = H2Connection()
+    client.initiate_connection()
+    headers = [
+        (":method", "GET"),
+        (":path", "/reqinfo"),
+        (":authority", "hypercorn"),
+        (":scheme", "https"),
+    ]
+    client.send_headers(1, headers, end_stream=True)
+    await protocol.handle(RawData(data=client.data_to_send()))
+    protocol.send.assert_awaited()  # type: ignore
+    events = client.receive_data(protocol.send.call_args_list[1].args[0].data)  # type: ignore
+    assert isinstance(events[-1], ConnectionTerminated)

@@ -21,7 +21,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
         ASGIWrapper(sanity_framework),
         event_loop,
         Config(),
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
@@ -66,7 +66,7 @@ async def test_http1_request(event_loop: asyncio.AbstractEventLoop) -> None:
             reason=b"",
         ),
         h11.Data(data=b"Hello & Goodbye"),
-        h11.EndOfMessage(headers=[]),  # type: ignore
+        h11.EndOfMessage(headers=[]),
     ]
     server.reader.close()  # type: ignore
     await task
@@ -78,7 +78,7 @@ async def test_http1_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
         ASGIWrapper(sanity_framework),
         event_loop,
         Config(),
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )
@@ -115,7 +115,7 @@ async def test_http2_request(event_loop: asyncio.AbstractEventLoop) -> None:
         ASGIWrapper(sanity_framework),
         event_loop,
         Config(),
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )
@@ -178,7 +178,7 @@ async def test_http2_websocket(event_loop: asyncio.AbstractEventLoop) -> None:
         ASGIWrapper(sanity_framework),
         event_loop,
         Config(),
-        WorkerContext(),
+        WorkerContext(None),
         MemoryReader(),  # type: ignore
         MemoryWriter(http2=True),  # type: ignore
     )

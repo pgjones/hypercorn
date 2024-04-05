@@ -4,6 +4,7 @@ import platform
 import signal
 import time
 from multiprocessing import get_context
+from multiprocessing.connection import wait
 from multiprocessing.context import BaseContext
 from multiprocessing.process import BaseProcess
 from multiprocessing.synchronize import Event as EventType
@@ -12,10 +13,10 @@ from typing import Any, List
 
 from .config import Config, Sockets
 from .typing import WorkerFunc
-from .utils import load_application, wait_for_changes, write_pid_file
+from .utils import check_for_updates, files_to_watch, load_application, write_pid_file
 
 
-def run(config: Config) -> None:
+def run(config: Config) -> int:
     if config.pid_path is not None:
         write_pid_file(config.pid_path)
 
@@ -37,57 +38,85 @@ def run(config: Config) -> None:
 
     sockets = config.create_sockets()
 
-    # Load the application so that the correct paths are checked for
-    # changes.
-    load_application(config.application_path, config.wsgi_max_body_size)
+    if config.use_reloader and config.workers == 0:
+        raise RuntimeError("Cannot reload without workers")
 
-    ctx = get_context("spawn")
+    exitcode = 0
+    if config.workers == 0:
+        worker_func(config, sockets)
+    else:
+        if config.use_reloader:
+            # Load the application so that the correct paths are checked for
+            # changes, but only when the reloader is being used.
+            load_application(config.application_path, config.wsgi_max_body_size)
 
-    active = True
-    while active:
-        # Ignore SIGINT before creating the processes, so that they
-        # inherit the signal handling. This means that the shutdown
-        # function controls the shutdown.
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        ctx = get_context("spawn")
 
+        active = True
         shutdown_event = ctx.Event()
-        processes = start_processes(config, worker_func, sockets, shutdown_event, ctx)
 
         def shutdown(*args: Any) -> None:
             nonlocal active, shutdown_event
             shutdown_event.set()
             active = False
 
-        for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
-            if hasattr(signal, signal_name):
-                signal.signal(getattr(signal, signal_name), shutdown)
+        processes: List[BaseProcess] = []
+        while active:
+            # Ignore SIGINT before creating the processes, so that they
+            # inherit the signal handling. This means that the shutdown
+            # function controls the shutdown.
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        if config.use_reloader:
-            wait_for_changes(shutdown_event)
-            shutdown_event.set()
-        else:
-            active = False
+            _populate(processes, config, worker_func, sockets, shutdown_event, ctx)
 
-    for process in processes:
-        process.join()
-    for process in processes:
-        process.terminate()
+            for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
+                if hasattr(signal, signal_name):
+                    signal.signal(getattr(signal, signal_name), shutdown)
 
-    for sock in sockets.secure_sockets:
-        sock.close()
-    for sock in sockets.insecure_sockets:
-        sock.close()
+            if config.use_reloader:
+                files = files_to_watch()
+                while True:
+                    finished = wait((process.sentinel for process in processes), timeout=1)
+                    updated = check_for_updates(files)
+                    if updated:
+                        shutdown_event.set()
+                        for process in processes:
+                            process.join()
+                        shutdown_event.clear()
+                        break
+                    if len(finished) > 0:
+                        break
+            else:
+                wait(process.sentinel for process in processes)
+
+            exitcode = _join_exited(processes)
+            if exitcode != 0:
+                shutdown_event.set()
+                active = False
+
+        for process in processes:
+            process.terminate()
+
+        exitcode = _join_exited(processes) if exitcode != 0 else exitcode
+
+        for sock in sockets.secure_sockets:
+            sock.close()
+
+        for sock in sockets.insecure_sockets:
+            sock.close()
+
+    return exitcode
 
 
-def start_processes(
+def _populate(
+    processes: List[BaseProcess],
     config: Config,
     worker_func: WorkerFunc,
     sockets: Sockets,
     shutdown_event: EventType,
     ctx: BaseContext,
-) -> List[BaseProcess]:
-    processes = []
-    for _ in range(config.workers):
+) -> None:
+    for _ in range(config.workers - len(processes)):
         process = ctx.Process(  # type: ignore
             target=worker_func,
             kwargs={"config": config, "shutdown_event": shutdown_event, "sockets": sockets},
@@ -102,4 +131,15 @@ def start_processes(
         processes.append(process)
         if platform.system() == "Windows":
             time.sleep(0.1)
-    return processes
+
+
+def _join_exited(processes: List[BaseProcess]) -> int:
+    exitcode = 0
+    for index in reversed(range(len(processes))):
+        worker = processes[index]
+        if worker.exitcode is not None:
+            worker.join()
+            exitcode = worker.exitcode if exitcode == 0 else exitcode
+            del processes[index]
+
+    return exitcode

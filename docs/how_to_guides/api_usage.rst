@@ -7,9 +7,8 @@ Most usage of Hypercorn is expected to be via the command line, as
 explained in the :ref:`usage` documentation. Alternatively it is
 possible to use Hypercorn programmatically via the ``serve`` function
 available for either the asyncio or trio :ref:`workers` (note the
-asyncio ``serve`` can be used with uvloop). In Python 3.7, or better,
-this can be done as follows, first you need to create a Hypercorn
-Config instance,
+asyncio ``serve`` can be used with uvloop). This can be done as
+follows, first you need to create a Hypercorn Config instance,
 
 .. code-block:: python
 

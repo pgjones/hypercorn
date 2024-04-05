@@ -13,3 +13,5 @@ docs/reference/source/
 dist/
 .coverage
 poetry.lock
+.idea/
+.DS_Store

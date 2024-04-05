@@ -26,18 +26,9 @@ async def _handle(
         await app(scope, receive, send, sync_spawn, call_soon)
     except trio.Cancelled:
         raise
-    except (trio.MultiError, BaseExceptionGroup) as error:
-        if isinstance(error, BaseExceptionGroup):
-            # As of Trio 0.22.0, MultiError is now a subclass of BaseExceptionGroup. So this code
-            # path will correctly handle both MultiError and BaseExceptionGroup.
-            errors = error.split(trio.Cancelled)[1]
-        else:
-            # On older versions of Trio, MultiError is not a subclass of BaseExceptionGroup, so we
-            # fall back to trio.MultiError.filter().
-            errors = trio.MultiError.filter(
-                lambda exc: None if isinstance(exc, trio.Cancelled) else exc, root_exc=error
-            )
-        if errors is not None:
+    except BaseExceptionGroup as error:
+        _, other_errors = error.split(trio.Cancelled)
+        if other_errors is not None:
             await config.log.exception("Error in ASGI Framework")
             await send(None)
         else:
