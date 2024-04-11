@@ -110,7 +110,8 @@ class HTTPStream:
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
         elif isinstance(event, StreamClosed):
             self.closed = True
-            await self.config.log.access(self.scope, None, time() - self.start_time)
+            if self.state != ASGIHTTPState.CLOSED:
+                await self.config.log.access(self.scope, None, time() - self.start_time)
             if self.app_put is not None:
                 await self.app_put({"type": "http.disconnect"})
 
