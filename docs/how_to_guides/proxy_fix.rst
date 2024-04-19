@@ -21,7 +21,7 @@ wrap your app and serve the wrapped app,
 
 .. code-block:: python
 
-    from hypercorn.middleware import ProxyFixMiddleware
+    from hypercorn.middleware.proxy_fix import ProxyFixMiddleware
 
     fixed_app = ProxyFixMiddleware(app, mode="legacy", trusted_hops=1)
 
