@@ -6,6 +6,7 @@ from unittest.mock import call
 import pytest
 import pytest_asyncio
 
+from hypercorn.asyncio.statsd import StatsdLogger
 from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from hypercorn.logging import Logger
@@ -298,3 +299,21 @@ async def test_closed_app_send_noop(stream: HTTPStream) -> None:
         cast(HTTPResponseStartEvent, {"type": "http.response.start", "status": 200, "headers": []})
     )
     stream.send.assert_not_called()  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_abnormal_close_logging() -> None:
+    config = Config()
+    config.accesslog = "-"
+    config.statsd_host = "localhost:9125"
+    # This exercises an issue where `HTTPStream` at one point called the statsd logger
+    # with `response=None` when the statsd logger failed to handle it.
+    config.set_statsd_logger_class(StatsdLogger)
+    stream = HTTPStream(
+        AsyncMock(), config, WorkerContext(None), AsyncMock(), False, None, None, AsyncMock(), 1
+    )
+
+    await stream.handle(
+        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+    )
+    await stream.handle(StreamClosed(stream_id=1))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from .logging import Logger
 
@@ -67,12 +67,13 @@ class StatsdLogger(Logger):
             await super().warning("Failed to log to statsd", exc_info=True)
 
     async def access(
-        self, request: "WWWScope", response: "ResponseSummary", request_time: float
+        self, request: "WWWScope", response: Optional["ResponseSummary"], request_time: float
     ) -> None:
         await super().access(request, response, request_time)
         await self.histogram("hypercorn.request.duration", request_time * 1_000)
         await self.increment("hypercorn.requests", 1)
-        await self.increment(f"hypercorn.request.status.{response['status']}", 1)
+        if response is not None:
+            await self.increment(f"hypercorn.request.status.{response['status']}", 1)
 
     async def gauge(self, name: str, value: int) -> None:
         await self._send(f"{self.prefix}{name}:{value}|g")
