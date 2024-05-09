@@ -68,8 +68,8 @@ class TCPServer:
                 await self.protocol.initiate()
                 await self._start_idle()
                 await self._read_data()
-        except OSError:
-            pass
+        except (OSError, BaseExceptionGroup):
+            await self.config.log.exception("Internal hypercorn error")
         finally:
             await self._close()
 
