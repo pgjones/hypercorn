@@ -1,25 +1,25 @@
 import hypercorn.trio
 from hypercorn.config import Config
-from starlette.applications import Starlette
-from starlette.middleware import Middleware
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.routing import Route
 import trio
 import httpx
 
 
-async def test_post(request: Request):
-    print("HEY")
-    return Response("boo", 200)
+async def app(scope, receive, send):
+    assert scope['type'] == 'http'
+
+    await send({
+        'type': 'http.response.start',
+        'status': 200,
+        'headers': [
+            [b'content-type', b'text/plain'],
+        ],
+    })
+    await send({
+        'type': 'http.response.body',
+        'body': b'Hello, world!',
+    })
 
 async def run_test():
-    app = Starlette(
-        routes=[
-            Route( "/test", test_post, methods=["POST"])
-        ]
-    )
-
     config = Config()
     config.bind = f"0.0.0.0:1234"
     config.accesslog = "-"  # Log to stdout/err
