@@ -2,6 +2,7 @@ import hypercorn.trio
 from hypercorn.config import Config
 import trio
 import httpx
+import pytest
 
 
 async def app(scope, receive, send):
@@ -19,7 +20,8 @@ async def app(scope, receive, send):
         'body': b'Hello, world!',
     })
 
-async def run_test():
+@pytest.mark.trio
+async def test_keep_alive_max_requests_regression():
     config = Config()
     config.bind = f"0.0.0.0:1234"
     config.accesslog = "-"  # Log to stdout/err
@@ -32,19 +34,14 @@ async def run_test():
             await hypercorn.trio.serve(app, config, shutdown_trigger=shutdown.wait)
         nursery.start_soon(serve)
 
-        await trio.sleep(0.1)
+        await trio.testing.wait_all_tasks_blocked()
 
         client = httpx.AsyncClient()
+
+        # Make sure that we properly clean up connections when `keep_alive_max_requests`
+        # is hit such that the client stays good over multiple hangups.
         for _ in range(10):
-            msg = {"key": "key1", "value": "value1"}
-            try:
-                result = await client.post("http://0.0.0.0:1234/test", json=msg)
-            except (httpx.ReadError, httpx.RemoteProtocolError):
-                raise
+            result = await client.post("http://0.0.0.0:1234/test", json={"key": "value"})
             result.raise_for_status()
-            print(result)
 
         shutdown.set()
-
-if __name__ == "__main__":
-    trio.run(run_test)
