@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hypercorn.trio
 from hypercorn.config import Config
 import trio
@@ -20,16 +22,18 @@ async def app(scope, receive, send):
         'body': b'Hello, world!',
     })
 
+
 @pytest.mark.trio
 async def test_keep_alive_max_requests_regression():
     config = Config()
-    config.bind = f"0.0.0.0:1234"
+    config.bind = "0.0.0.0:1234"
     config.accesslog = "-"  # Log to stdout/err
     config.errorlog = "-"
     config.keep_alive_max_requests = 2
 
     async with trio.open_nursery() as nursery:
         shutdown = trio.Event()
+
         async def serve():
             await hypercorn.trio.serve(app, config, shutdown_trigger=shutdown.wait)
         nursery.start_soon(serve)
