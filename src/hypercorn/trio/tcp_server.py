@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import sys
 from math import inf
 from typing import Any, Generator, Optional
 
+import exceptiongroup
 import trio
 
 from .task_group import TaskGroup
@@ -51,28 +53,31 @@ class TCPServer:
             socket = self.stream.socket
             ssl = False
 
-        try:
-            client = parse_socket_addr(socket.family, socket.getpeername())
-            server = parse_socket_addr(socket.family, socket.getsockname())
+        def log_handler(e: Exception):
+            if self.config.log.error_logger is not None:
+                self.config.log.error_logger.exception("Internal hypercorn error")
 
-            async with TaskGroup() as task_group:
-                self._task_group = task_group
-                self.protocol = ProtocolWrapper(
-                    self.app,
-                    self.config,
-                    self.context,
-                    task_group,
-                    ssl,
-                    client,
-                    server,
-                    self.protocol_send,
-                    alpn_protocol,
-                )
-                await self.protocol.initiate()
-                await self._start_idle()
-                await self._read_data()
-        except (OSError, BaseExceptionGroup):
-            await self.config.log.exception("Internal hypercorn error")
+        try:
+            with exceptiongroup.catch({Exception: log_handler}):
+                client = parse_socket_addr(socket.family, socket.getpeername())
+                server = parse_socket_addr(socket.family, socket.getsockname())
+
+                async with TaskGroup() as task_group:
+                    self._task_group = task_group
+                    self.protocol = ProtocolWrapper(
+                        self.app,
+                        self.config,
+                        self.context,
+                        task_group,
+                        ssl,
+                        client,
+                        server,
+                        self.protocol_send,
+                        alpn_protocol,
+                    )
+                    await self.protocol.initiate()
+                    await self._start_idle()
+                    await self._read_data()
         finally:
             await self._close()
 
