@@ -118,9 +118,12 @@ class H11Protocol:
     async def stream_send(self, event: StreamEvent) -> None:
         if isinstance(event, Response):
             if event.status_code >= 200:
+                headers = list(chain(event.headers, self.config.response_headers("h11")))
+                if self.keep_alive_requests >= self.config.keep_alive_max_requests:
+                    headers.append((b"connection", b"close"))
                 await self._send_h11_event(
                     h11.Response(
-                        headers=list(chain(event.headers, self.config.response_headers("h11"))),
+                        headers=headers,
                         status_code=event.status_code,
                     )
                 )
@@ -267,7 +270,6 @@ class H11Protocol:
             not self.context.terminated.is_set()
             and self.connection.our_state is h11.DONE
             and self.connection.their_state is h11.DONE
-            and self.keep_alive_requests <= self.config.keep_alive_max_requests
         ):
             try:
                 self.connection.start_next_cycle()

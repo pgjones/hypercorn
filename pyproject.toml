@@ -41,6 +41,7 @@ uvloop = { version = "*", markers = "platform_system != 'Windows'", optional = t
 wsproto = ">=0.14.0"
 
 [tool.poetry.dev-dependencies]
+httpx = "*"
 hypothesis = "*"
 mock = "*"
 pytest = "*"
