@@ -27,7 +27,10 @@ async def run_test():
     config.keep_alive_max_requests = 2
 
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(hypercorn.trio.serve, app, config)
+        shutdown = trio.Event()
+        async def serve():
+            await hypercorn.trio.serve(app, config, shutdown_trigger=shutdown.wait)
+        nursery.start_soon(serve)
 
         await trio.sleep(0.1)
 
@@ -40,6 +43,8 @@ async def run_test():
                 raise
             result.raise_for_status()
             print(result)
+
+        shutdown.set()
 
 if __name__ == "__main__":
     trio.run(run_test)
