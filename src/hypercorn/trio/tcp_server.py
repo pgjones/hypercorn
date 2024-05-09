@@ -13,6 +13,9 @@ from ..protocol import ProtocolWrapper
 from ..typing import AppWrapper
 from ..utils import parse_socket_addr
 
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
+
 MAX_RECV = 2**16
 
 
