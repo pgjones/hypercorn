@@ -54,7 +54,7 @@ hypercorn = "hypercorn.__main__:main"
 [tool.poetry.extras]
 docs = ["pydata_sphinx_theme", "sphinxcontrib_mermaid"]
 h3 = ["aioquic"]
-trio = ["exceptiongroup", "trio"]
+trio = ["trio"]
 uvloop = ["uvloop"]
 
 [tool.black]
