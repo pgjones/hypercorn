@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from math import inf
 from typing import Any, Generator, Optional
 
@@ -50,12 +49,12 @@ class TCPServer:
             socket = self.stream.socket
             ssl = False
 
-        def log_handler(e: Exception):
+        def log_handler(e: Exception) -> None:
             if self.config.log.error_logger is not None:
                 self.config.log.error_logger.exception("Internal hypercorn error")
 
         try:
-            with exceptiongroup.catch({Exception: log_handler}):
+            with exceptiongroup.catch({Exception: log_handler}):  # type: ignore
                 client = parse_socket_addr(socket.family, socket.getpeername())
                 server = parse_socket_addr(socket.family, socket.getsockname())
 
