@@ -54,7 +54,9 @@ class TCPServer:
                 self.config.log.error_logger.exception("Internal hypercorn error", exc_info=e)
 
         try:
-            with exceptiongroup.catch({Exception: log_handler}):  # type: ignore
+            with exceptiongroup.catch(
+                {OSError: lambda e: None, Exception: log_handler}  # type: ignore
+            ):
                 client = parse_socket_addr(socket.family, socket.getpeername())
                 server = parse_socket_addr(socket.family, socket.getsockname())
 
