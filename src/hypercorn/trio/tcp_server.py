@@ -51,7 +51,7 @@ class TCPServer:
 
         def log_handler(e: Exception) -> None:
             if self.config.log.error_logger is not None:
-                self.config.log.error_logger.exception("Internal hypercorn error")
+                self.config.log.error_logger.exception("Internal hypercorn error", exc_info=e)
 
         try:
             with exceptiongroup.catch({Exception: log_handler}):  # type: ignore
