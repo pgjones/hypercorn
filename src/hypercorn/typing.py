@@ -288,6 +288,20 @@ class Event(Protocol):
         pass
 
 
+class Timer:
+    def __init__(self, action: Callable) -> None:
+        ...
+
+    async def schedule(self, when: float) -> None:
+        ...
+
+    async def stop(self) -> None:
+        ...
+
+    async def run(self) -> None:
+        ...
+
+
 class WorkerContext(Protocol):
     event_class: Type[Event]
     terminate: Event
@@ -317,6 +331,9 @@ class TaskGroup(Protocol):
 
     def spawn(self, func: Callable, *args: Any) -> None:
         pass
+
+    def create_timer(self, action: Callable) -> Timer:
+        ...
 
     async def __aenter__(self) -> TaskGroup:
         pass

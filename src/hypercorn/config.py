@@ -33,6 +33,7 @@ from .logging import Logger
 BYTES = 1
 OCTETS = 1
 SECONDS = 1.0
+DEFAULT_QUIC_MAX_SAVED_SESSIONS = 100
 
 FilePath = Union[AnyStr, os.PathLike]
 SocketKind = Union[int, socket.SocketKind]
@@ -95,6 +96,8 @@ class Config:
     max_requests: Optional[int] = None
     max_requests_jitter: int = 0
     pid_path: Optional[str] = None
+    quic_retry: bool = True
+    quic_max_saved_sessions: int = DEFAULT_QUIC_MAX_SAVED_SESSIONS
     server_names: List[str] = []
     shutdown_timeout = 60 * SECONDS
     ssl_handshake_timeout = 60 * SECONDS

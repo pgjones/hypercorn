@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Any, Awaitable, Callable, Optional
 
 from ..config import Config
-from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope, Timer
 
 try:
     from asyncio import TaskGroup as AsyncioTaskGroup
@@ -32,6 +32,44 @@ async def _handle(
     finally:
         await send(None)
 
+
+LONG_SLEEP = 86400.0
+
+class AsyncioTimer(Timer):
+    def __init__(self, action: Callable) -> None:
+        self._action = action
+        self._done = False
+        self._wake_up = asyncio.Condition()
+        self._when: Optional[float] = None
+
+    async def schedule(self, when: Optional[float]) -> None:
+        self._when = when
+        async with self._wake_up:
+            self._wake_up.notify()
+
+    async def stop(self) -> None:
+        self._done = True
+        async with self._wake_up:
+            self._wake_up.notify()
+
+    async def _wait_for_wake_up(self) -> None:
+        async with self._wake_up:
+            await self._wake_up.wait()
+
+    async def run(self) -> None:
+        while not self._done:
+            if self._when is not None and asyncio.get_event_loop().time() >= self._when:
+                self._when = None
+                await self._action()
+            if self._when is not None:
+                timeout = max(self._when - asyncio.get_event_loop().time(), 0.0)
+            else:
+                timeout = LONG_SLEEP
+            if not self._done:
+                try:
+                    await asyncio.wait_for(self._wait_for_wake_up(), timeout)
+                except TimeoutError:
+                    pass
 
 class TaskGroup:
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
@@ -65,6 +103,11 @@ class TaskGroup:
 
     def spawn(self, func: Callable, *args: Any) -> None:
         self._task_group.create_task(func(*args))
+
+    def create_timer(self, action: Callable) -> Timer:
+        timer = AsyncioTimer(action)
+        self._task_group.create_task(timer.run())
+        return timer
 
     async def __aenter__(self) -> "TaskGroup":
         await self._task_group.__aenter__()

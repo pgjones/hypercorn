@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, Optional
 import trio
 
 from ..config import Config
-from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope, Timer
 
 if sys.version_info < (3, 11):
     from exceptiongroup import BaseExceptionGroup
@@ -39,6 +39,40 @@ async def _handle(
         await send(None)
 
 
+LONG_SLEEP = 86400.0
+
+class TrioTimer(Timer):
+    def __init__(self, action: Callable) -> None:
+        self._action = action
+        self._done = False
+        self._wake_up = trio.Condition()
+        self._when: Optional[float] = None
+
+    async def schedule(self, when: Optional[float]) -> None:
+        self._when = when
+        async with self._wake_up:
+            self._wake_up.notify()
+
+    async def stop(self) -> None:
+        self._done = True
+        async with self._wake_up:
+            self._wake_up.notify()
+
+    async def run(self) -> None:
+        while not self._done:
+            if self._when is not None and trio.current_time() >= self._when:
+                self._when = None
+                await self._action()
+            if self._when is not None:
+                timeout = max(self._when - trio.current_time(), 0.0)
+            else:
+                timeout = LONG_SLEEP
+            if not self._done:
+                with trio.move_on_after(timeout):
+                    async with self._wake_up:
+                        await self._wake_up.wait()
+
+
 class TaskGroup:
     def __init__(self) -> None:
         self._nursery: Optional[trio._core._run.Nursery] = None
@@ -66,6 +100,11 @@ class TaskGroup:
 
     def spawn(self, func: Callable, *args: Any) -> None:
         self._nursery.start_soon(func, *args)
+
+    def create_timer(self, action: Callable) -> Timer:
+        timer = TrioTimer(action)
+        self._nursery.start_soon(timer.run)
+        return timer
 
     async def __aenter__(self) -> TaskGroup:
         self._nursery_manager = trio.open_nursery()
