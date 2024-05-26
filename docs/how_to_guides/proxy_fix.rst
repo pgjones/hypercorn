@@ -31,3 +31,8 @@ wrap your app and serve the wrapped app,
     user-agent (client) may be trusted and hence able to set
     alternative for, proto, and host values. This can, depending on
     your usage in the app, lead to security vulnerabilities.
+
+The ``trusted_hops`` argument should be set to the number of proxies
+that are chained in front of Hypercorn. You should set this to how
+many proxies are setting the headers so the middleware knows what to
+trust.
