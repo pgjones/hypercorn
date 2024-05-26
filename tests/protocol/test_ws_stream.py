@@ -204,6 +204,35 @@ async def test_handle_request(stream: WSStream) -> None:
 
 
 @pytest.mark.asyncio
+async def test_handle_data_before_acceptance(stream: WSStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"sec-websocket-version", b"13")],
+            raw_path=b"/?a=b",
+            method="GET",
+        )
+    )
+    await stream.handle(
+        Data(
+            stream_id=1,
+            data=b"X",
+        )
+    )
+    assert stream.send.call_args_list == [  # type: ignore
+        call(
+            Response(
+                stream_id=1,
+                headers=[(b"content-length", b"0"), (b"connection", b"close")],
+                status_code=400,
+            )
+        ),
+        call(EndBody(stream_id=1)),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_handle_connection(stream: WSStream) -> None:
     await stream.handle(
         Request(
