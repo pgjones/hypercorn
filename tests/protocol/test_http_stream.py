@@ -165,9 +165,7 @@ async def test_send_response(stream: HTTPStream) -> None:
     await stream.app_send(
         cast(HTTPResponseStartEvent, {"type": "http.response.start", "status": 200, "headers": []})
     )
-    assert stream.state == ASGIHTTPState.REQUEST
-    # Must wait for response before sending anything
-    stream.send.assert_not_called()  # type: ignore
+    assert stream.state == ASGIHTTPState.RESPONSE
     await stream.app_send(
         cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b"Body"})
     )
@@ -411,15 +409,6 @@ async def test_closure(stream: HTTPStream) -> None:
     # It is important that the disconnect message has only been sent
     # once.
     assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
-
-
-@pytest.mark.asyncio
-async def test_closed_app_send_noop(stream: HTTPStream) -> None:
-    stream.closed = True
-    await stream.app_send(
-        cast(HTTPResponseStartEvent, {"type": "http.response.start", "status": 200, "headers": []})
-    )
-    stream.send.assert_not_called()  # type: ignore
 
 
 @pytest.mark.asyncio

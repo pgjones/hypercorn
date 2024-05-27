@@ -141,6 +141,15 @@ class HTTPStream:
         else:
             if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
                 self.response = message
+                headers = build_and_validate_headers(self.response.get("headers", []))
+                await self.send(
+                    Response(
+                        stream_id=self.stream_id,
+                        headers=headers,
+                        status_code=int(self.response["status"]),
+                    )
+                )
+                self.state = ASGIHTTPState.RESPONSE
             elif (
                 message["type"] == "http.response.push"
                 and self.scope["http_version"] in PUSH_VERSIONS
@@ -175,21 +184,7 @@ class HTTPStream:
                         status_code=103,
                     )
                 )
-            elif message["type"] == "http.response.body" and self.state in {
-                ASGIHTTPState.REQUEST,
-                ASGIHTTPState.RESPONSE,
-            }:
-                if self.state == ASGIHTTPState.REQUEST:
-                    headers = build_and_validate_headers(self.response.get("headers", []))
-                    await self.send(
-                        Response(
-                            stream_id=self.stream_id,
-                            headers=headers,
-                            status_code=int(self.response["status"]),
-                        )
-                    )
-                    self.state = ASGIHTTPState.RESPONSE
-
+            elif message["type"] == "http.response.body" and self.state == ASGIHTTPState.RESPONSE:
                 if (
                     not suppress_body(self.scope["method"], int(self.response["status"]))
                     and message.get("body", b"") != b""
