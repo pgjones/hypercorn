@@ -150,6 +150,5 @@ class QuicProtocol:
     async def _handle_timer(self, timer: float, connection: _Connection) -> None:
         wait = max(0, timer - self.context.time())
         await self.context.sleep(wait)
-        if connection.quic._close_at is not None:
-            connection.quic.handle_timer(now=self.context.time())
-            await self._handle_events(connection, None)
+        connection.quic.handle_timer(now=self.context.time())
+        await self._handle_events(connection, None)
