@@ -269,8 +269,8 @@ async def test_send_trailers(stream: HTTPStream) -> None:
     assert stream.send.call_args_list == [  # type: ignore
         call(Response(stream_id=1, headers=[], status_code=200)),
         call(Body(stream_id=1, data=b"Body")),
-        call(EndBody(stream_id=1)),
         call(Trailers(stream_id=1, headers=[(b"X", b"V")])),
+        call(EndBody(stream_id=1)),
         call(StreamClosed(stream_id=1)),
     ]
 
@@ -337,7 +337,6 @@ async def test_send_app_error(stream: HTTPStream) -> None:
     "state, message_type",
     [
         (ASGIHTTPState.REQUEST, "not_a_real_type"),
-        (ASGIHTTPState.REQUEST, "http.response.trailers"),
         (ASGIHTTPState.RESPONSE, "http.response.start"),
         (ASGIHTTPState.TRAILERS, "http.response.start"),
         (ASGIHTTPState.CLOSED, "http.response.start"),
