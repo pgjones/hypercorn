@@ -37,6 +37,7 @@ sphinxcontrib_mermaid = { version = "*", optional = true }
 taskgroup = { version = "*", python = "<3.11", allow-prereleases = true }
 tomli = { version = "*", python = "<3.11" }
 trio = { version = ">=0.22.0", optional = true }
+typing_extensions = { version = "*", python = "<3.11" }
 uvloop = { version = "*", markers = "platform_system != 'Windows'", optional = true }
 wsproto = ">=0.14.0"
 
