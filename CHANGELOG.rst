@@ -1,3 +1,8 @@
+0.17.2 2024-05-27
+-----------------
+
+* Bugfix pass the correct quic connection to the H3 Protocol.
+
 0.17.1 2024-05-27
 -----------------
 
