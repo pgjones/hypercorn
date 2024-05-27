@@ -18,6 +18,7 @@ from .events import (
     Request,
     Response,
     StreamClosed,
+    Trailers,
 )
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
@@ -213,6 +214,9 @@ class H2Protocol:
                 self.priority.unblock(event.stream_id)
                 await self.has_data.set()
                 await self.stream_buffers[event.stream_id].drain()
+            elif isinstance(event, Trailers):
+                self.connection.send_headers(event.stream_id, event.headers)
+                await self._flush()
             elif isinstance(event, StreamClosed):
                 await self._close_stream(event.stream_id)
                 idle = len(self.streams) == 0 or all(

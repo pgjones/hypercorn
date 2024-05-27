@@ -18,6 +18,7 @@ from .events import (
     Request,
     Response,
     StreamClosed,
+    Trailers,
 )
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
@@ -78,6 +79,9 @@ class H3Protocol:
             await self.send()
         elif isinstance(event, (EndBody, EndData)):
             self.connection.send_data(event.stream_id, b"", True)
+            await self.send()
+        elif isinstance(event, Trailers):
+            self.connection.send_headers(event.stream_id, event.headers)
             await self.send()
         elif isinstance(event, StreamClosed):
             pass  # ??

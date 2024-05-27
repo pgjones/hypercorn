@@ -28,6 +28,11 @@ class EndBody(Event):
 
 
 @dataclass(frozen=True)
+class Trailers(Event):
+    headers: List[Tuple[bytes, bytes]]
+
+
+@dataclass(frozen=True)
 class Data(Event):
     data: bytes
 
