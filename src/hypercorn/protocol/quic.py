@@ -133,7 +133,7 @@ class QuicProtocol:
                     self.state,
                     client,
                     self.server,
-                    connection,
+                    connection.quic,
                     partial(self.send_all, connection),
                 )
             elif isinstance(event, ConnectionIdIssued):
