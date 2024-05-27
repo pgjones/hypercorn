@@ -1,3 +1,21 @@
+0.17.0 2024-05-27
+-----------------
+
+* Set TCP_NODELAY on sockets.
+* Support sending trailing headers on h2/h3.
+* Add support for lifespan state.
+* Allow sending of the response before body data arrives.
+* Bugfix properly set host header to ascii string in
+  ProxyFixMiddleware.
+* Bugfix encode headers using latin-1.
+* Bugfix don't double-access log if the response was sent.
+* Bugfix a statsd logging bug.
+* Bugfix handle already-closed on StreamEnded.
+* Bugfix send a 400 response if data is received before the websocket
+  is accepted.
+* Bugfix ensure only a single QUIC timer task per connection.
+* Bugfix ensure responses are sent with empty bodies for WSGI.
+
 0.16.0 2024-01-01
 -----------------
 
