@@ -1,10 +1,42 @@
 from __future__ import annotations
 
-from typing import Optional, Type, Union
+from functools import wraps
+from typing import Awaitable, Callable, Optional, Type, Union
 
 import trio
 
-from ..typing import Event
+from ..typing import Event, SingleTask, TaskGroup
+
+
+def _cancel_wrapper(func: Callable[[], Awaitable[None]]) -> Callable[[], Awaitable[None]]:
+    @wraps(func)
+    async def wrapper(
+        task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
+    ) -> None:
+        cancel_scope = trio.CancelScope()
+        task_status.started(cancel_scope)
+        with cancel_scope:
+            await func()
+
+    return wrapper
+
+
+class TrioSingleTask:
+    def __init__(self) -> None:
+        self._handle: Optional[trio.CancelScope] = None
+        self._lock = trio.Lock()
+
+    async def restart(self, task_group: TaskGroup, action: Callable) -> None:
+        async with self._lock:
+            if self._handle is not None:
+                self._handle.cancel()
+            self._handle = await task_group._nursery.start(_cancel_wrapper(action))  # type: ignore
+
+    async def stop(self) -> None:
+        async with self._lock:
+            if self._handle is not None:
+                self._handle.cancel()
+            self._handle = None
 
 
 class EventWrapper:
@@ -26,6 +58,7 @@ class EventWrapper:
 
 class WorkerContext:
     event_class: Type[Event] = EventWrapper
+    single_task_class: Type[SingleTask] = TrioSingleTask
 
     def __init__(self, max_requests: Optional[int]) -> None:
         self.max_requests = max_requests

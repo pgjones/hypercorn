@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from ssl import SSLError
-from typing import Any, Generator, Optional
+from typing import Any, Generator
 
 from .task_group import TaskGroup
-from .worker_context import WorkerContext
+from .worker_context import AsyncioSingleTask, WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
@@ -33,9 +33,7 @@ class TCPServer:
         self.reader = reader
         self.writer = writer
         self.send_lock = asyncio.Lock()
-        self.idle_lock = asyncio.Lock()
-
-        self._idle_handle: Optional[asyncio.Task] = None
+        self.idle_task = AsyncioSingleTask()
 
     def __await__(self) -> Generator[Any, None, None]:
         return self.run().__await__()
@@ -54,6 +52,7 @@ class TCPServer:
                 alpn_protocol = "http/1.1"
 
             async with TaskGroup(self.loop) as task_group:
+                self._task_group = task_group
                 self.protocol = ProtocolWrapper(
                     self.app,
                     self.config,
@@ -66,7 +65,7 @@ class TCPServer:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
-                await self._start_idle()
+                await self.idle_task.restart(task_group, self._idle_timeout)
                 await self._read_data()
         except OSError:
             pass
@@ -85,9 +84,9 @@ class TCPServer:
             await self._close()
         elif isinstance(event, Updated):
             if event.idle:
-                await self._start_idle()
+                await self.idle_task.restart(self._task_group, self._idle_timeout)
             else:
-                await self._stop_idle()
+                await self.idle_task.stop()
 
     async def _read_data(self) -> None:
         while not self.reader.at_eof():
@@ -124,28 +123,13 @@ class TCPServer:
         ):
             pass  # Already closed
         finally:
-            await self._stop_idle()
+            await self.idle_task.stop()
 
     async def _initiate_server_close(self) -> None:
         await self.protocol.handle(Closed())
         self.writer.close()
 
-    async def _start_idle(self) -> None:
-        async with self.idle_lock:
-            if self._idle_handle is None:
-                self._idle_handle = self.loop.create_task(self._run_idle())
-
-    async def _stop_idle(self) -> None:
-        async with self.idle_lock:
-            if self._idle_handle is not None:
-                self._idle_handle.cancel()
-                try:
-                    await self._idle_handle
-                except asyncio.CancelledError:
-                    pass
-            self._idle_handle = None
-
-    async def _run_idle(self) -> None:
+    async def _idle_timeout(self) -> None:
         try:
             await asyncio.wait_for(self.context.terminated.wait(), self.config.keep_alive_timeout)
         except asyncio.TimeoutError:

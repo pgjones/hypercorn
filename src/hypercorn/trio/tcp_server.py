@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from math import inf
-from typing import Any, Generator, Optional
+from typing import Any, Generator
 
 import trio
 
 from .task_group import TaskGroup
-from .worker_context import WorkerContext
+from .worker_context import TrioSingleTask, WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..protocol import ProtocolWrapper
@@ -25,10 +25,8 @@ class TCPServer:
         self.context = context
         self.protocol: ProtocolWrapper
         self.send_lock = trio.Lock()
-        self.idle_lock = trio.Lock()
+        self.idle_task = TrioSingleTask()
         self.stream = stream
-
-        self._idle_handle: Optional[trio.CancelScope] = None
 
     def __await__(self) -> Generator[Any, None, None]:
         return self.run().__await__()
@@ -66,7 +64,7 @@ class TCPServer:
                     alpn_protocol,
                 )
                 await self.protocol.initiate()
-                await self._start_idle()
+                await self.idle_task.restart(self._task_group, self._idle_timeout)
                 await self._read_data()
         except OSError:
             pass
@@ -87,9 +85,9 @@ class TCPServer:
             await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
             if event.idle:
-                await self._start_idle()
+                await self.idle_task.restart(self._task_group, self._idle_timeout)
             else:
-                await self._stop_idle()
+                await self.idle_task.stop()
 
     async def _read_data(self) -> None:
         while True:
@@ -122,30 +120,13 @@ class TCPServer:
             pass
         await self.stream.aclose()
 
+    async def _idle_timeout(self) -> None:
+        with trio.move_on_after(self.config.keep_alive_timeout):
+            await self.context.terminated.wait()
+
+        with trio.CancelScope(shield=True):
+            await self._initiate_server_close()
+
     async def _initiate_server_close(self) -> None:
         await self.protocol.handle(Closed())
         await self.stream.aclose()
-
-    async def _start_idle(self) -> None:
-        async with self.idle_lock:
-            if self._idle_handle is None:
-                self._idle_handle = await self._task_group._nursery.start(self._run_idle)
-
-    async def _stop_idle(self) -> None:
-        async with self.idle_lock:
-            if self._idle_handle is not None:
-                self._idle_handle.cancel()
-            self._idle_handle = None
-
-    async def _run_idle(
-        self,
-        task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
-    ) -> None:
-        cancel_scope = trio.CancelScope()
-        task_status.started(cancel_scope)
-        with cancel_scope:
-            with trio.move_on_after(self.config.keep_alive_timeout):
-                await self.context.terminated.wait()
-
-            cancel_scope.shield = True
-            await self._initiate_server_close()

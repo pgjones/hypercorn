@@ -290,6 +290,7 @@ class Event(Protocol):
 
 class WorkerContext(Protocol):
     event_class: Type[Event]
+    single_task_class: Type[SingleTask]
     terminate: Event
     terminated: Event
 
@@ -339,4 +340,15 @@ class AppWrapper(Protocol):
         sync_spawn: Callable,
         call_soon: Callable,
     ) -> None:
+        pass
+
+
+class SingleTask(Protocol):
+    def __init__(self) -> None:
+        pass
+
+    async def restart(self, task_group: TaskGroup, action: Callable) -> None:
+        pass
+
+    async def stop(self) -> None:
         pass
