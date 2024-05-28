@@ -71,16 +71,6 @@ async def echo_framework(
             await send({"type": "websocket.send", "text": event["text"], "bytes": event["bytes"]})
 
 
-async def lifespan_failure(
-    scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
-) -> None:
-    while True:
-        message = await receive()
-        if message["type"] == "lifespan.startup":
-            await send({"type": "lifespan.startup.failed", "message": "Failure"})
-        break
-
-
 async def sanity_framework(
     scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
 ) -> None:

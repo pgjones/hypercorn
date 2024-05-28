@@ -9,9 +9,14 @@ import pytest
 from hypercorn.app_wrappers import ASGIWrapper
 from hypercorn.asyncio.lifespan import Lifespan
 from hypercorn.config import Config
-from hypercorn.typing import Scope
+from hypercorn.typing import ASGIReceiveCallable, ASGISendCallable, Scope
 from hypercorn.utils import LifespanFailureError, LifespanTimeoutError
-from ..helpers import lifespan_failure, SlowLifespanFramework
+from ..helpers import SlowLifespanFramework
+
+try:
+    from asyncio import TaskGroup
+except ImportError:
+    from taskgroup import TaskGroup  # type: ignore
 
 
 async def no_lifespan_app(scope: Scope, receive: Callable, send: Callable) -> None:
@@ -47,17 +52,27 @@ async def test_startup_timeout_error() -> None:
     await task
 
 
+async def _lifespan_failure(
+    scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
+) -> None:
+    async with TaskGroup():
+        while True:
+            message = await receive()
+            if message["type"] == "lifespan.startup":
+                await send({"type": "lifespan.startup.failed", "message": "Failure"})
+            break
+
+
 @pytest.mark.asyncio
 async def test_startup_failure() -> None:
     event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
-    lifespan = Lifespan(ASGIWrapper(lifespan_failure), Config(), event_loop, {})
+    lifespan = Lifespan(ASGIWrapper(_lifespan_failure), Config(), event_loop, {})
     lifespan_task = event_loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
     assert lifespan_task.done()
     exception = lifespan_task.exception()
-    assert isinstance(exception, LifespanFailureError)
-    assert str(exception) == "Lifespan failure in startup. 'Failure'"
+    assert exception.subgroup(LifespanFailureError) is not None  # type: ignore
 
 
 async def return_app(scope: Scope, receive: Callable, send: Callable) -> None:

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from functools import partial
 from typing import Any, Callable
 
 from ..config import Config
 from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope, LifespanState
 from ..utils import LifespanFailureError, LifespanTimeoutError
+
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
 
 
 class UnexpectedMessageError(Exception):
@@ -58,7 +62,13 @@ class Lifespan:
         except LifespanFailureError:
             # Lifespan failures should crash the server
             raise
-        except Exception:
+        except (BaseExceptionGroup, Exception) as error:
+            if isinstance(error, BaseExceptionGroup):
+                failure_error = error.subgroup(LifespanFailureError)
+                if failure_error is not None:
+                    # Lifespan failures should crash the server
+                    raise failure_error
+
             self.supported = False
             if not self.startup.is_set():
                 await self.config.log.warning(
