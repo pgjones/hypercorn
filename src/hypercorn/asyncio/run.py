@@ -207,8 +207,6 @@ def uvloop_worker(
         import uvloop
     except ImportError as error:
         raise Exception("uvloop is not installed") from error
-    else:
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     app = load_application(config.application_path, config.wsgi_max_body_size)
 
@@ -220,6 +218,7 @@ def uvloop_worker(
         partial(worker_serve, app, config, sockets=sockets),
         debug=config.debug,
         shutdown_trigger=shutdown_trigger,
+        loop_factory=uvloop.new_event_loop,
     )
 
 
@@ -228,8 +227,9 @@ def _run(
     *,
     debug: bool = False,
     shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+    loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None,
 ) -> None:
-    with Runner(debug=debug) as runner:
+    with Runner(debug=debug, loop_factory=loop_factory) as runner:
         runner.get_loop().set_exception_handler(_exception_handler)
         runner.run(main(shutdown_trigger=shutdown_trigger))
 
