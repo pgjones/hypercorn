@@ -1,3 +1,10 @@
+0.17.3 2024-05-28
+-----------------
+
+* Restore set TCP_NODELAY on TCP sockets
+* Support uvloop >= 0.18 and the loop_factory argument
+* Bugfix ensure ExceptionGroup lifespan failures crash the server.
+
 0.17.2 2024-05-27
 -----------------
 
