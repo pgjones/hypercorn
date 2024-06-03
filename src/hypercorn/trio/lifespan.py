@@ -45,15 +45,13 @@ class Lifespan:
                 trio.to_thread.run_sync,
                 trio.from_thread.run,
             )
-        except LifespanFailureError:
-            # Lifespan failures should crash the server
+        except (LifespanFailureError, trio.Cancelled):
             raise
         except (BaseExceptionGroup, Exception) as error:
             if isinstance(error, BaseExceptionGroup):
-                failure_error = error.subgroup(LifespanFailureError)
-                if failure_error is not None:
-                    # Lifespan failures should crash the server
-                    raise failure_error
+                reraise_error = error.subgroup((LifespanFailureError, trio.Cancelled))
+                if reraise_error is not None:
+                    raise reraise_error
 
             self.supported = False
             if not self.startup.is_set():
