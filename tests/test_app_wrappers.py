@@ -8,7 +8,7 @@ import pytest
 import trio
 
 from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
-from hypercorn.typing import ASGISendEvent, ConnectionState, HTTPScope
+from hypercorn.typing import ASGIReceiveEvent, ASGISendEvent, ConnectionState, HTTPScope
 
 
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
@@ -41,8 +41,8 @@ async def test_wsgi_trio() -> None:
         "extensions": {},
         "state": ConnectionState({}),
     }
-    send_channel, receive_channel = trio.open_memory_channel(1)
-    await send_channel.send({"type": "http.request"})
+    send_channel, receive_channel = trio.open_memory_channel[ASGIReceiveEvent](1)
+    await send_channel.send({"type": "http.request"})  # type: ignore
 
     messages = []
 

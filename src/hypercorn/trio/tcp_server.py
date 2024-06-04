@@ -23,7 +23,7 @@ class TCPServer:
         config: Config,
         context: WorkerContext,
         state: LifespanState,
-        stream: trio.abc.Stream,
+        stream: trio.SSLStream[trio.SocketStream],
     ) -> None:
         self.app = app
         self.config = config
