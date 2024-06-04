@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import AbstractAsyncContextManager
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Optional
 
@@ -41,8 +42,8 @@ async def _handle(
 
 class TaskGroup:
     def __init__(self) -> None:
-        self._nursery: Optional[trio._core._run.Nursery] = None
-        self._nursery_manager: Optional[trio._core._run.NurseryManager] = None
+        self._nursery: trio.Nursery | None = None
+        self._nursery_manager: AbstractAsyncContextManager[trio.Nursery] | None = None
 
     async def spawn_app(
         self,
@@ -51,7 +52,9 @@ class TaskGroup:
         scope: Scope,
         send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
-        app_send_channel, app_receive_channel = trio.open_memory_channel(config.max_app_queue_size)
+        app_send_channel, app_receive_channel = trio.open_memory_channel[ASGIReceiveEvent](
+            config.max_app_queue_size
+        )
         self._nursery.start_soon(
             _handle,
             app,

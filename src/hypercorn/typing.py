@@ -86,10 +86,12 @@ WWWScope = Union[HTTPScope, WebsocketScope]
 Scope = Union[HTTPScope, WebsocketScope, LifespanScope]
 
 
+# A lot of fields should probably be marked with `NotRequired`, but only
+# added these for now. See https://github.com/django/asgiref/issues/460
 class HTTPRequestEvent(TypedDict):
     type: Literal["http.request"]
-    body: bytes
-    more_body: bool
+    body: NotRequired[bytes]
+    more_body: NotRequired[bool]
 
 
 class HTTPResponseStartEvent(TypedDict):

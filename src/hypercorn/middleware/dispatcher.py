@@ -5,7 +5,7 @@ from functools import partial
 from typing import Callable, Dict
 
 from ..asyncio.task_group import TaskGroup
-from ..typing import ASGIFramework, Scope
+from ..typing import ASGIFramework, ASGIReceiveEvent, Scope
 
 MAX_QUEUE_SIZE = 10
 
@@ -74,7 +74,9 @@ class TrioDispatcherMiddleware(_DispatcherMiddleware):
     async def _handle_lifespan(self, scope: Scope, receive: Callable, send: Callable) -> None:
         import trio
 
-        self.app_queues = {path: trio.open_memory_channel(MAX_QUEUE_SIZE) for path in self.mounts}
+        self.app_queues = {
+            path: trio.open_memory_channel[ASGIReceiveEvent](MAX_QUEUE_SIZE) for path in self.mounts
+        }
         self.startup_complete = {path: False for path in self.mounts}
         self.shutdown_complete = {path: False for path in self.mounts}
 
