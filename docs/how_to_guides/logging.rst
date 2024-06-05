@@ -20,7 +20,7 @@ The ``logconfig`` variable should point at a file to be used by the
 ``fileConfig`` function. Alternatively it can point to a JSON or TOML
 formatted file which will be loaded and passed to the ``dictConfig``
 function. To use a JSON formatted file prefix the filepath with
-``json:`` and for TOML use ``toml:``.
+``json:``, for TOML use ``toml:`` and ``yaml:`` for YAML.
 
 Configuring access logs
 -----------------------

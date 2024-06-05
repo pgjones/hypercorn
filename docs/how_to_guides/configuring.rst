@@ -132,9 +132,9 @@ keyfile                    ``--keyfile``                 Path to the SSL key fil
 keyfile_password           ``--keyfile-password``        Password for the keyfile if the keyfile is
                                                          password-protected.
 logconfig                  ``--log-config``              A Python logging configuration file. This       The logging ini format.
-                                                         can be prefixed with 'json:' or 'toml:' to
-                                                         load the configuration from a file in that
-                                                         format.
+                                                         can be prefixed with 'json:', 'yaml:' 
+                                                         or 'toml:' to load the configuration from 
+                                                         a file in that format.
 logconfig_dict             N/A                           A Python logging configuration dictionary.
 logger_class               N/A                           Type of class to use for logging.
 loglevel                   ``--log-level``               The (error) log level.                          ``INFO``

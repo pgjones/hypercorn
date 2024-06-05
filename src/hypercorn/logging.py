@@ -9,6 +9,8 @@ from http import HTTPStatus
 from logging.config import dictConfig, fileConfig
 from typing import Any, IO, Mapping, Optional, TYPE_CHECKING, Union
 
+import yaml
+
 if sys.version_info >= (3, 11):
     import tomllib
 else:
@@ -68,6 +70,9 @@ class Logger:
             if config.logconfig.startswith("json:"):
                 with open(config.logconfig[5:]) as file_:
                     dictConfig(json.load(file_))
+            elif config.logconfig.startswith("yaml:"):
+                with open(config.logconfig[5:]) as file_:
+                    dictConfig(yaml.safe_load(file_))
             elif config.logconfig.startswith("toml:"):
                 with open(config.logconfig[5:], "rb") as file_:
                     dictConfig(tomllib.load(file_))
