@@ -24,8 +24,7 @@ be used,
 
 .. code-block:: python
 
-     config = Config()
-     config.from_toml("file_path/file_name.toml")
+     config = Config.from_toml("file_path/file_name.toml")
 
 Via a Python module
 -------------------
@@ -45,8 +44,7 @@ can be used,
 
 .. code-block:: python
 
-     config = Config()
-     config.from_object("module_name.instance")
+     config = Config.from_object("module_name.instance")
 
 Via a Python file
 -------------------
@@ -65,8 +63,7 @@ can be used,
 
 .. code-block:: python
 
-     config = Config()
-     config.from_pyfile("file_path/file_name.py")
+     config = Config.from_pyfile("file_path/file_name.py")
 
 Configuration options
 =====================
