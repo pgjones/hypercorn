@@ -16,7 +16,7 @@ async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
 
         async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
             scope = cast(HTTPScope, scope)
-            response = f"{self.name}-{scope['path']}"
+            response = f"{self.name}-{scope['path']}-{scope['root_path']}"
             await send(
                 {
                     "type": "http.response.start",
@@ -27,7 +27,15 @@ async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
             await send({"type": "http.response.body", "body": response.encode()})
 
     app = AsyncioDispatcherMiddleware(
-        {"/api/x": EchoFramework("apix"), "/api": EchoFramework("api")}
+        {
+            "/api/x": EchoFramework("apix"),
+            "/api/nested": AsyncioDispatcherMiddleware(
+                {
+                    "/path": EchoFramework("nested"),
+                }
+            ),
+            "/api": EchoFramework("api"),
+        }
     )
 
     sent_events = []
@@ -38,12 +46,15 @@ async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
 
     await app({**http_scope, **{"path": "/api/x/b"}}, None, send)  # type: ignore
     await app({**http_scope, **{"path": "/api/b"}}, None, send)  # type: ignore
+    await app({**http_scope, **{"path": "/api/nested/path/x"}}, None, send)  # type: ignore
     await app({**http_scope, **{"path": "/"}}, None, send)  # type: ignore
     assert sent_events == [
-        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"7")]},
-        {"type": "http.response.body", "body": b"apix-/b"},
-        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"6")]},
-        {"type": "http.response.body", "body": b"api-/b"},
+        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"20")]},
+        {"type": "http.response.body", "body": b"apix-/api/x/b-/api/x"},
+        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"15")]},
+        {"type": "http.response.body", "body": b"api-/api/b-/api"},
+        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"42")]},
+        {"type": "http.response.body", "body": b"nested-/api/nested/path/x-/api/nested/path"},
         {"type": "http.response.start", "status": 404, "headers": [(b"content-length", b"0")]},
         {"type": "http.response.body"},
     ]
