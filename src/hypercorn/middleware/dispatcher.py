@@ -18,9 +18,10 @@ class _DispatcherMiddleware:
         if scope["type"] == "lifespan":
             await self._handle_lifespan(scope, receive, send)
         else:
+            relative_path = scope["path"][len(scope["root_path"]):]
             for path, app in self.mounts.items():
-                if scope["path"].startswith(path):
-                    scope["path"] = scope["path"][len(path) :] or "/"
+                if relative_path.startswith(path):
+                    scope["root_path"] += path
                     return await app(scope, receive, send)
             await send(
                 {
