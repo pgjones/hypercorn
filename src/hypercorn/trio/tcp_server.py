@@ -101,8 +101,7 @@ class TCPServer:
                     trio.BrokenResourceError,
                     trio.ClosedResourceError,
                     trio.TooSlowError,
-                ) as e:
-                    print(f"Protocol send error: {e}")
+                ):
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()
