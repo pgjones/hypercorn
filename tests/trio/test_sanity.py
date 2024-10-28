@@ -14,6 +14,12 @@ from hypercorn.config import Config
 from hypercorn.trio.tcp_server import TCPServer
 from hypercorn.trio.worker_context import WorkerContext
 from ..helpers import MockSocket, SANITY_BODY, sanity_framework
+from hypercorn.config import Config
+from hypercorn.trio.tcp_server import TCPServer
+from hypercorn.trio.worker_context import WorkerContext
+from hypercorn.app_wrappers import ASGIWrapper
+from ..helpers import MockSocket, SANITY_BODY, sanity_framework
+
 
 try:
     from unittest.mock import AsyncMock
@@ -210,3 +216,174 @@ async def test_http2_websocket(nursery: trio._core._run.Nursery) -> None:
     client.receive_data(events[0].data)
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
     await client_stream.send_all(b"")
+
+class SlowStream:
+    """A stream that blocks on sends to simulate a slow client"""
+    def __init__(self, stream):
+        self.stream = stream
+        self.block_sends = False
+        # Copy over required SSL attributes
+        self.transport_stream = Mock(return_value=PropertyMock(return_value=MockSocket()))
+        self.do_handshake = AsyncMock()
+        self.socket = MockSocket()
+    
+    async def send_all(self, data):
+        if self.block_sends:
+            await trio.sleep_forever()
+        await self.stream.send_all(data)
+    
+    def __getattr__(self, attr):
+        return getattr(self.stream, attr)
+
+@pytest.mark.trio
+async def test_write_timeout(nursery: trio._core._run.Nursery) -> None:
+    client_stream, server_stream = trio.testing.memory_stream_pair()
+    wrapped_stream = SlowStream(server_stream)
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", wrapped_stream)
+
+    config = Config()
+    config.write_timeout = 0.5
+    
+    # Create an app that sends a large response in two parts
+    large_body = b"x" * (2**16)  # Large enough to ensure chunking
+    async def chunked_response(scope, receive, send):
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-length", str(len(large_body) * 2).encode())],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": large_body,
+            "more_body": True,
+        })
+        
+        # Block on the second chunk
+        wrapped_stream.block_sends = True
+        await send({
+            "type": "http.response.body",
+            "body": large_body,
+            "more_body": False,
+        })
+
+    server = TCPServer(
+        ASGIWrapper(chunked_response),
+        config,
+        WorkerContext(None),
+        {},
+        server_stream
+    )
+
+    nursery.start_soon(server.run)
+
+    # Send request
+    client = h11.Connection(h11.CLIENT)
+    await client_stream.send_all(
+        client.send(
+            h11.Request(
+                method="GET",
+                target="/",
+                headers=[
+                    (b"host", b"hypercorn"),
+                    (b"connection", b"close"),
+                ],
+            )
+        )
+    )
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
+
+    # Get first chunk and expect connection close during second chunk
+    try:
+        while True:
+            event = client.next_event()
+            if event is h11.NEED_DATA:
+                data = await client_stream.receive_some(2**16)
+                if not data:  # Connection closed
+                    break
+                client.receive_data(data)
+            elif event is h11.PAUSED:
+                client.start_next_cycle()
+            elif isinstance(event, h11.EndOfMessage):
+                assert False, "Should not get EndOfMessage as connection should close mid-response"
+    except h11.RemoteProtocolError as e:
+        # We expect this error since the connection closes mid-response
+        assert "peer closed connection without sending complete message body" in str(e)
+
+    # Verify we can't read any more data
+    data = await client_stream.receive_some(2**16)
+    assert data == b""  # Connection should be fully closed
+    
+@pytest.mark.trio
+async def test_chunked_write_success(nursery: trio._core._run.Nursery) -> None:
+    """Test that large responses are properly chunked and sent"""
+    client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", server_stream)
+    server_stream.socket = MockSocket()
+
+    # Create an app that sends a large response
+    large_body = b"x" * (2**16 * 2)  # Two MAX_SEND chunks
+    
+    async def large_response(scope, receive, send):
+        try:
+            await send({
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-length", str(len(large_body)).encode())],
+            })
+            
+            await send({
+                "type": "http.response.body",
+                "body": large_body,
+                "more_body": False,
+            })
+        except Exception as e:
+            raise
+
+    server = TCPServer(
+        ASGIWrapper(large_response),
+        Config(),
+        WorkerContext(None),
+        {},
+        server_stream
+    )
+
+    # Start server in nursery
+    server_task = nursery.start_soon(server.run)
+
+    # Send request
+    client = h11.Connection(h11.CLIENT)
+    request_bytes = client.send(
+        h11.Request(
+            method="GET",
+            target="/",
+            headers=[
+                (b"host", b"hypercorn"),
+                (b"connection", b"close"),
+            ],
+        )
+    )
+    await client_stream.send_all(request_bytes)
+    
+    end_bytes = client.send(h11.EndOfMessage())
+    await client_stream.send_all(end_bytes)
+
+    # Read the complete response with timeout
+    received_data = b""
+    with trio.move_on_after(10) as cancel_scope:  # 10 second timeout
+        while True:
+            chunk = await client_stream.receive_some(2**16)
+            if not chunk:
+                break
+            received_data += chunk
+
+    if cancel_scope.cancelled_caught:
+        raise TimeoutError("Timed out waiting for response")
+
+    # Verify we got all the data
+    try:
+        assert large_body in received_data, \
+            f"Expected {len(large_body)} bytes, got {len(received_data)} bytes"
+    finally:
+        # Clean up
+        await client_stream.aclose()
+        await server_stream.aclose()

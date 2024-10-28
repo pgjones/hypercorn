@@ -235,3 +235,169 @@ async def test_http2_websocket() -> None:
     await server.reader.send(h2_client.data_to_send())  # type: ignore
     server.reader.close()  # type: ignore
     await task
+
+class SlowWriter(MemoryWriter):
+    """A writer that blocks on sends to simulate a slow client"""
+    def __init__(self, http2: bool = False):
+        super().__init__(http2=http2)
+        self.block_writes = False
+
+    def write(self, data: bytes) -> None:
+        if self.block_writes:
+            # Still add to buffer but don't actually write
+            self._buffer.extend(data)
+            return
+        super().write(data)
+
+    async def drain(self) -> None:
+        if self.block_writes:
+            # sleep forever
+            await asyncio.sleep(1000)
+        await super().drain()
+
+@pytest.mark.asyncio
+async def test_write_timeout() -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+    reader = MemoryReader()
+    writer = SlowWriter()
+
+    large_body = b"x" * (2**16)
+
+    async def chunked_response(scope, receive, send):
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-length", str(len(large_body) * 2).encode())],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": large_body,
+            "more_body": True,
+        })
+        
+        writer.block_writes = True  # Block before sending second chunk
+        await send({
+            "type": "http.response.body",
+            "body": large_body,
+            "more_body": False,
+        })
+
+    server = TCPServer(
+        ASGIWrapper(chunked_response),
+        event_loop,
+        Config(),
+        WorkerContext(None),
+        {},
+        reader,
+        writer,
+    )
+    task = event_loop.create_task(server.run())
+
+    client = h11.Connection(h11.CLIENT)
+    await reader.send(
+        client.send(
+            h11.Request(
+                method="GET",
+                target="/",
+                headers=[
+                    (b"host", b"hypercorn"),
+                    (b"connection", b"close"),
+                ],
+            )
+        )
+    )
+    await reader.send(client.send(h11.EndOfMessage()))
+
+    received_data = 0
+    try:
+        while True:
+            event = client.next_event()
+            if event is h11.NEED_DATA:
+                data = await writer.receive()
+                if not data:
+                    break
+                received_data += len(data)
+                client.receive_data(data)
+            elif event is h11.PAUSED:
+                client.start_next_cycle()
+            elif isinstance(event, h11.EndOfMessage):
+                assert False, "Should not get EndOfMessage as connection should close mid-response"
+    except h11.RemoteProtocolError as e:
+        # We expect this error since the connection closes mid-response
+        assert "peer closed connection without sending complete message body" in str(e)
+        # Verify we only got the first chunk
+        assert received_data < len(large_body) * 2, f"Received too much data: {received_data}"
+
+    assert writer.is_closed, "Writer should be closed"
+    
+    reader.close()
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+@pytest.mark.asyncio
+async def test_chunked_write_success() -> None:
+    """Test that large responses are properly chunked and sent"""
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+    reader = MemoryReader()
+    writer = MemoryWriter()
+
+    config = Config()
+    config.write_timeout = 0.1
+
+    # Create an app that sends a large response
+    large_body = b"x" * (2**16 * 2)  # Two MAX_SEND chunks
+    async def large_response(scope, receive, send):
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-length", str(len(large_body)).encode())],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": large_body,
+            "more_body": False,
+        })
+
+    server = TCPServer(
+        ASGIWrapper(large_response),
+        event_loop,
+        config,
+        WorkerContext(None),
+        {},
+        reader,
+        writer,
+    )
+    task = event_loop.create_task(server.run())
+
+    # Send request
+    client = h11.Connection(h11.CLIENT)
+    await reader.send(
+        client.send(
+            h11.Request(
+                method="GET",
+                target="/",
+                headers=[
+                    (b"host", b"hypercorn"),
+                    (b"connection", b"close"),
+                ],
+            )
+        )
+    )
+    await reader.send(client.send(h11.EndOfMessage()))
+
+    # Read the complete response
+    received_data = b""
+    while True:
+        chunk = await writer.receive()
+        if not chunk:
+            break
+        received_data += chunk
+
+    # Verify we got all the data
+    assert large_body in received_data  # Response contains our body
+
+    reader.close()
+    await task

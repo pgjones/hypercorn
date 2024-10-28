@@ -105,6 +105,8 @@ graceful_timeout           ``--graceful-timeout``        Time to wait after SIGT
                                                          for any remaining requests (tasks) to
 read_timeout               ``--read-timeout``            Seconds to wait before timing out reads         No timeout.
                                                          on TCP sockets.
+write_timeout               ``--write-timeout``          Seconds to wait before timing out writes        No timeout.
+                                                         on TCP sockets.
 group                      ``-g``, ``--group``           Group to own any unix sockets.
 h11_max_incomplete_size    N/A                           The max HTTP/1.1 request line + headers         16KiB
                                                          size in bytes.

@@ -90,6 +90,12 @@ def main(sys_args: Optional[List[str]] = None) -> int:
         type=int,
     )
     parser.add_argument(
+        "--write-timeout",
+        help="""Seconds to wait before timing out response writes on TCP sockets""",
+        default=sentinel,
+        type=int,
+    )
+    parser.add_argument(
         "--max-requests",
         help="""Maximum number of requests a worker will process before restarting""",
         default=sentinel,
@@ -255,6 +261,8 @@ def main(sys_args: Optional[List[str]] = None) -> int:
         config.graceful_timeout = args.graceful_timeout
     if args.read_timeout is not sentinel:
         config.read_timeout = args.read_timeout
+    if args.write_timeout is not sentinel:
+        config.write_timeout = args.write_timeout
     if args.group is not sentinel:
         config.group = args.group
     if args.keep_alive is not sentinel:

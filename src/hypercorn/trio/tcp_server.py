@@ -14,7 +14,7 @@ from ..typing import AppWrapper, ConnectionState, LifespanState
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
-
+MAX_SEND = 2**16  # Max size of send chunks (64KB)
 
 class TCPServer:
     def __init__(
@@ -82,10 +82,27 @@ class TCPServer:
         if isinstance(event, RawData):
             async with self.send_lock:
                 try:
-                    with trio.CancelScope() as cancel_scope:
-                        cancel_scope.shield = True
-                        await self.stream.send_all(event.data)
-                except (trio.BrokenResourceError, trio.ClosedResourceError):
+                    data = event.data
+                    offset = 0
+                    total_sent = 0
+                    
+                    while offset < len(data):
+                        chunk = data[offset:offset + MAX_SEND]
+                        chunk_size = len(chunk)
+                        
+                        with trio.CancelScope(deadline=self.config.write_timeout or inf) as cancel_scope:
+                            cancel_scope.shield = True
+                            await self.stream.send_all(chunk)
+                            total_sent += chunk_size
+                                
+                        offset += chunk_size
+                        
+                except (
+                    trio.BrokenResourceError,
+                    trio.ClosedResourceError,
+                    trio.TooSlowError,
+                ) as e:
+                    print(f"Protocol send error: {e}")
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()

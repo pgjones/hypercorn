@@ -13,7 +13,7 @@ from ..typing import AppWrapper, ConnectionState, LifespanState
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
-
+MAX_SEND = 2**16  # Max size of send chunks (64KB)
 
 class TCPServer:
     def __init__(
@@ -79,9 +79,24 @@ class TCPServer:
         if isinstance(event, RawData):
             async with self.send_lock:
                 try:
-                    self.writer.write(event.data)
-                    await self.writer.drain()
-                except (ConnectionError, RuntimeError):
+                    data = event.data
+                    offset = 0
+                    while offset < len(data):
+                        chunk = data[offset:offset + MAX_SEND]
+                        self.writer.write(chunk)
+                        try:
+                            await asyncio.wait_for(
+                                self.writer.drain(),
+                                timeout=self.config.write_timeout
+                            )
+                        except asyncio.TimeoutError:
+                            raise
+                        offset += len(chunk)
+                except (
+                    ConnectionError,
+                    RuntimeError,
+                    asyncio.TimeoutError,
+                ) as e:
                     await self.protocol.handle(Closed())
         elif isinstance(event, Closed):
             await self._close()

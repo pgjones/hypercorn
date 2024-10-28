@@ -75,6 +75,7 @@ class Config:
     errorlog: Union[logging.Logger, str, None] = "-"
     graceful_timeout: float = 3 * SECONDS
     read_timeout: Optional[int] = None
+    write_timeout: Optional[int] = None
     group: Optional[int] = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h11_pass_raw_headers = False
