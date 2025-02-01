@@ -55,3 +55,46 @@ async def test_keep_alive_max_requests_regression() -> None:
             result.raise_for_status()
 
         shutdown.set()
+
+
+@pytest.mark.trio
+async def test_handle_isolate_state():
+    config = Config()
+    config.bind = ["0.0.0.0:1234"]
+    config.accesslog = "-"  # Log to stdout/err
+    config.errorlog = "-"
+
+    async def app(scope, receive, send):
+        assert scope["type"] == "http"
+
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [[b"content-type", b"text/plain"]],
+            }
+        )
+        await send(
+            {"type": "http.response.body", "body": scope["state"].get("key", b"")}
+        )
+        scope["state"]["key"] = b"one"
+
+    async with trio.open_nursery() as nursery:
+        shutdown = trio.Event()
+
+        async def serve() -> None:
+            await hypercorn.trio.serve(app, config, shutdown_trigger=shutdown.wait)
+
+        nursery.start_soon(serve)
+
+        await trio.testing.wait_all_tasks_blocked()
+
+        client = httpx.AsyncClient()
+
+        result = await client.get("http://0.0.0.0:1234/")
+        assert result.content == b""
+
+        result = await client.get("http://0.0.0.0:1234/")
+        assert result.content == b""
+
+        shutdown.set()

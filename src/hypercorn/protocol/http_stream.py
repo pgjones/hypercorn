@@ -97,7 +97,7 @@ class HTTPStream:
                 "headers": event.headers,
                 "client": self.client,
                 "server": self.server,
-                "state": event.state,
+                "state": event.state.copy(),
                 "extensions": {},
             }
 
