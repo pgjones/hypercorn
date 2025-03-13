@@ -215,6 +215,19 @@ def main(sys_args: Optional[List[str]] = None) -> int:
         default=sentinel,
         type=int,
     )
+    daemon_group = parser.add_mutually_exclusive_group()
+    daemon_group.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Spawn workers in daemon mode"
+    )
+    daemon_group.add_argument(
+        "--no-daemon",
+        action="store_false",
+        dest="daemon",
+        help="Spawn workers in normal mode (without daemon)"
+    )
+    parser.set_defaults(daemon=True)
     args = parser.parse_args(sys_args or sys.argv[1:])
     config = _load_config(args.config)
     config.application_path = args.application
@@ -300,6 +313,8 @@ def main(sys_args: Optional[List[str]] = None) -> int:
         config.quic_bind = args.quic_binds
     if len(args.server_names) > 0:
         config.server_names = args.server_names
+
+    config.daemon = args.daemon
 
     return run(config)
 

@@ -60,6 +60,7 @@ class Config:
     _quic_addresses: List[Tuple] = []
     _log: Optional[Logger] = None
     _root_path: str = ""
+    _daemon: bool = True
 
     access_log_format = '%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
     accesslog: Union[logging.Logger, str, None] = None
@@ -117,6 +118,14 @@ class Config:
         self.verify_mode = VerifyMode(value)
 
     cert_reqs = property(None, set_cert_reqs)
+
+    @property
+    def daemon(self) -> bool:
+        return self._daemon
+
+    @daemon.setter
+    def daemon(self, value: bool) -> None:
+        self._daemon = value
 
     @property
     def log(self) -> Logger:
