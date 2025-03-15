@@ -75,3 +75,33 @@ The logger class can be customised by changing the ``logger_class``
 attribute of the ``Config`` class. This is only possible when using
 the python based configuration file. The
 ``hypercorn.logging.Logger`` class is used by default.
+
+Here is an example demonstrating how to avoid logging paths starting with ``'/media'``.
+
+.. code-block:: python
+
+    # custom_logger.py
+    from hypercorn.logging import Logger
+    class CustomLogger(Logger):
+        """In a separate module to avoid PickleError"""
+        async def access(self, request, response, request_time):
+            if request and not request.get('path', '').startswith('/media'):
+                await super().access(request, response, request_time)
+
+.. code-block:: python
+
+    # hypercorn_conf.py
+    import sys
+    import os
+    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__))) # assuming `custom_logger.py` is in the same directory
+    from custom_logger import CustomLogger
+
+    logger_class=CustomLogger
+    bind='0.0.0.0:8080'
+    accesslog='/logs/access.log'
+
+And following the advice of the configs how-to-guide, we point hypercorn to ``hypercorn_conf.py`` using this.
+
+.. code-block:: python
+
+    /path/to/venv/bin/hypercorn --config file:/path/to/hypercorn_conf.py /path/to/main:app
