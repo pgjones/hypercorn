@@ -18,11 +18,12 @@ from .events import (
     Request,
     Response,
     StreamClosed,
+    Trailers,
 )
 from .http_stream import HTTPStream
 from .ws_stream import WSStream
 from ..config import Config
-from ..typing import AppWrapper, TaskGroup, WorkerContext
+from ..typing import AppWrapper, ConnectionState, TaskGroup, WorkerContext
 from ..utils import filter_pseudo_headers
 
 
@@ -33,6 +34,7 @@ class H3Protocol:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
+        state: ConnectionState,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
         quic: QuicConnection,
@@ -47,6 +49,7 @@ class H3Protocol:
         self.server = server
         self.streams: Dict[int, Union[HTTPStream, WSStream]] = {}
         self.task_group = task_group
+        self.state = state
 
     async def handle(self, quic_event: QuicEvent) -> None:
         for event in self.connection.handle_event(quic_event):
@@ -78,6 +81,9 @@ class H3Protocol:
             await self.send()
         elif isinstance(event, (EndBody, EndData)):
             self.connection.send_data(event.stream_id, b"", True)
+            await self.send()
+        elif isinstance(event, Trailers):
+            self.connection.send_headers(event.stream_id, event.headers)
             await self.send()
         elif isinstance(event, StreamClosed):
             pass  # ??
@@ -123,6 +129,7 @@ class H3Protocol:
                 http_version="3",
                 method=method,
                 raw_path=raw_path,
+                state=self.state,
             )
         )
         await self.context.mark_request()

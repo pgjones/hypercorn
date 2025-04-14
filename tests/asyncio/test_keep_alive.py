@@ -53,6 +53,7 @@ async def _server() -> AsyncGenerator[TCPServer, None]:
         event_loop,
         config,
         WorkerContext(None),
+        {},
         MemoryReader(),  # type: ignore
         MemoryWriter(),  # type: ignore
     )

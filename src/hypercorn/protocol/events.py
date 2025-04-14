@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
 
+from hypercorn.typing import ConnectionState
+
 
 @dataclass(frozen=True)
 class Event:
@@ -15,6 +17,7 @@ class Request(Event):
     http_version: str
     method: str
     raw_path: bytes
+    state: ConnectionState
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,11 @@ class Body(Event):
 @dataclass(frozen=True)
 class EndBody(Event):
     pass
+
+
+@dataclass(frozen=True)
+class Trailers(Event):
+    headers: List[Tuple[bytes, bytes]]
 
 
 @dataclass(frozen=True)

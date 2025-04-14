@@ -16,7 +16,7 @@ async def serve(
     config: Config,
     *,
     shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
-    task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
+    task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED,
     mode: Optional[Literal["asgi", "wsgi"]] = None,
 ) -> None:
     """Serve an ASGI framework app given the config.

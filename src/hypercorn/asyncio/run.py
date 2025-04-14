@@ -18,7 +18,7 @@ from .tcp_server import TCPServer
 from .udp_server import UDPServer
 from .worker_context import WorkerContext
 from ..config import Config, Sockets
-from ..typing import AppWrapper
+from ..typing import AppWrapper, LifespanState
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
@@ -77,7 +77,8 @@ async def worker_serve(
 
         shutdown_trigger = signal_event.wait
 
-    lifespan = Lifespan(app, config, loop)
+    lifespan_state: LifespanState = {}
+    lifespan = Lifespan(app, config, loop, lifespan_state)
 
     lifespan_task = loop.create_task(lifespan.handle_lifespan())
     await lifespan.wait_for_startup()
@@ -106,7 +107,7 @@ async def worker_serve(
         task = asyncio.current_task(loop)
         server_tasks.add(task)
         task.add_done_callback(server_tasks.discard)
-        await TCPServer(app, loop, config, context, reader, writer)
+        await TCPServer(app, loop, config, context, lifespan_state, reader, writer)
 
     servers = []
     for sock in sockets.secure_sockets:
@@ -140,7 +141,7 @@ async def worker_serve(
             sock = _share_socket(sock)
 
         _, protocol = await loop.create_datagram_endpoint(
-            lambda: UDPServer(app, loop, config, context), sock=sock
+            lambda: UDPServer(app, loop, config, context, lifespan_state), sock=sock
         )
         task = loop.create_task(protocol.run())
         server_tasks.add(task)
@@ -206,8 +207,6 @@ def uvloop_worker(
         import uvloop
     except ImportError as error:
         raise Exception("uvloop is not installed") from error
-    else:
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
     app = load_application(config.application_path, config.wsgi_max_body_size)
 
@@ -219,6 +218,7 @@ def uvloop_worker(
         partial(worker_serve, app, config, sockets=sockets),
         debug=config.debug,
         shutdown_trigger=shutdown_trigger,
+        loop_factory=uvloop.new_event_loop,
     )
 
 
@@ -227,8 +227,9 @@ def _run(
     *,
     debug: bool = False,
     shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+    loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None,
 ) -> None:
-    with Runner(debug=debug) as runner:
+    with Runner(debug=debug, loop_factory=loop_factory) as runner:
         runner.get_loop().set_exception_handler(_exception_handler)
         runner.run(main(shutdown_trigger=shutdown_trigger))
 

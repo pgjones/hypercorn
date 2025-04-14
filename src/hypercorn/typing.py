@@ -9,6 +9,7 @@ from typing import (
     Dict,
     Iterable,
     Literal,
+    NewType,
     Optional,
     Protocol,
     Tuple,
@@ -22,9 +23,18 @@ import h11
 
 from .config import Config, Sockets
 
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
+
 H11SendableEvent = Union[h11.Data, h11.EndOfMessage, h11.InformationalResponse, h11.Response]
 
 WorkerFunc = Callable[[Config, Optional[Sockets], Optional[EventType]], None]
+
+LifespanState = Dict[str, Any]
+
+ConnectionState = NewType("ConnectionState", Dict[str, Any])
 
 
 class ASGIVersions(TypedDict, total=False):
@@ -45,6 +55,7 @@ class HTTPScope(TypedDict):
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
+    state: ConnectionState
     extensions: Dict[str, dict]
 
 
@@ -61,12 +72,14 @@ class WebsocketScope(TypedDict):
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
     subprotocols: Iterable[str]
+    state: ConnectionState
     extensions: Dict[str, dict]
 
 
 class LifespanScope(TypedDict):
     type: Literal["lifespan"]
     asgi: ASGIVersions
+    state: LifespanState
 
 
 WWWScope = Union[HTTPScope, WebsocketScope]
@@ -83,12 +96,19 @@ class HTTPResponseStartEvent(TypedDict):
     type: Literal["http.response.start"]
     status: int
     headers: Iterable[Tuple[bytes, bytes]]
+    trailers: NotRequired[bool]
 
 
 class HTTPResponseBodyEvent(TypedDict):
     type: Literal["http.response.body"]
     body: bytes
     more_body: bool
+
+
+class HTTPResponseTrailersEvent(TypedDict):
+    type: Literal["http.response.trailers"]
+    headers: Iterable[Tuple[bytes, bytes]]
+    more_trailers: NotRequired[bool]
 
 
 class HTTPServerPushEvent(TypedDict):
@@ -191,6 +211,7 @@ ASGIReceiveEvent = Union[
 ASGISendEvent = Union[
     HTTPResponseStartEvent,
     HTTPResponseBodyEvent,
+    HTTPResponseTrailersEvent,
     HTTPServerPushEvent,
     HTTPEarlyHintEvent,
     HTTPDisconnectEvent,
@@ -290,6 +311,7 @@ class Event(Protocol):
 
 class WorkerContext(Protocol):
     event_class: Type[Event]
+    single_task_class: Type[SingleTask]
     terminate: Event
     terminated: Event
 
@@ -339,4 +361,15 @@ class AppWrapper(Protocol):
         sync_spawn: Callable,
         call_soon: Callable,
     ) -> None:
+        pass
+
+
+class SingleTask(Protocol):
+    def __init__(self) -> None:
+        pass
+
+    async def restart(self, task_group: TaskGroup, action: Callable) -> None:
+        pass
+
+    async def stop(self) -> None:
         pass

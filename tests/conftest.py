@@ -4,7 +4,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 import hypercorn.config
-from hypercorn.typing import HTTPScope
+from hypercorn.typing import ConnectionState, HTTPScope
 
 
 @pytest.fixture(autouse=True)
@@ -32,4 +32,5 @@ def _http_scope() -> HTTPScope:
         "client": ("127.0.0.1", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }

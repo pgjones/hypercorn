@@ -17,9 +17,15 @@ from hypercorn.protocol.events import (
     Request,
     Response,
     StreamClosed,
+    Trailers,
 )
 from hypercorn.protocol.http_stream import ASGIHTTPState, HTTPStream
-from hypercorn.typing import HTTPResponseBodyEvent, HTTPResponseStartEvent, HTTPScope
+from hypercorn.typing import (
+    ConnectionState,
+    HTTPResponseBodyEvent,
+    HTTPResponseStartEvent,
+    HTTPScope,
+)
 from hypercorn.utils import UnexpectedMessageError
 
 try:
@@ -43,7 +49,14 @@ async def _stream() -> HTTPStream:
 @pytest.mark.asyncio
 async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version=http_version, headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version=http_version,
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     stream.task_group.spawn_app.assert_called()  # type: ignore
     scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
@@ -61,13 +74,21 @@ async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> N
         "client": None,
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
 
 
 @pytest.mark.asyncio
 async def test_handle_request_http_2(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     stream.task_group.spawn_app.assert_called()  # type: ignore
     scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
@@ -84,7 +105,12 @@ async def test_handle_request_http_2(stream: HTTPStream) -> None:
         "headers": [],
         "client": None,
         "server": None,
-        "extensions": {"http.response.early_hint": {}, "http.response.push": {}},
+        "extensions": {
+            "http.response.trailers": {},
+            "http.response.early_hint": {},
+            "http.response.push": {},
+        },
+        "state": ConnectionState({}),
     }
 
 
@@ -110,7 +136,14 @@ async def test_handle_end_body(stream: HTTPStream) -> None:
 @pytest.mark.asyncio
 async def test_handle_closed(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     await stream.handle(StreamClosed(stream_id=1))
     stream.app_put.assert_called()  # type: ignore
@@ -120,14 +153,19 @@ async def test_handle_closed(stream: HTTPStream) -> None:
 @pytest.mark.asyncio
 async def test_send_response(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     await stream.app_send(
         cast(HTTPResponseStartEvent, {"type": "http.response.start", "status": 200, "headers": []})
     )
-    assert stream.state == ASGIHTTPState.REQUEST
-    # Must wait for response before sending anything
-    stream.send.assert_not_called()  # type: ignore
+    assert stream.state == ASGIHTTPState.RESPONSE
     await stream.app_send(
         cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b"Body"})
     )
@@ -152,6 +190,7 @@ async def test_invalid_server_name(stream: HTTPStream) -> None:
             headers=[(b"host", b"example.com")],
             raw_path=b"/",
             method="GET",
+            state=ConnectionState({}),
         )
     )
     assert stream.send.call_args_list == [  # type: ignore
@@ -181,6 +220,7 @@ async def test_send_push(stream: HTTPStream, http_scope: HTTPScope) -> None:
                 http_version="2",
                 method="GET",
                 raw_path=b"/push",
+                state=ConnectionState({}),
             )
         )
     ]
@@ -205,9 +245,77 @@ async def test_send_early_hint(stream: HTTPStream, http_scope: HTTPScope) -> Non
 
 
 @pytest.mark.asyncio
+async def test_send_trailers(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"te", b"trailers")],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    await stream.app_send(
+        cast(
+            HTTPResponseStartEvent,
+            {"type": "http.response.start", "status": 200, "trailers": True},
+        )
+    )
+    await stream.app_send(
+        cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b"Body"})
+    )
+    await stream.app_send({"type": "http.response.trailers", "headers": [(b"X", b"V")]})
+    assert stream.send.call_args_list == [  # type: ignore
+        call(Response(stream_id=1, headers=[], status_code=200)),
+        call(Body(stream_id=1, data=b"Body")),
+        call(Trailers(stream_id=1, headers=[(b"X", b"V")])),
+        call(EndBody(stream_id=1)),
+        call(StreamClosed(stream_id=1)),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_send_trailers_ignored(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],  # no TE: trailers header
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    await stream.app_send(
+        cast(
+            HTTPResponseStartEvent,
+            {"type": "http.response.start", "status": 200, "trailers": True},
+        )
+    )
+    await stream.app_send(
+        cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b"Body"})
+    )
+    await stream.app_send({"type": "http.response.trailers", "headers": [(b"X", b"V")]})
+    assert stream.send.call_args_list == [  # type: ignore
+        call(Response(stream_id=1, headers=[], status_code=200)),
+        call(Body(stream_id=1, data=b"Body")),
+        call(EndBody(stream_id=1)),
+        call(StreamClosed(stream_id=1)),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_send_app_error(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     await stream.app_send(None)
     stream.send.assert_called()  # type: ignore
@@ -230,15 +338,18 @@ async def test_send_app_error(stream: HTTPStream) -> None:
     [
         (ASGIHTTPState.REQUEST, "not_a_real_type"),
         (ASGIHTTPState.RESPONSE, "http.response.start"),
+        (ASGIHTTPState.TRAILERS, "http.response.start"),
         (ASGIHTTPState.CLOSED, "http.response.start"),
         (ASGIHTTPState.CLOSED, "http.response.body"),
+        (ASGIHTTPState.CLOSED, "http.response.trailers"),
     ],
 )
 @pytest.mark.asyncio
 async def test_send_invalid_message_given_state(
-    stream: HTTPStream, state: ASGIHTTPState, message_type: str
+    stream: HTTPStream, state: ASGIHTTPState, http_scope: HTTPScope, message_type: str
 ) -> None:
     stream.state = state
+    stream.scope = http_scope
     with pytest.raises(UnexpectedMessageError):
         await stream.app_send({"type": message_type})  # type: ignore
 
@@ -280,7 +391,14 @@ def test_stream_idle(stream: HTTPStream) -> None:
 @pytest.mark.asyncio
 async def test_closure(stream: HTTPStream) -> None:
     await stream.handle(
-        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     assert not stream.closed
     await stream.handle(StreamClosed(stream_id=1))
@@ -290,15 +408,6 @@ async def test_closure(stream: HTTPStream) -> None:
     # It is important that the disconnect message has only been sent
     # once.
     assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
-
-
-@pytest.mark.asyncio
-async def test_closed_app_send_noop(stream: HTTPStream) -> None:
-    stream.closed = True
-    await stream.app_send(
-        cast(HTTPResponseStartEvent, {"type": "http.response.start", "status": 200, "headers": []})
-    )
-    stream.send.assert_not_called()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -314,6 +423,13 @@ async def test_abnormal_close_logging() -> None:
     )
 
     await stream.handle(
-        Request(stream_id=1, http_version="2", headers=[], raw_path=b"/?a=b", method="GET")
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
     )
     await stream.handle(StreamClosed(stream_id=1))

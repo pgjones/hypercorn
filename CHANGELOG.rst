@@ -1,3 +1,38 @@
+0.17.3 2024-05-28
+-----------------
+
+* Restore set TCP_NODELAY on TCP sockets
+* Support uvloop >= 0.18 and the loop_factory argument
+* Bugfix ensure ExceptionGroup lifespan failures crash the server.
+
+0.17.2 2024-05-27
+-----------------
+
+* Bugfix pass the correct quic connection to the H3 Protocol.
+
+0.17.1 2024-05-27
+-----------------
+
+* Bugfix revert set TCP_NODELAY on sockets.
+
+0.17.0 2024-05-27
+-----------------
+
+* Set TCP_NODELAY on sockets.
+* Support sending trailing headers on h2/h3.
+* Add support for lifespan state.
+* Allow sending of the response before body data arrives.
+* Bugfix properly set host header to ascii string in
+  ProxyFixMiddleware.
+* Bugfix encode headers using latin-1.
+* Bugfix don't double-access log if the response was sent.
+* Bugfix a statsd logging bug.
+* Bugfix handle already-closed on StreamEnded.
+* Bugfix send a 400 response if data is received before the websocket
+  is accepted.
+* Bugfix ensure only a single QUIC timer task per connection.
+* Bugfix ensure responses are sent with empty bodies for WSGI.
+
 0.16.0 2024-01-01
 -----------------
 

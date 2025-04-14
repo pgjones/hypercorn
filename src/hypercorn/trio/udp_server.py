@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import socket
+
 import trio
 
 from .task_group import TaskGroup
 from .worker_context import WorkerContext
 from ..config import Config
 from ..events import Event, RawData
-from ..typing import AppWrapper
+from ..typing import AppWrapper, ConnectionState, LifespanState
 from ..utils import parse_socket_addr
 
 MAX_RECV = 2**16
@@ -18,23 +20,29 @@ class UDPServer:
         app: AppWrapper,
         config: Config,
         context: WorkerContext,
-        socket: trio.socket.socket,
+        state: LifespanState,
+        socket: socket.socket,
     ) -> None:
         self.app = app
         self.config = config
         self.context = context
         self.socket = trio.socket.from_stdlib_socket(socket)
+        self.state = state
 
-    async def run(
-        self, task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED
-    ) -> None:
+    async def run(self, task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED) -> None:
         from ..protocol.quic import QuicProtocol  # h3/Quic is an optional part of Hypercorn
 
         task_status.started()
         server = parse_socket_addr(self.socket.family, self.socket.getsockname())
         async with TaskGroup() as task_group:
             self.protocol = QuicProtocol(
-                self.app, self.config, self.context, task_group, server, self.protocol_send
+                self.app,
+                self.config,
+                self.context,
+                task_group,
+                ConnectionState(self.state.copy()),
+                server,
+                self.protocol_send,
             )
 
             while not self.context.terminated.is_set() or not self.protocol.idle:

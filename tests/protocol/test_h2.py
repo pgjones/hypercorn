@@ -11,6 +11,7 @@ from hypercorn.asyncio.worker_context import EventWrapper, WorkerContext
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer
+from hypercorn.typing import ConnectionState
 
 try:
     from unittest.mock import AsyncMock
@@ -79,7 +80,15 @@ async def test_stream_buffer_complete() -> None:
 @pytest.mark.asyncio
 async def test_protocol_handle_protocol_error() -> None:
     protocol = H2Protocol(
-        Mock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock()
+        Mock(),
+        Config(),
+        WorkerContext(None),
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
     )
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
     protocol.send.assert_awaited()  # type: ignore
@@ -89,7 +98,15 @@ async def test_protocol_handle_protocol_error() -> None:
 @pytest.mark.asyncio
 async def test_protocol_keep_alive_max_requests() -> None:
     protocol = H2Protocol(
-        Mock(), Config(), WorkerContext(None), AsyncMock(), False, None, None, AsyncMock()
+        Mock(),
+        Config(),
+        WorkerContext(None),
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
     )
     protocol.config.keep_alive_max_requests = 0
     client = H2Connection()

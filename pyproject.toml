@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Hypercorn"
-version = "0.16.0"
+version = "0.17.3"
 description = "A ASGI Server based on Hyper libraries and inspired by Gunicorn"
 authors = ["pgjones <philip.graham.jones@googlemail.com>"]
 classifiers = [
@@ -28,7 +28,7 @@ documentation = "https://hypercorn.readthedocs.io"
 [tool.poetry.dependencies]
 python = ">=3.9"
 aioquic = { version = ">= 0.9.0, < 1.0", optional = true }
-exceptiongroup = ">= 1.1.0"
+exceptiongroup = { version = ">= 1.1.0", python = "<3.11" }
 h11 = "*"
 h2 = ">=3.1.0"
 priority = "*"
@@ -37,11 +37,13 @@ sphinxcontrib_mermaid = { version = "*", optional = true }
 taskgroup = { version = "*", python = "<3.11", allow-prereleases = true }
 tomli = { version = "*", python = "<3.11" }
 trio = { version = ">=0.22.0", optional = true }
-uvloop = { version = "*", markers = "platform_system != 'Windows'", optional = true }
+typing_extensions = { version = "*", python = "<3.11" }
+uvloop = { version = ">=0.18", markers = "platform_system != 'Windows'", optional = true }
 wsproto = ">=0.14.0"
 pyyaml = ">=6.0.0"
 
 [tool.poetry.dev-dependencies]
+httpx = "*"
 hypothesis = "*"
 mock = "*"
 pytest = "*"
@@ -55,7 +57,7 @@ hypercorn = "hypercorn.__main__:main"
 [tool.poetry.extras]
 docs = ["pydata_sphinx_theme", "sphinxcontrib_mermaid"]
 h3 = ["aioquic"]
-trio = ["exceptiongroup", "trio"]
+trio = ["trio"]
 uvloop = ["uvloop"]
 
 [tool.black]
@@ -91,8 +93,15 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module =["aioquic.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "pytest_asyncio.*", "trio.*", "uvloop.*"]
+module =["aioquic.*", "cryptography.*", "h11.*", "h2.*", "priority.*", "pytest_asyncio.*", "uvloop.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["trio.*", "tests.trio.*"]
+disallow_any_generics = true
+disallow_untyped_calls = true
+strict_optional = true
+warn_return_any = true
 
 [tool.pytest.ini_options]
 addopts = "--no-cov-on-fail --showlocals --strict-markers"

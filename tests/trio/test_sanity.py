@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from unittest.mock import Mock, PropertyMock
 
 import h2
@@ -24,12 +25,15 @@ except ImportError:
 @pytest.mark.trio
 async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", server_stream)
     server_stream.socket = MockSocket()
-    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(None), server_stream)
+    server = TCPServer(
+        ASGIWrapper(sanity_framework), Config(), WorkerContext(None), {}, server_stream
+    )
     nursery.start_soon(server.run)
     client = h11.Connection(h11.CLIENT)
     await client_stream.send_all(
-        client.send(
+        client.send(  # type: ignore[arg-type]
             h11.Request(
                 method="POST",
                 target="/",
@@ -41,8 +45,8 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
             )
         )
     )
-    await client_stream.send_all(client.send(h11.Data(data=SANITY_BODY)))
-    await client_stream.send_all(client.send(h11.EndOfMessage()))
+    await client_stream.send_all(client.send(h11.Data(data=SANITY_BODY)))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
     events = []
     while True:
         event = client.next_event()
@@ -75,8 +79,11 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
 @pytest.mark.trio
 async def test_http1_websocket(nursery: trio._core._run.Nursery) -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", server_stream)
     server_stream.socket = MockSocket()
-    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(None), server_stream)
+    server = TCPServer(
+        ASGIWrapper(sanity_framework), Config(), WorkerContext(None), {}, server_stream
+    )
     nursery.start_soon(server.run)
     client = wsproto.WSConnection(wsproto.ConnectionType.CLIENT)
     await client_stream.send_all(client.send(wsproto.events.Request(host="hypercorn", target="/")))
@@ -100,10 +107,13 @@ async def test_http1_websocket(nursery: trio._core._run.Nursery) -> None:
 @pytest.mark.trio
 async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", server_stream)
     server_stream.transport_stream = Mock(return_value=PropertyMock(return_value=MockSocket()))
-    server_stream.do_handshake = AsyncMock()
+    server_stream.do_handshake = AsyncMock()  # type: ignore[method-assign]
     server_stream.selected_alpn_protocol = Mock(return_value="h2")
-    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(None), server_stream)
+    server = TCPServer(
+        ASGIWrapper(sanity_framework), Config(), WorkerContext(None), {}, server_stream
+    )
     nursery.start_soon(server.run)
     client = h2.connection.H2Connection()
     client.initiate_connection()
@@ -155,10 +165,13 @@ async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
 @pytest.mark.trio
 async def test_http2_websocket(nursery: trio._core._run.Nursery) -> None:
     client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", server_stream)
     server_stream.transport_stream = Mock(return_value=PropertyMock(return_value=MockSocket()))
-    server_stream.do_handshake = AsyncMock()
+    server_stream.do_handshake = AsyncMock()  # type: ignore[method-assign]
     server_stream.selected_alpn_protocol = Mock(return_value="h2")
-    server = TCPServer(ASGIWrapper(sanity_framework), Config(), WorkerContext(None), server_stream)
+    server = TCPServer(
+        ASGIWrapper(sanity_framework), Config(), WorkerContext(None), {}, server_stream
+    )
     nursery.start_soon(server.run)
     h2_client = h2.connection.H2Connection()
     h2_client.initiate_connection()

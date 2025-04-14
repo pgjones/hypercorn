@@ -6,7 +6,7 @@ from .h2 import H2Protocol
 from .h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
 from ..config import Config
 from ..events import Event, RawData
-from ..typing import AppWrapper, TaskGroup, WorkerContext
+from ..typing import AppWrapper, ConnectionState, TaskGroup, WorkerContext
 
 
 class ProtocolWrapper:
@@ -16,6 +16,7 @@ class ProtocolWrapper:
         config: Config,
         context: WorkerContext,
         task_group: TaskGroup,
+        state: ConnectionState,
         ssl: bool,
         client: Optional[Tuple[str, int]],
         server: Optional[Tuple[str, int]],
@@ -30,6 +31,7 @@ class ProtocolWrapper:
         self.client = client
         self.server = server
         self.send = send
+        self.state = state
         self.protocol: Union[H11Protocol, H2Protocol]
         if alpn_protocol == "h2":
             self.protocol = H2Protocol(
@@ -37,6 +39,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
+                self.state,
                 self.ssl,
                 self.client,
                 self.server,
@@ -48,6 +51,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
+                self.state,
                 self.ssl,
                 self.client,
                 self.server,
@@ -66,6 +70,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
+                self.state,
                 self.ssl,
                 self.client,
                 self.server,
@@ -80,6 +85,7 @@ class ProtocolWrapper:
                 self.config,
                 self.context,
                 self.task_group,
+                self.state,
                 self.ssl,
                 self.client,
                 self.server,

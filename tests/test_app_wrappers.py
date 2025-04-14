@@ -8,7 +8,7 @@ import pytest
 import trio
 
 from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
-from hypercorn.typing import ASGISendEvent, HTTPScope
+from hypercorn.typing import ASGIReceiveEvent, ASGISendEvent, ConnectionState, HTTPScope
 
 
 def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
@@ -39,9 +39,10 @@ async def test_wsgi_trio() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
-    send_channel, receive_channel = trio.open_memory_channel(1)
-    await send_channel.send({"type": "http.request"})
+    send_channel, receive_channel = trio.open_memory_channel[ASGIReceiveEvent](1)
+    await send_channel.send({"type": "http.request"})  # type: ignore
 
     messages = []
 
@@ -98,6 +99,7 @@ async def test_wsgi_asyncio() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     messages = await _run_app(app, scope)
     assert messages == [
@@ -128,6 +130,7 @@ async def test_max_body_size() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     messages = await _run_app(app, scope, b"abcde")
     assert messages == [
@@ -157,6 +160,7 @@ async def test_no_start_response() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     with pytest.raises(RuntimeError):
         await _run_app(app, scope)
@@ -177,6 +181,7 @@ def test_build_environ_encoding() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     environ = _build_environ(scope, b"")
     assert environ["SCRIPT_NAME"] == "/中".encode("utf8").decode("latin-1")
@@ -198,6 +203,7 @@ def test_build_environ_root_path() -> None:
         "client": ("localhost", 80),
         "server": None,
         "extensions": {},
+        "state": ConnectionState({}),
     }
     with pytest.raises(InvalidPathError):
         _build_environ(scope, b"")

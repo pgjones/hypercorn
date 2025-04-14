@@ -14,7 +14,7 @@ from .tcp_server import TCPServer
 from .udp_server import UDPServer
 from .worker_context import WorkerContext
 from ..config import Config, Sockets
-from ..typing import AppWrapper
+from ..typing import AppWrapper, ConnectionState, LifespanState
 from ..utils import (
     check_multiprocess_shutdown_event,
     load_application,
@@ -33,11 +33,12 @@ async def worker_serve(
     *,
     sockets: Optional[Sockets] = None,
     shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
-    task_status: trio._core._run._TaskStatus = trio.TASK_STATUS_IGNORED,
+    task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 
-    lifespan = Lifespan(app, config)
+    lifespan_state: LifespanState = {}
+    lifespan = Lifespan(app, config, lifespan_state)
     max_requests = None
     if config.max_requests is not None:
         max_requests = config.max_requests + randint(0, config.max_requests_jitter)
@@ -56,7 +57,7 @@ async def worker_serve(
                     sock.listen(config.backlog)
 
             ssl_context = config.create_ssl_context()
-            listeners = []
+            listeners: list[trio.SSLListener[trio.SocketStream] | trio.SocketListener] = []
             binds = []
             for sock in sockets.secure_sockets:
                 listeners.append(
@@ -77,7 +78,11 @@ async def worker_serve(
                 await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
 
             for sock in sockets.quic_sockets:
-                await server_nursery.start(UDPServer(app, config, context, sock).run)
+                await server_nursery.start(
+                    UDPServer(
+                        app, config, context, ConnectionState(lifespan_state.copy()), sock
+                    ).run
+                )
                 bind = repr_socket_addr(sock.family, sock.getsockname())
                 await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
@@ -91,7 +96,13 @@ async def worker_serve(
                     nursery.start_soon(
                         partial(
                             trio.serve_listeners,
-                            partial(TCPServer, app, config, context),
+                            partial(
+                                TCPServer,
+                                app,
+                                config,
+                                context,
+                                ConnectionState(lifespan_state.copy()),
+                            ),
                             listeners,
                             handler_nursery=server_nursery,
                         ),
