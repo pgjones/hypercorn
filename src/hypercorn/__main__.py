@@ -136,7 +136,7 @@ def main(sys_args: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--log-config",
         help=""""A Python logging configuration file. This can be prefixed with
-        'json:', 'yaml:' or 'toml:' to load the configuration from a file in
+        'json:', 'yaml:' (pyyaml required) or 'toml:' to load the configuration from a file in
         that format. Default is the logging ini format.""",
         default=sentinel,
     )
