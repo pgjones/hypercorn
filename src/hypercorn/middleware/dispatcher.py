@@ -20,8 +20,9 @@ class _DispatcherMiddleware:
         else:
             for path, app in self.mounts.items():
                 if scope["path"].startswith(path):
-                    scope["path"] = scope["path"][len(path) :] or "/"
-                    return await app(scope, receive, send)
+                    local_scope = scope.copy()
+                    local_scope["root_path"] += path
+                    return await app(local_scope, receive, send)
             await send(
                 {
                     "type": "http.response.start",

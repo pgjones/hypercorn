@@ -40,10 +40,10 @@ async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
     await app({**http_scope, **{"path": "/api/b"}}, None, send)  # type: ignore
     await app({**http_scope, **{"path": "/"}}, None, send)  # type: ignore
     assert sent_events == [
-        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"7")]},
-        {"type": "http.response.body", "body": b"apix-/b"},
-        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"6")]},
-        {"type": "http.response.body", "body": b"api-/b"},
+        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"13")]},
+        {"type": "http.response.body", "body": b"apix-/api/x/b"},
+        {"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"10")]},
+        {"type": "http.response.body", "body": b"api-/api/b"},
         {"type": "http.response.start", "status": 404, "headers": [(b"content-length", b"0")]},
         {"type": "http.response.body"},
     ]
