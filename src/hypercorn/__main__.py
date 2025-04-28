@@ -16,9 +16,9 @@ def _load_config(config_path: Optional[str]) -> Config:
     if config_path is None:
         return Config()
     elif config_path.startswith("python:"):
-        return Config.from_object(config_path[len("python:") :])
+        return Config.from_object(config_path[len("python:"):])
     elif config_path.startswith("file:"):
-        return Config.from_pyfile(config_path[len("file:") :])
+        return Config.from_pyfile(config_path[len("file:"):])
     else:
         return Config.from_toml(config_path)
 
@@ -136,7 +136,7 @@ def main(sys_args: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--log-config",
         help=""""A Python logging configuration file. This can be prefixed with
-        'json:' or 'toml:' to load the configuration from a file in
+        'json:', 'yaml:' (pyyaml required) or 'toml:' to load the configuration from a file in
         that format. Default is the logging ini format.""",
         default=sentinel,
     )

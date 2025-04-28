@@ -26,7 +26,7 @@ repository = "https://github.com/pgjones/hypercorn/"
 documentation = "https://hypercorn.readthedocs.io"
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.9"
 aioquic = { version = ">= 0.9.0, < 1.0", optional = true }
 exceptiongroup = { version = ">= 1.1.0", python = "<3.11" }
 h11 = "*"
@@ -40,6 +40,7 @@ trio = { version = ">=0.22.0", optional = true }
 typing_extensions = { version = "*", python = "<3.11" }
 uvloop = { version = ">=0.18", markers = "platform_system != 'Windows'", optional = true }
 wsproto = ">=0.14.0"
+pyyaml = { version = ">=6.0.0", optional = true }
 
 [tool.poetry.dev-dependencies]
 httpx = "*"

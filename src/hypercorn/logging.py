@@ -7,7 +7,18 @@ import sys
 import time
 from http import HTTPStatus
 from logging.config import dictConfig, fileConfig
-from typing import Any, IO, Mapping, Optional, TYPE_CHECKING, Union
+from typing import IO, TYPE_CHECKING, Any, Mapping, Optional, Union
+
+yaml = None
+try:
+    import importlib.util
+
+    spec = importlib.util.find_spec("yaml")
+    if spec is not None:
+        yaml = importlib.import_module("yaml")
+
+except ImportError:
+    yaml = None
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -68,6 +79,14 @@ class Logger:
             if config.logconfig.startswith("json:"):
                 with open(config.logconfig[5:]) as file_:
                     dictConfig(json.load(file_))
+            elif config.logconfig.startswith("yaml:"):
+                if not yaml:
+                    raise ValueError(
+                        "pyyaml is not installed, cannot load yaml config, "
+                        "see https://pypi.org/project/PyYAML/ for more information",
+                    )
+                with open(config.logconfig[5:]) as file_:
+                    dictConfig(yaml.safe_load(file_))
             elif config.logconfig.startswith("toml:"):
                 with open(config.logconfig[5:], "rb") as file_:
                     dictConfig(tomllib.load(file_))
