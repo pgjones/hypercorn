@@ -63,7 +63,7 @@ class TCPServer:
                     self.config,
                     self.context,
                     task_group,
-                    ConnectionState(self.state.copy()),
+                    ConnectionState(self.state),
                     ssl,
                     client,
                     server,
