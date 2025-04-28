@@ -103,6 +103,7 @@ errorlog                   ``--error-logfile``           The target location for
                            ``--log-file``                use `-` for stderr.
 graceful_timeout           ``--graceful-timeout``        Time to wait after SIGTERM or Ctrl-C
                                                          for any remaining requests (tasks) to
+                                                         complete.
 read_timeout               ``--read-timeout``            Seconds to wait before timing out reads         No timeout.
                                                          on TCP sockets.
 group                      ``-g``, ``--group``           Group to own any unix sockets.
