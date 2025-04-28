@@ -217,7 +217,10 @@ class H2Protocol:
                 await self.has_data.set()
                 await self.stream_buffers[event.stream_id].drain()
             elif isinstance(event, Trailers):
-                self.connection.send_headers(event.stream_id, event.headers)
+                self.priority.unblock(event.stream_id)
+                await self.has_data.set()
+                await self.stream_buffers[event.stream_id].drain()
+                self.connection.send_headers(event.stream_id, event.headers, end_stream=True)
                 await self._flush()
             elif isinstance(event, StreamClosed):
                 await self._close_stream(event.stream_id)
