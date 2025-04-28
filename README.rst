@@ -16,8 +16,7 @@ Gunicorn. Hypercorn supports HTTP/1, HTTP/2, WebSockets (over HTTP/1
 and HTTP/2), ASGI, and WSGI specifications. Hypercorn can utilise
 asyncio, uvloop, or trio worker types.
 
-Hypercorn can optionally serve the current draft of the HTTP/3
-specification using the `aioquic
+Hypercorn can optionally support HTTP/3 using the `aioquic
 <https://github.com/aiortc/aioquic/>`_ library. To enable this install
 the ``h3`` optional extra, ``pip install hypercorn[h3]`` and then
 choose a quic binding e.g. ``hypercorn --quic-bind localhost:4433
