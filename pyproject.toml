@@ -41,7 +41,7 @@ typing_extensions = { version = "*", python = "<3.11" }
 uvloop = { version = ">=0.18", markers = "platform_system != 'Windows'", optional = true }
 wsproto = ">=0.14.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 httpx = "*"
 hypothesis = "*"
 mock = "*"
