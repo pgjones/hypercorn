@@ -60,6 +60,13 @@ def run(config: Config) -> int:
             shutdown_event.set()
             active = False
 
+        def reload(*args: Any) -> None:
+            nonlocal shutdown_event
+            shutdown_event.set()
+            for process in processes:
+                process.join()
+            shutdown_event.clear()
+
         processes: List[BaseProcess] = []
         while active:
             # Ignore SIGINT before creating the processes, so that they
@@ -72,6 +79,7 @@ def run(config: Config) -> int:
             for signal_name in {"SIGINT", "SIGTERM", "SIGBREAK"}:
                 if hasattr(signal, signal_name):
                     signal.signal(getattr(signal, signal_name), shutdown)
+            signal.signal(signal.SIGHUP, reload)
 
             if config.use_reloader:
                 files = files_to_watch()
@@ -79,10 +87,7 @@ def run(config: Config) -> int:
                     finished = wait((process.sentinel for process in processes), timeout=1)
                     updated = check_for_updates(files)
                     if updated:
-                        shutdown_event.set()
-                        for process in processes:
-                            process.join()
-                        shutdown_event.clear()
+                        reload()
                         break
                     if len(finished) > 0:
                         break
