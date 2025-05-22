@@ -91,6 +91,10 @@ class ProtocolWrapper:
                 self.server,
                 self.send,
             )
-            await self.protocol.initiate(error.headers, error.settings)
+            # H2Connection only accepts bytes, not str, but it passes the value to
+            # base64.urlsafe_b64encode that also handles ASCII strings.
+            # But H2CProtocolRequiredError intentionally decodes bytes in __init__,
+            # which should maybe be remedied.
+            await self.protocol.initiate(error.headers, error.settings)  # type: ignore[arg-type]
             if error.data != b"":
                 return await self.protocol.handle(RawData(data=error.data))

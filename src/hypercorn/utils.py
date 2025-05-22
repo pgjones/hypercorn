@@ -18,6 +18,7 @@ from typing import (
     List,
     Literal,
     Optional,
+    Sequence,
     Tuple,
     TYPE_CHECKING,
 )
@@ -74,7 +75,7 @@ def build_and_validate_headers(headers: Iterable[Tuple[bytes, bytes]]) -> List[T
     return validated_headers
 
 
-def filter_pseudo_headers(headers: List[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
+def filter_pseudo_headers(headers: Sequence[Tuple[bytes, bytes]]) -> List[Tuple[bytes, bytes]]:
     filtered_headers: List[Tuple[bytes, bytes]] = [(b"host", b"")]  # Placeholder
     authority = None
     host = b""

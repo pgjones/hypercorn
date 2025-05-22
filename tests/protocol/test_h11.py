@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from unittest.mock import call, Mock
+from unittest.mock import AsyncMock, call, Mock
 
 import h11
 import pytest
@@ -17,13 +17,6 @@ from hypercorn.protocol.events import Body, Data, EndBody, EndData, Request, Res
 from hypercorn.protocol.h11 import H2CProtocolRequiredError, H2ProtocolAssumedError, H11Protocol
 from hypercorn.protocol.http_stream import HTTPStream
 from hypercorn.typing import ConnectionState, Event as IOEvent
-
-try:
-    from unittest.mock import AsyncMock
-except ImportError:
-    # Python < 3.8
-    from mock import AsyncMock  # type: ignore
-
 
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 
