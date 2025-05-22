@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any, cast, List, Tuple
-from unittest.mock import call, Mock
+from unittest.mock import AsyncMock, call, Mock
 
 import pytest
 import pytest_asyncio
@@ -29,12 +29,6 @@ from hypercorn.typing import (
     WebsocketSendEvent,
 )
 from hypercorn.utils import UnexpectedMessageError
-
-try:
-    from unittest.mock import AsyncMock
-except ImportError:
-    # Python < 3.8
-    from mock import AsyncMock  # type: ignore
 
 
 def test_buffer() -> None:

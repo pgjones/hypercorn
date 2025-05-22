@@ -81,13 +81,10 @@ async def test_http1_keep_alive_during(
     client_stream: ClientStream,
 ) -> None:
     client = h11.Connection(h11.CLIENT)
-    # client.send(h11.Request) and client.send(h11.EndOfMessage) only returns bytes.
-    # Fixed on master/ in the h11 repo, once released the ignore's can be removed.
-    # See https://github.com/python-hyper/h11/issues/175
-    await client_stream.send_all(client.send(REQUEST))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(REQUEST))
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     # Key is that this doesn't error
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
 
 
 @pytest.mark.trio
@@ -95,9 +92,9 @@ async def test_http1_keep_alive(
     client_stream: ClientStream,
 ) -> None:
     client = h11.Connection(h11.CLIENT)
-    await client_stream.send_all(client.send(REQUEST))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(REQUEST))
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
     while True:
         event = client.next_event()
         if event == h11.NEED_DATA:
@@ -106,10 +103,10 @@ async def test_http1_keep_alive(
         elif isinstance(event, h11.EndOfMessage):
             break
     client.start_next_cycle()
-    await client_stream.send_all(client.send(REQUEST))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(REQUEST))
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     # Key is that this doesn't error
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
 
 
 @pytest.mark.trio

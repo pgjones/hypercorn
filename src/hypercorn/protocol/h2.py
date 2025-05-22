@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Awaitable,
+    Callable,
+    cast,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TYPE_CHECKING,
+    Union,
+)
 
 import h2
 import h2.connection
@@ -26,6 +37,10 @@ from ..config import Config
 from ..events import Closed, Event, RawData, Updated
 from ..typing import AppWrapper, ConnectionState, Event as IOEvent, TaskGroup, WorkerContext
 from ..utils import filter_pseudo_headers
+
+if TYPE_CHECKING:
+    # fancy alias for tuple[bytes, bytes]
+    from hpack import HeaderTuple
 
 BUFFER_HIGH_WATER = 2 * 2**14  # Twice the default max frame size (two frames worth)
 BUFFER_LOW_WATER = BUFFER_HIGH_WATER / 2
@@ -127,7 +142,7 @@ class H2Protocol:
         return len(self.streams) == 0 or all(stream.idle for stream in self.streams.values())
 
     async def initiate(
-        self, headers: Optional[List[Tuple[bytes, bytes]]] = None, settings: Optional[str] = None
+        self, headers: Optional[List[Tuple[bytes, bytes]]] = None, settings: Optional[bytes] = None
     ) -> None:
         if settings is not None:
             self.connection.initiate_upgrade_connection(settings)
@@ -137,7 +152,7 @@ class H2Protocol:
         if headers is not None:
             event = h2.events.RequestReceived()
             event.stream_id = 1
-            event.headers = headers
+            event.headers = cast("list[HeaderTuple]", headers)
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
         self.task_group.spawn(self.send_task)
@@ -389,7 +404,7 @@ class H2Protocol:
         else:
             event = h2.events.RequestReceived()
             event.stream_id = push_stream_id
-            event.headers = request_headers
+            event.headers = cast("list[HeaderTuple]", request_headers)
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
             self.keep_alive_requests += 1

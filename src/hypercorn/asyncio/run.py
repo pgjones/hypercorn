@@ -102,8 +102,6 @@ async def worker_serve(
     server_tasks: Set[asyncio.Task] = set()
 
     async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        nonlocal server_tasks
-
         task = asyncio.current_task(loop)
         server_tasks.add(task)
         task.add_done_callback(server_tasks.discard)

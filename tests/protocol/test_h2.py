@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import call, Mock
+from unittest.mock import AsyncMock, call, Mock
 
 import pytest
 from h2.connection import H2Connection
@@ -12,12 +12,6 @@ from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
 from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer
 from hypercorn.typing import ConnectionState
-
-try:
-    from unittest.mock import AsyncMock
-except ImportError:
-    # Python < 3.8
-    from mock import AsyncMock  # type: ignore
 
 
 @pytest.mark.asyncio

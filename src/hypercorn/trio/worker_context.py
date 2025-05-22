@@ -11,7 +11,7 @@ from ..typing import Event, SingleTask, TaskGroup
 def _cancel_wrapper(func: Callable[[], Awaitable[None]]) -> Callable[[], Awaitable[None]]:
     @wraps(func)
     async def wrapper(
-        task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED,
+        task_status: trio.TaskStatus[trio.CancelScope] = trio.TASK_STATUS_IGNORED,
     ) -> None:
         cancel_scope = trio.CancelScope()
         task_status.started(cancel_scope)

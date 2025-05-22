@@ -34,7 +34,7 @@ def _create_logger(
     if target:
         logger = logging.getLogger(name)
         logger.handlers = [
-            logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)  # type: ignore # noqa: E501
+            logging.StreamHandler(sys_default) if target == "-" else logging.FileHandler(target)
         ]
         logger.propagate = propagate
         formatter = logging.Formatter(

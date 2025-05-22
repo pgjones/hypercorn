@@ -14,7 +14,6 @@ async def test_http_to_https_redirect_middleware_http(raw_path: bytes) -> None:
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     scope: HTTPScope = {
@@ -53,7 +52,6 @@ async def test_http_to_https_redirect_middleware_websocket(raw_path: bytes) -> N
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     scope: WebsocketScope = {
@@ -90,7 +88,6 @@ async def test_http_to_https_redirect_middleware_websocket_http2() -> None:
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     scope: WebsocketScope = {
@@ -127,7 +124,6 @@ async def test_http_to_https_redirect_middleware_websocket_no_rejection() -> Non
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     scope: WebsocketScope = {

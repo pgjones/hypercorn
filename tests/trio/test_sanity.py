@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import cast
-from unittest.mock import Mock, PropertyMock
+from unittest.mock import AsyncMock, Mock, PropertyMock
 
 import h2
 import h11
@@ -15,12 +15,6 @@ from hypercorn.trio.tcp_server import TCPServer
 from hypercorn.trio.worker_context import WorkerContext
 from ..helpers import MockSocket, SANITY_BODY, sanity_framework
 
-try:
-    from unittest.mock import AsyncMock
-except ImportError:
-    # Python < 3.8
-    from mock import AsyncMock  # type: ignore
-
 
 @pytest.mark.trio
 async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
@@ -33,7 +27,7 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
     nursery.start_soon(server.run)
     client = h11.Connection(h11.CLIENT)
     await client_stream.send_all(
-        client.send(  # type: ignore[arg-type]
+        client.send(
             h11.Request(
                 method="POST",
                 target="/",
@@ -45,8 +39,8 @@ async def test_http1_request(nursery: trio._core._run.Nursery) -> None:
             )
         )
     )
-    await client_stream.send_all(client.send(h11.Data(data=SANITY_BODY)))  # type: ignore[arg-type]
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.Data(data=SANITY_BODY)))
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
     events = []
     while True:
         event = client.next_event()
@@ -143,6 +137,8 @@ async def test_http2_request(nursery: trio._core._run.Nursery) -> None:
         h2_events = client.receive_data(data)
         for event in h2_events:
             if isinstance(event, h2.events.DataReceived):
+                assert event.flow_controlled_length is not None
+                assert event.stream_id is not None
                 client.acknowledge_received_data(event.flow_controlled_length, event.stream_id)
             elif isinstance(
                 event,
@@ -193,6 +189,7 @@ async def test_http2_websocket(nursery: trio._core._run.Nursery) -> None:
     events = h2_client.receive_data(await client_stream.receive_some(1024))
     if not isinstance(events[-1], h2.events.ResponseReceived):
         events = h2_client.receive_data(await client_stream.receive_some(1024))
+    assert isinstance(events[-1], h2.events.ResponseReceived)
     assert events[-1].headers == [
         (b":status", b"200"),
         (b"date", b"Thu, 01 Jan 1970 01:23:20 GMT"),
@@ -202,11 +199,14 @@ async def test_http2_websocket(nursery: trio._core._run.Nursery) -> None:
     h2_client.send_data(stream_id, client.send(wsproto.events.BytesMessage(data=SANITY_BODY)))
     await client_stream.send_all(h2_client.data_to_send())
     events = h2_client.receive_data(await client_stream.receive_some(1024))
+    assert isinstance(events[0], h2.events.DataReceived)
     client.receive_data(events[0].data)
     assert list(client.events()) == [wsproto.events.TextMessage(data="Hello & Goodbye")]
+
     h2_client.send_data(stream_id, client.send(wsproto.events.CloseConnection(code=1000)))
     await client_stream.send_all(h2_client.data_to_send())
     events = h2_client.receive_data(await client_stream.receive_some(1024))
+    assert isinstance(events[0], h2.events.DataReceived)
     client.receive_data(events[0].data)
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
     await client_stream.send_all(b"")

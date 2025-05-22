@@ -47,7 +47,6 @@ async def test_wsgi_trio() -> None:
     messages = []
 
     async def _send(message: ASGISendEvent) -> None:
-        nonlocal messages
         messages.append(message)
 
     await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync, trio.from_thread.run)
@@ -69,7 +68,6 @@ async def _run_app(app: WSGIWrapper, scope: HTTPScope, body: bytes = b"") -> Lis
     messages = []
 
     async def _send(message: ASGISendEvent) -> None:
-        nonlocal messages
         messages.append(message)
 
     event_loop = asyncio.get_running_loop()

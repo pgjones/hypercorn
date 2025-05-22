@@ -33,7 +33,7 @@ async def worker_serve(
     *,
     sockets: Optional[Sockets] = None,
     shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
-    task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED,
+    task_status: trio.TaskStatus[list[str]] = trio.TASK_STATUS_IGNORED,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 

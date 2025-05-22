@@ -33,7 +33,6 @@ async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     await app({**http_scope, **{"path": "/api/x/b"}}, None, send)  # type: ignore
@@ -66,7 +65,6 @@ async def test_asyncio_dispatcher_lifespan() -> None:
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     async def receive() -> dict:
@@ -83,7 +81,6 @@ async def test_trio_dispatcher_lifespan() -> None:
     sent_events = []
 
     async def send(message: dict) -> None:
-        nonlocal sent_events
         sent_events.append(message)
 
     async def receive() -> dict:

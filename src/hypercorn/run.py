@@ -56,7 +56,7 @@ def run(config: Config) -> int:
         shutdown_event = ctx.Event()
 
         def shutdown(*args: Any) -> None:
-            nonlocal active, shutdown_event
+            nonlocal active
             shutdown_event.set()
             active = False
 
