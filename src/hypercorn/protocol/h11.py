@@ -304,7 +304,7 @@ class H11Protocol:
                 has_body = True
 
         # h2c Upgrade requests with a body are a pain as the body must
-        # be fully recieved in HTTP/1.1 before the upgrade response
+        # be fully received in HTTP/1.1 before the upgrade response
         # and HTTP/2 takes over, so Hypercorn ignores the upgrade and
         # responds in HTTP/1.1. Use a preflight OPTIONS request to
         # initiate the upgrade if really required (or just use h2).

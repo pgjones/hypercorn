@@ -141,8 +141,8 @@ class H2Protocol:
         self.task_group.spawn(self.send_task)
 
     async def send_task(self) -> None:
-        # This should be run in a seperate task to the rest of this
-        # class. This allows it seperately choose when to send,
+        # This should be run in a separate task to the rest of this
+        # class. This allows it separately choose when to send,
         # crucially in what order.
         while not self.closed:
             try:
@@ -348,7 +348,7 @@ class H2Protocol:
         try:
             self.priority.insert_stream(request.stream_id)
         except priority.DuplicateStreamError:
-            # Recieved PRIORITY frame before HEADERS frame
+            # Received PRIORITY frame before HEADERS frame
             pass
         else:
             self.priority.block(request.stream_id)
