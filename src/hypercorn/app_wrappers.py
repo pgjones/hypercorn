@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Buffer
 from functools import partial
 from io import BytesIO
 from typing import Callable, List, Optional, Tuple
@@ -117,7 +118,7 @@ class WSGIWrapper:
                 response_body.close()
 
 
-def _build_environ(scope: HTTPScope, body: bytes) -> dict:
+def _build_environ(scope: HTTPScope, body: Buffer) -> dict:
     server = scope.get("server") or ("localhost", 80)
     path = scope["path"]
     script_name = scope.get("root_path", "")

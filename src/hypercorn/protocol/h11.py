@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import Awaitable, Callable, cast, Optional, Tuple, Type, Union
+from typing import Awaitable, Callable, cast, Iterable, Optional, SupportsIndex, Tuple, Type, Union
 
 import h11
 
@@ -59,7 +59,7 @@ class H11WSConnection:
         self.buffer = bytearray(h11_connection.trailing_data[0])
         self.h11_connection = h11_connection
 
-    def receive_data(self, data: bytes) -> None:
+    def receive_data(self, data: Iterable[SupportsIndex]) -> None:
         self.buffer.extend(data)
 
     def next_event(self) -> Union[Data, Type[h11.NEED_DATA]]:
@@ -111,7 +111,9 @@ class H11Protocol:
 
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
-            self.connection.receive_data(event.data)
+            # `h11.Connection.receive_data` should accept `Buffer`, but is overly narrow.
+            # See https://github.com/python-hyper/h11/issues/186
+            self.connection.receive_data(event.data)  # type: ignore[arg-type]
             await self._handle_events()
         elif isinstance(event, Closed):
             if self.stream is not None:

@@ -11,7 +11,7 @@ class Event(ABC):
 
 @dataclass(frozen=True)
 class RawData(Event):
-    data: bytes
+    data: bytes | bytearray | memoryview[int]  # this can likely be collections.abc.Buffer
     address: Optional[Tuple[str, int]] = None
 
 

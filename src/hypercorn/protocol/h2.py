@@ -199,7 +199,9 @@ class H2Protocol:
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
             try:
-                events = self.connection.receive_data(event.data)
+                # H2 relies on legacy typing behavior of `bytes` accepting `bytearray`
+                # See https://github.com/python-hyper/h2/issues/1305
+                events = self.connection.receive_data(event.data)  # type: ignore[arg-type]
             except h2.exceptions.ProtocolError:
                 await self._flush()
                 await self.send(Closed())
