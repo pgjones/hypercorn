@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Buffer
 from functools import partial
 from io import BytesIO
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, TYPE_CHECKING
 
 from .typing import (
     ASGIFramework,
@@ -14,6 +13,9 @@ from .typing import (
     Scope,
     WSGIFramework,
 )
+
+if TYPE_CHECKING:
+    from typing_extensions import Buffer  # for py<3.12
 
 
 class InvalidPathError(Exception):
