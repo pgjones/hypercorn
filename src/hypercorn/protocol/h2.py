@@ -135,9 +135,10 @@ class H2Protocol:
             self.connection.initiate_connection()
         await self._flush()
         if headers is not None:
-            event = h2.events.RequestReceived()
-            event.stream_id = 1
-            event.headers = headers
+            event = h2.events.RequestReceived(
+                stream_id=1,
+                headers=headers,
+            )
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
         self.task_group.spawn(self.send_task)
@@ -387,9 +388,10 @@ class H2Protocol:
             # push on a push promises request.
             pass
         else:
-            event = h2.events.RequestReceived()
-            event.stream_id = push_stream_id
-            event.headers = request_headers
+            event = h2.events.RequestReceived(
+                stream_id=push_stream_id,
+                headers=request_headers,
+            )
             await self._create_stream(event)
             await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
             self.keep_alive_requests += 1
