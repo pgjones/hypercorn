@@ -101,7 +101,7 @@ dogstatsd_tags             N/A                           DogStatsd format tag, s
                                                          :ref:`using_statsd`.
 errorlog                   ``--error-logfile``           The target location for the error log,
                            ``--log-file``                use `-` for stderr.
-graceful_timeout           ``--graceful-timeout``        Time to wait after SIGTERM or Ctrl-C
+graceful_timeout           ``--graceful-timeout``        Time to wait after SIGTERM or Ctrl-C            3s
                                                          for any remaining requests (tasks) to
 read_timeout               ``--read-timeout``            Seconds to wait before timing out reads         No timeout.
                                                          on TCP sockets.
