@@ -1,8 +1,10 @@
-[tool.poetry]
+[project]
 name = "Hypercorn"
 version = "0.17.3"
 description = "A ASGI Server based on Hyper libraries and inspired by Gunicorn"
-authors = ["pgjones <philip.graham.jones@googlemail.com>"]
+authors = [
+    {name = "pgjones", email = "philip.graham.jones@googlemail.com"},
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
@@ -20,44 +22,41 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 include = ["src/hypercorn/py.typed"]
-license = "MIT"
+license = {text = "MIT"}
 readme = "README.rst"
 repository = "https://github.com/pgjones/hypercorn/"
+dependencies = [
+    "exceptiongroup >= 1.1.0; python_version < '3.11'",
+    "h11",
+    "h2 >= 3.1.0",
+    "priority",
+    "taskgroup; python_version < '3.11'",
+    "tomli; python_version < '3.11'",
+    "typing_extensions; python_version < '3.11'",
+    "wsproto >= 0.14.0"
+]
 documentation = "https://hypercorn.readthedocs.io"
+requires-python = ">=3.8"
 
-[tool.poetry.dependencies]
-python = ">=3.8"
-aioquic = { version = ">= 0.9.0, < 1.0", optional = true }
-exceptiongroup = { version = ">= 1.1.0", python = "<3.11" }
-h11 = "*"
-h2 = ">=3.1.0"
-priority = "*"
-pydata_sphinx_theme = { version = "*", optional = true }
-sphinxcontrib_mermaid = { version = "*", optional = true }
-taskgroup = { version = "*", python = "<3.11", allow-prereleases = true }
-tomli = { version = "*", python = "<3.11" }
-trio = { version = ">=0.22.0", optional = true }
-typing_extensions = { version = "*", python = "<3.11" }
-uvloop = { version = ">=0.18", markers = "platform_system != 'Windows'", optional = true }
-wsproto = ">=0.14.0"
-
-[tool.poetry.dev-dependencies]
-httpx = "*"
-hypothesis = "*"
-mock = "*"
-pytest = "*"
-pytest-asyncio = "*"
-pytest-trio = "*"
-trio = "*"
-
-[tool.poetry.scripts]
-hypercorn = "hypercorn.__main__:main"
-
-[tool.poetry.extras]
+[project.optional-dependencies]
 docs = ["pydata_sphinx_theme", "sphinxcontrib_mermaid"]
-h3 = ["aioquic"]
+h3 = ["aioquic >= 0.9.0"]
 trio = ["trio"]
 uvloop = ["uvloop"]
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "hypothesis",
+    "mock",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-trio",
+    "trio"
+]
+
+[project.scripts]
+hypercorn = "hypercorn.__main__:main"
 
 [tool.black]
 line-length = 100
@@ -108,5 +107,5 @@ asyncio_mode = "strict"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

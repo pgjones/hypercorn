@@ -12,6 +12,6 @@ docs/_build/
 docs/reference/source/
 dist/
 .coverage
-poetry.lock
+pdm.lock
 .idea/
 .DS_Store

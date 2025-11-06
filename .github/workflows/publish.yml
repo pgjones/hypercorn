@@ -14,8 +14,8 @@ jobs:
           python-version: 3.12
 
       - run: |
-          pip install poetry
-          poetry build
+          pip install pdm
+          pdm build
       - uses: actions/upload-artifact@v3
         with:
           path: ./dist
