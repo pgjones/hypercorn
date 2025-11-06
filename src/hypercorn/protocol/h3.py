@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Awaitable, Callable
 
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
@@ -35,8 +35,8 @@ class H3Protocol:
         context: WorkerContext,
         task_group: TaskGroup,
         state: ConnectionState,
-        client: Optional[Tuple[str, int]],
-        server: Optional[Tuple[str, int]],
+        client: tuple[str, int] | None,
+        server: tuple[str, int] | None,
         quic: QuicConnection,
         send: Callable[[], Awaitable[None]],
     ) -> None:
@@ -47,7 +47,7 @@ class H3Protocol:
         self.connection = H3Connection(quic)
         self.send = send
         self.server = server
-        self.streams: Dict[int, Union[HTTPStream, WSStream]] = {}
+        self.streams: dict[int, HTTPStream | WSStream] = {}
         self.task_group = task_group
         self.state = state
 
@@ -135,7 +135,7 @@ class H3Protocol:
         await self.context.mark_request()
 
     async def _create_server_push(
-        self, stream_id: int, path: bytes, headers: List[Tuple[bytes, bytes]]
+        self, stream_id: int, path: bytes, headers: list[tuple[bytes, bytes]]
     ) -> None:
         request_headers = [(b":method", b"GET"), (b":path", path)]
         request_headers.extend(headers)

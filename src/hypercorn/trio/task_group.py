@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
 
 import trio
 
@@ -19,7 +20,7 @@ async def _handle(
     config: Config,
     scope: Scope,
     receive: ASGIReceiveCallable,
-    send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+    send: Callable[[ASGISendEvent | None], Awaitable[None]],
     sync_spawn: Callable,
     call_soon: Callable,
 ) -> None:
@@ -50,7 +51,7 @@ class TaskGroup:
         app: AppWrapper,
         config: Config,
         scope: Scope,
-        send: Callable[[Optional[ASGISendEvent]], Awaitable[None]],
+        send: Callable[[ASGISendEvent | None], Awaitable[None]],
     ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
         app_send_channel, app_receive_channel = trio.open_memory_channel[ASGIReceiveEvent](
             config.max_app_queue_size

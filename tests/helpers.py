@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from copy import deepcopy
 from json import dumps
 from socket import AF_INET
-from typing import Callable, cast, Tuple
+from typing import cast
 
 from hypercorn.typing import ASGIReceiveCallable, ASGISendCallable, Scope, WWWScope
 
@@ -13,10 +14,10 @@ SANITY_BODY = b"Hello Hypercorn"
 class MockSocket:
     family = AF_INET
 
-    def getsockname(self) -> Tuple[str, int]:
+    def getsockname(self) -> tuple[str, int]:
         return ("162.1.1.1", 80)
 
-    def getpeername(self) -> Tuple[str, int]:
+    def getpeername(self) -> tuple[str, int]:
         return ("127.0.0.1", 80)
 
 

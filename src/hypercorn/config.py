@@ -9,6 +9,7 @@ import stat
 import sys
 import types
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass
 from ssl import (
     create_default_context,
@@ -20,7 +21,7 @@ from ssl import (
     VerifyMode,
 )
 from time import time
-from typing import Any, AnyStr, Dict, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any
 from wsgiref.handlers import format_date_time
 
 if sys.version_info >= (3, 11):
@@ -34,15 +35,15 @@ BYTES = 1
 OCTETS = 1
 SECONDS = 1.0
 
-FilePath = Union[AnyStr, os.PathLike]
-SocketKind = Union[int, socket.SocketKind]
+FilePath = bytes | os.PathLike | str
+SocketKind = int | socket.SocketKind
 
 
 @dataclass
 class Sockets:
-    secure_sockets: List[socket.socket]
-    insecure_sockets: List[socket.socket]
-    quic_sockets: List[socket.socket]
+    secure_sockets: list[socket.socket]
+    insecure_sockets: list[socket.socket]
+    quic_sockets: list[socket.socket]
 
 
 class SocketTypeError(Exception):
@@ -55,27 +56,27 @@ class SocketTypeError(Exception):
 
 class Config:
     _bind = ["127.0.0.1:8000"]
-    _insecure_bind: List[str] = []
-    _quic_bind: List[str] = []
-    _quic_addresses: List[Tuple] = []
-    _log: Optional[Logger] = None
+    _insecure_bind: list[str] = []
+    _quic_bind: list[str] = []
+    _quic_addresses: list[tuple] = []
+    _log: Logger | None = None
     _root_path: str = ""
 
     access_log_format = '%(h)s %(l)s %(l)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
-    accesslog: Union[logging.Logger, str, None] = None
+    accesslog: logging.Logger | str | None = None
     alpn_protocols = ["h2", "http/1.1"]
-    alt_svc_headers: List[str] = []
+    alt_svc_headers: list[str] = []
     application_path: str
     backlog = 100
-    ca_certs: Optional[str] = None
-    certfile: Optional[str] = None
+    ca_certs: str | None = None
+    certfile: str | None = None
     ciphers: str = "ECDHE+AESGCM"
     debug = False
     dogstatsd_tags = ""
-    errorlog: Union[logging.Logger, str, None] = "-"
+    errorlog: logging.Logger | str | None = "-"
     graceful_timeout: float = 3 * SECONDS
-    read_timeout: Optional[int] = None
-    group: Optional[int] = None
+    read_timeout: int | None = None
+    group: int | None = None
     h11_max_incomplete_size = 16 * 1024 * BYTES
     h11_pass_raw_headers = False
     h2_max_concurrent_streams = 100
@@ -85,29 +86,29 @@ class Config:
     include_server_header = True
     keep_alive_timeout = 5 * SECONDS
     keep_alive_max_requests = 1000
-    keyfile: Optional[str] = None
-    keyfile_password: Optional[str] = None
-    logconfig: Optional[str] = None
-    logconfig_dict: Optional[dict] = None
+    keyfile: str | None = None
+    keyfile_password: str | None = None
+    logconfig: str | None = None
+    logconfig_dict: dict | None = None
     logger_class = Logger
     loglevel: str = "INFO"
     max_app_queue_size: int = 10
-    max_requests: Optional[int] = None
+    max_requests: int | None = None
     max_requests_jitter: int = 0
-    pid_path: Optional[str] = None
-    server_names: List[str] = []
+    pid_path: str | None = None
+    server_names: list[str] = []
     shutdown_timeout = 60 * SECONDS
     ssl_handshake_timeout = 60 * SECONDS
     startup_timeout = 60 * SECONDS
-    statsd_host: Optional[str] = None
+    statsd_host: str | None = None
     statsd_prefix = ""
-    umask: Optional[int] = None
+    umask: int | None = None
     use_reloader = False
-    user: Optional[int] = None
-    verify_flags: Optional[VerifyFlags] = None
-    verify_mode: Optional[VerifyMode] = None
+    user: int | None = None
+    verify_flags: VerifyFlags | None = None
+    verify_mode: VerifyMode | None = None
     websocket_max_message_size = 16 * 1024 * 1024 * BYTES
-    websocket_ping_interval: Optional[float] = None
+    websocket_ping_interval: float | None = None
     worker_class = "asyncio"
     workers = 1
     wsgi_max_body_size = 16 * 1024 * 1024 * BYTES
@@ -125,33 +126,33 @@ class Config:
         return self._log
 
     @property
-    def bind(self) -> List[str]:
+    def bind(self) -> list[str]:
         return self._bind
 
     @bind.setter
-    def bind(self, value: Union[List[str], str]) -> None:
+    def bind(self, value: list[str] | str) -> None:
         if isinstance(value, str):
             self._bind = [value]
         else:
             self._bind = value
 
     @property
-    def insecure_bind(self) -> List[str]:
+    def insecure_bind(self) -> list[str]:
         return self._insecure_bind
 
     @insecure_bind.setter
-    def insecure_bind(self, value: Union[List[str], str]) -> None:
+    def insecure_bind(self, value: list[str] | str) -> None:
         if isinstance(value, str):
             self._insecure_bind = [value]
         else:
             self._insecure_bind = value
 
     @property
-    def quic_bind(self) -> List[str]:
+    def quic_bind(self) -> list[str]:
         return self._quic_bind
 
     @quic_bind.setter
-    def quic_bind(self, value: Union[List[str], str]) -> None:
+    def quic_bind(self, value: list[str] | str) -> None:
         if isinstance(value, str):
             self._quic_bind = [value]
         else:
@@ -165,7 +166,7 @@ class Config:
     def root_path(self, value: str) -> None:
         self._root_path = value.rstrip("/")
 
-    def create_ssl_context(self) -> Optional[SSLContext]:
+    def create_ssl_context(self) -> SSLContext | None:
         if not self.ssl_enabled:
             return None
 
@@ -207,7 +208,7 @@ class Config:
             quic_sockets = []
         return Sockets(secure_sockets, insecure_sockets, quic_sockets)
 
-    def _set_quic_addresses(self, sockets: List[socket.socket]) -> None:
+    def _set_quic_addresses(self, sockets: list[socket.socket]) -> None:
         self._quic_addresses = []
         for sock in sockets:
             name = sock.getsockname()
@@ -220,9 +221,9 @@ class Config:
                 )
 
     def _create_sockets(
-        self, binds: List[str], type_: int = socket.SOCK_STREAM
-    ) -> List[socket.socket]:
-        sockets: List[socket.socket] = []
+        self, binds: list[str], type_: int = socket.SOCK_STREAM
+    ) -> list[socket.socket]:
+        sockets: list[socket.socket] = []
         for bind in binds:
             binding: Any = None
             if bind.startswith("unix:"):
@@ -280,7 +281,7 @@ class Config:
             sockets.append(sock)
         return sockets
 
-    def response_headers(self, protocol: str) -> List[Tuple[bytes, bytes]]:
+    def response_headers(self, protocol: str) -> list[tuple[bytes, bytes]]:
         headers = []
         if self.include_date_header:
             headers.append((b"date", format_date_time(time()).encode("ascii")))
@@ -299,14 +300,14 @@ class Config:
 
         return headers
 
-    def set_statsd_logger_class(self, statsd_logger: Type[Logger]) -> None:
+    def set_statsd_logger_class(self, statsd_logger: type[Logger]) -> None:
         if self.logger_class == Logger and self.statsd_host is not None:
             self.logger_class = statsd_logger
 
     @classmethod
     def from_mapping(
-        cls: Type["Config"], mapping: Optional[Mapping[str, Any]] = None, **kwargs: Any
-    ) -> "Config":
+        cls: type[Config], mapping: Mapping[str, Any] | None = None, **kwargs: Any
+    ) -> Config:
         """Create a configuration from a mapping.
 
         This allows either a mapping to be directly passed or as
@@ -323,7 +324,7 @@ class Config:
             kwargs: Optionally a collection of keyword arguments to
                 form a mapping.
         """
-        mappings: Dict[str, Any] = {}
+        mappings: dict[str, Any] = {}
         if mapping is not None:
             mappings.update(mapping)
         mappings.update(kwargs)
@@ -337,7 +338,7 @@ class Config:
         return config
 
     @classmethod
-    def from_pyfile(cls: Type["Config"], filename: FilePath) -> "Config":
+    def from_pyfile(cls: type[Config], filename: FilePath) -> Config:
         """Create a configuration from a Python file.
 
         .. code-block:: python
@@ -354,7 +355,7 @@ class Config:
         return cls.from_object(module)
 
     @classmethod
-    def from_toml(cls: Type["Config"], filename: FilePath) -> "Config":
+    def from_toml(cls: type[Config], filename: FilePath) -> Config:
         """Load the configuration values from a TOML formatted file.
 
         This allows configuration to be loaded as so
@@ -372,7 +373,7 @@ class Config:
         return cls.from_mapping(data)
 
     @classmethod
-    def from_object(cls: Type["Config"], instance: Union[object, str]) -> "Config":
+    def from_object(cls: type[Config], instance: object | str) -> Config:
         """Create a configuration from a Python object.
 
         This can be used to reference modules or objects within

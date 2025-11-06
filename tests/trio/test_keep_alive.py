@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, cast, Generator
+from collections.abc import Awaitable, Callable, Generator
+from typing import cast
 
 import h11
 import pytest
@@ -16,7 +17,7 @@ from ..helpers import MockSocket
 try:
     from typing import TypeAlias
 except ImportError:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
 
 KEEP_ALIVE_TIMEOUT = 0.01
@@ -56,7 +57,7 @@ async def slow_framework(
 @pytest.fixture(name="client_stream", scope="function")
 def _client_stream(
     nursery: trio.Nursery,
-) -> Generator[ClientStream, None, None]:
+) -> Generator[ClientStream]:
     config = Config()
     config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
     client_stream, server_stream = trio.testing.memory_stream_pair()
@@ -81,13 +82,10 @@ async def test_http1_keep_alive_during(
     client_stream: ClientStream,
 ) -> None:
     client = h11.Connection(h11.CLIENT)
-    # client.send(h11.Request) and client.send(h11.EndOfMessage) only returns bytes.
-    # Fixed on master/ in the h11 repo, once released the ignore's can be removed.
-    # See https://github.com/python-hyper/h11/issues/175
-    await client_stream.send_all(client.send(REQUEST))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(REQUEST))
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     # Key is that this doesn't error
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
 
 
 @pytest.mark.trio
@@ -95,9 +93,9 @@ async def test_http1_keep_alive(
     client_stream: ClientStream,
 ) -> None:
     client = h11.Connection(h11.CLIENT)
-    await client_stream.send_all(client.send(REQUEST))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(REQUEST))
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
     while True:
         event = client.next_event()
         if event == h11.NEED_DATA:
@@ -106,10 +104,10 @@ async def test_http1_keep_alive(
         elif isinstance(event, h11.EndOfMessage):
             break
     client.start_next_cycle()
-    await client_stream.send_all(client.send(REQUEST))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(REQUEST))
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     # Key is that this doesn't error
-    await client_stream.send_all(client.send(h11.EndOfMessage()))  # type: ignore[arg-type]
+    await client_stream.send_all(client.send(h11.EndOfMessage()))
 
 
 @pytest.mark.trio

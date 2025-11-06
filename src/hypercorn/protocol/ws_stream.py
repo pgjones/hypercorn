@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable, Iterable
 from enum import auto, Enum
 from io import BytesIO, StringIO
 from time import time
-from typing import Awaitable, Callable, Iterable, List, Optional, Tuple, Union
 from urllib.parse import unquote
 
 from wsproto.connection import Connection, ConnectionState, ConnectionType
@@ -55,15 +55,15 @@ class FrameTooLargeError(Exception):
 
 
 class Handshake:
-    def __init__(self, headers: List[Tuple[bytes, bytes]], http_version: str) -> None:
+    def __init__(self, headers: list[tuple[bytes, bytes]], http_version: str) -> None:
         self.accepted = False
         self.http_version = http_version
-        self.connection_tokens: Optional[List[str]] = None
-        self.extensions: Optional[List[str]] = None
-        self.key: Optional[bytes] = None
-        self.subprotocols: Optional[List[str]] = None
-        self.upgrade: Optional[bytes] = None
-        self.version: Optional[bytes] = None
+        self.connection_tokens: list[str] | None = None
+        self.extensions: list[str] | None = None
+        self.key: bytes | None = None
+        self.subprotocols: list[str] | None = None
+        self.upgrade: bytes | None = None
+        self.version: bytes | None = None
         for name, value in headers:
             name = name.lower()
             if name == b"connection":
@@ -98,9 +98,9 @@ class Handshake:
 
     def accept(
         self,
-        subprotocol: Optional[str],
-        additional_headers: Iterable[Tuple[bytes, bytes]],
-    ) -> Tuple[int, List[Tuple[bytes, bytes]], Connection]:
+        subprotocol: str | None,
+        additional_headers: Iterable[tuple[bytes, bytes]],
+    ) -> tuple[int, list[tuple[bytes, bytes]], Connection]:
         headers = []
         if subprotocol is not None:
             if self.subprotocols is None or subprotocol not in self.subprotocols:
@@ -108,7 +108,7 @@ class Handshake:
             else:
                 headers.append((b"sec-websocket-protocol", subprotocol.encode()))
 
-        extensions: List[Extension] = [PerMessageDeflate()]
+        extensions: list[Extension] = [PerMessageDeflate()]
         accepts = None
         if self.extensions is not None:
             accepts = server_extensions_handshake(self.extensions, extensions)
@@ -136,7 +136,7 @@ class Handshake:
 
 class WebsocketBuffer:
     def __init__(self, max_length: int) -> None:
-        self.value: Optional[Union[BytesIO, StringIO]] = None
+        self.value: BytesIO | StringIO | None = None
         self.length = 0
         self.max_length = max_length
 
@@ -170,13 +170,13 @@ class WSStream:
         context: WorkerContext,
         task_group: TaskGroup,
         ssl: bool,
-        client: Optional[Tuple[str, int]],
-        server: Optional[Tuple[str, int]],
+        client: tuple[str, int] | None,
+        server: tuple[str, int] | None,
         send: Callable[[Event], Awaitable[None]],
         stream_id: int,
     ) -> None:
         self.app = app
-        self.app_put: Optional[Callable] = None
+        self.app_put: Callable | None = None
         self.buffer = WebsocketBuffer(config.websocket_max_message_size)
         self.client = client
         self.closed = False
@@ -250,7 +250,7 @@ class WSStream:
                     code = CloseReason.ABNORMAL_CLOSURE.value
                 await self.app_put({"type": "websocket.disconnect", "code": code})
 
-    async def app_send(self, message: Optional[ASGISendEvent]) -> None:
+    async def app_send(self, message: ASGISendEvent | None) -> None:
         if self.closed:
             # Allow app to finish after close
             return

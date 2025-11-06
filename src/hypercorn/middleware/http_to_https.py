@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 from urllib.parse import urlunsplit
 
 from ..typing import ASGIFramework, HTTPScope, Scope, WebsocketScope, WWWScope
 
 
 class HTTPToHTTPSRedirectMiddleware:
-    def __init__(self, app: ASGIFramework, host: Optional[str]) -> None:
+    def __init__(self, app: ASGIFramework, host: str | None) -> None:
         self.app = app
         self.host = host
 

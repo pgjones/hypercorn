@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, List
+from typing import Any
 
 import pytest
 import trio
@@ -11,7 +12,7 @@ from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
 from hypercorn.typing import ASGIReceiveEvent, ASGISendEvent, ConnectionState, HTTPScope
 
 
-def echo_body(environ: dict, start_response: Callable) -> List[bytes]:
+def echo_body(environ: dict, start_response: Callable) -> list[bytes]:
     status = "200 OK"
     output = environ["wsgi.input"].read()
     headers = [
@@ -47,7 +48,6 @@ async def test_wsgi_trio() -> None:
     messages = []
 
     async def _send(message: ASGISendEvent) -> None:
-        nonlocal messages
         messages.append(message)
 
     await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync, trio.from_thread.run)
@@ -62,14 +62,13 @@ async def test_wsgi_trio() -> None:
     ]
 
 
-async def _run_app(app: WSGIWrapper, scope: HTTPScope, body: bytes = b"") -> List[ASGISendEvent]:
+async def _run_app(app: WSGIWrapper, scope: HTTPScope, body: bytes = b"") -> list[ASGISendEvent]:
     queue: asyncio.Queue = asyncio.Queue()
     await queue.put({"type": "http.request", "body": body})
 
     messages = []
 
     async def _send(message: ASGISendEvent) -> None:
-        nonlocal messages
         messages.append(message)
 
     event_loop = asyncio.get_running_loop()
@@ -139,7 +138,7 @@ async def test_max_body_size() -> None:
     ]
 
 
-def no_start_response(environ: dict, start_response: Callable) -> List[bytes]:
+def no_start_response(environ: dict, start_response: Callable) -> list[bytes]:
     return [b"result"]
 
 
@@ -184,8 +183,8 @@ def test_build_environ_encoding() -> None:
         "state": ConnectionState({}),
     }
     environ = _build_environ(scope, b"")
-    assert environ["SCRIPT_NAME"] == "/中".encode("utf8").decode("latin-1")
-    assert environ["PATH_INFO"] == "/文".encode("utf8").decode("latin-1")
+    assert environ["SCRIPT_NAME"] == "/中".encode().decode("latin-1")
+    assert environ["PATH_INFO"] == "/文".encode().decode("latin-1")
 
 
 def test_build_environ_root_path() -> None:

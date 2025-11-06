@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import partial
-from typing import Awaitable, Callable, Dict, Optional, Set, Tuple
 
 from aioquic.buffer import Buffer
 from aioquic.h3.connection import H3_ALPN
@@ -28,10 +28,10 @@ from ..typing import AppWrapper, ConnectionState, SingleTask, TaskGroup, WorkerC
 
 @dataclass
 class _Connection:
-    cids: Set[bytes]
+    cids: set[bytes]
     quic: QuicConnection
     task: SingleTask
-    h3: Optional[H3Protocol] = None
+    h3: H3Protocol | None = None
 
 
 class QuicProtocol:
@@ -42,13 +42,13 @@ class QuicProtocol:
         context: WorkerContext,
         task_group: TaskGroup,
         state: ConnectionState,
-        server: Optional[Tuple[str, int]],
+        server: tuple[str, int] | None,
         send: Callable[[Event], Awaitable[None]],
     ) -> None:
         self.app = app
         self.config = config
         self.context = context
-        self.connections: Dict[bytes, _Connection] = {}
+        self.connections: dict[bytes, _Connection] = {}
         self.send = send
         self.server = server
         self.task_group = task_group
@@ -115,7 +115,7 @@ class QuicProtocol:
             )
 
     async def _handle_events(
-        self, connection: _Connection, client: Optional[Tuple[str, int]] = None
+        self, connection: _Connection, client: tuple[str, int] | None = None
     ) -> None:
         event = connection.quic.next_event()
         while event is not None:

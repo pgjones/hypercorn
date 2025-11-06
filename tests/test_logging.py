@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Optional, Type, Union
 
 import pytest
 
@@ -22,9 +21,9 @@ from hypercorn.typing import HTTPScope, ResponseSummary
     ],
 )
 def test_access_logger_init(
-    target: Union[logging.Logger, str, None],
-    expected_name: Optional[str],
-    expected_handler_type: Optional[Type[logging.Handler]],
+    target: logging.Logger | str | None,
+    expected_name: str | None,
+    expected_handler_type: type[logging.Handler] | None,
 ) -> None:
     config = Config()
     config.accesslog = target
@@ -51,7 +50,7 @@ def test_access_logger_init(
         for level_name in range(logging.DEBUG, logging.CRITICAL + 1, 10)
     ],
 )
-def test_loglevel_option(level: Optional[str], expected: int) -> None:
+def test_loglevel_option(level: str | None, expected: int) -> None:
     config = Config()
     config.loglevel = level
     logger = Logger(config)

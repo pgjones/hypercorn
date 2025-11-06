@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable
+from typing import Any
 
 from ..config import Config
 from ..typing import AppWrapper, ASGIReceiveEvent, ASGISendEvent, LifespanScope, LifespanState

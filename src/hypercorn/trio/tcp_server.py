@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from math import inf
-from typing import Any, Generator
+from typing import Any
 
 import trio
 
@@ -34,7 +35,7 @@ class TCPServer:
         self.stream = stream
         self.state = state
 
-    def __await__(self) -> Generator[Any, None, None]:
+    def __await__(self) -> Generator[Any]:
         return self.run().__await__()
 
     async def run(self) -> None:
@@ -108,7 +109,7 @@ class TCPServer:
             ):
                 break
             else:
-                await self.protocol.handle(RawData(data))
+                await self.protocol.handle(RawData(bytes(data)))
                 if data == b"":
                     break
         await self.protocol.handle(Closed())

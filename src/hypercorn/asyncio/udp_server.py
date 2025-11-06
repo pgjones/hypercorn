@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .task_group import TaskGroup
 from .worker_context import WorkerContext
@@ -28,15 +28,15 @@ class UDPServer(asyncio.DatagramProtocol):
         self.config = config
         self.context = context
         self.loop = loop
-        self.protocol: "QuicProtocol"
+        self.protocol: QuicProtocol
         self.protocol_queue: asyncio.Queue = asyncio.Queue(10)
-        self.transport: Optional[asyncio.DatagramTransport] = None
+        self.transport: asyncio.DatagramTransport | None = None
         self.state = state
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:  # type: ignore
         self.transport = transport
 
-    def datagram_received(self, data: bytes, address: Tuple[bytes, str]) -> None:  # type: ignore
+    def datagram_received(self, data: bytes, address: tuple[bytes, str]) -> None:  # type: ignore
         try:
             self.protocol_queue.put_nowait(RawData(data=data, address=address))  # type: ignore
         except asyncio.QueueFull:

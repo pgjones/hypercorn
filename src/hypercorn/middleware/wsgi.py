@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable, Iterable
 from functools import partial
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from ..app_wrappers import WSGIWrapper
 from ..typing import ASGIReceiveCallable, ASGISendCallable, Scope, WSGIFramework

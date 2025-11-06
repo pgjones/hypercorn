@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Awaitable, Callable
 from functools import partial
 from multiprocessing.synchronize import Event as EventType
 from random import randint
-from typing import Awaitable, Callable, Optional
 
 import trio
 
@@ -31,8 +31,8 @@ async def worker_serve(
     app: AppWrapper,
     config: Config,
     *,
-    sockets: Optional[Sockets] = None,
-    shutdown_trigger: Optional[Callable[..., Awaitable[None]]] = None,
+    sockets: Sockets | None = None,
+    shutdown_trigger: Callable[..., Awaitable[None]] | None = None,
     task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
@@ -86,7 +86,7 @@ async def worker_serve(
                 bind = repr_socket_addr(sock.family, sock.getsockname())
                 await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
-            task_status.started(binds)
+            task_status.started(binds)  # type: ignore[call-overload]
             try:
                 async with trio.open_nursery(strict_exception_groups=True) as nursery:
                     if shutdown_trigger is not None:
@@ -122,7 +122,7 @@ async def worker_serve(
 
 
 def trio_worker(
-    config: Config, sockets: Optional[Sockets] = None, shutdown_event: Optional[EventType] = None
+    config: Config, sockets: Sockets | None = None, shutdown_event: EventType | None = None
 ) -> None:
     if sockets is not None:
         for sock in sockets.secure_sockets:

@@ -13,11 +13,11 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -28,7 +28,7 @@ repository = "https://github.com/pgjones/hypercorn/"
 dependencies = [
     "exceptiongroup >= 1.1.0; python_version < '3.11'",
     "h11",
-    "h2 >= 3.1.0",
+    "h2 >= 4.3.0",
     "priority",
     "taskgroup; python_version < '3.11'",
     "tomli; python_version < '3.11'",
@@ -36,7 +36,7 @@ dependencies = [
     "wsproto >= 0.14.0"
 ]
 documentation = "https://hypercorn.readthedocs.io"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 docs = ["pydata_sphinx_theme", "sphinxcontrib_mermaid"]
@@ -60,7 +60,7 @@ hypercorn = "hypercorn.__main__:main"
 
 [tool.black]
 line-length = 100
-target-version = ["py38"]
+target-version = ["py310"]
 
 [tool.isort]
 combine_as_imports = true

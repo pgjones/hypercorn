@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple
 
 from hypercorn.typing import ConnectionState
 
@@ -13,7 +12,7 @@ class Event:
 
 @dataclass(frozen=True)
 class Request(Event):
-    headers: List[Tuple[bytes, bytes]]
+    headers: list[tuple[bytes, bytes]]
     http_version: str
     method: str
     raw_path: bytes
@@ -32,7 +31,7 @@ class EndBody(Event):
 
 @dataclass(frozen=True)
 class Trailers(Event):
-    headers: List[Tuple[bytes, bytes]]
+    headers: list[tuple[bytes, bytes]]
 
 
 @dataclass(frozen=True)
@@ -47,13 +46,13 @@ class EndData(Event):
 
 @dataclass(frozen=True)
 class Response(Event):
-    headers: List[Tuple[bytes, bytes]]
+    headers: list[tuple[bytes, bytes]]
     status_code: int
 
 
 @dataclass(frozen=True)
 class InformationalResponse(Event):
-    headers: List[Tuple[bytes, bytes]]
+    headers: list[tuple[bytes, bytes]]
     status_code: int
 
     def __post_init__(self) -> None:

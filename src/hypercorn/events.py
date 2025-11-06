@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 
 class Event(ABC):
@@ -12,7 +11,7 @@ class Event(ABC):
 @dataclass(frozen=True)
 class RawData(Event):
     data: bytes
-    address: Optional[Tuple[str, int]] = None
+    address: tuple[str, int] | None = None
 
 
 @dataclass(frozen=True)

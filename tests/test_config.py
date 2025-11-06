@@ -4,7 +4,6 @@ import os
 import socket
 import ssl
 import sys
-from typing import Tuple
 from unittest.mock import Mock, NonCallableMock
 
 import pytest
@@ -85,7 +84,7 @@ def test_create_ssl_context() -> None:
 def test_create_sockets_ip(
     bind: str,
     expected_family: socket.AddressFamily,
-    expected_binding: Tuple[str, int],
+    expected_binding: tuple[str, int],
     monkeypatch: MonkeyPatch,
 ) -> None:
     mock_socket = Mock()

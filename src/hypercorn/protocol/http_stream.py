@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from enum import auto, Enum
 from time import time
-from typing import Awaitable, Callable, Optional, Tuple
 from urllib.parse import unquote
 
 from .events import (
@@ -54,8 +54,8 @@ class HTTPStream:
         context: WorkerContext,
         task_group: TaskGroup,
         ssl: bool,
-        client: Optional[Tuple[str, int]],
-        server: Optional[Tuple[str, int]],
+        client: tuple[str, int] | None,
+        server: tuple[str, int] | None,
         send: Callable[[Event], Awaitable[None]],
         stream_id: int,
     ) -> None:
@@ -131,7 +131,7 @@ class HTTPStream:
             if self.app_put is not None:
                 await self.app_put({"type": "http.disconnect"})
 
-    async def app_send(self, message: Optional[ASGISendEvent]) -> None:
+    async def app_send(self, message: ASGISendEvent | None) -> None:
         if message is None:  # ASGI App has finished sending messages
             if not self.closed:
                 # Cleanup if required

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from itertools import chain
-from typing import Awaitable, Callable, cast, Optional, Tuple, Type, Union
+from typing import cast
 
 import h11
 
@@ -27,11 +28,11 @@ STREAM_ID = 1
 
 class H2CProtocolRequiredError(Exception):
     def __init__(self, data: bytes, request: h11.Request) -> None:
-        settings = ""
+        settings = b""
         headers = [(b":method", request.method), (b":path", request.target)]
         for name, value in request.headers:
             if name.lower() == b"http2-settings":
-                settings = value.decode()
+                settings = value
             elif name.lower() == b"host":
                 headers.append((b":authority", value))
             headers.append((name, value))
@@ -62,7 +63,7 @@ class H11WSConnection:
     def receive_data(self, data: bytes) -> None:
         self.buffer.extend(data)
 
-    def next_event(self) -> Union[Data, Type[h11.NEED_DATA]]:
+    def next_event(self) -> Data | type[h11.NEED_DATA]:
         if self.buffer:
             event = Data(stream_id=STREAM_ID, data=bytes(self.buffer))
             self.buffer = bytearray()
@@ -86,15 +87,15 @@ class H11Protocol:
         task_group: TaskGroup,
         connection_state: ConnectionState,
         ssl: bool,
-        client: Optional[Tuple[str, int]],
-        server: Optional[Tuple[str, int]],
+        client: tuple[str, int] | None,
+        server: tuple[str, int] | None,
         send: Callable[[Event], Awaitable[None]],
     ) -> None:
         self.app = app
         self.can_read = context.event_class()
         self.client = client
         self.config = config
-        self.connection: Union[h11.Connection, H11WSConnection] = h11.Connection(
+        self.connection: h11.Connection | H11WSConnection = h11.Connection(
             h11.SERVER, max_incomplete_event_size=self.config.h11_max_incomplete_size
         )
         self.context = context
@@ -102,7 +103,7 @@ class H11Protocol:
         self.send = send
         self.server = server
         self.ssl = ssl
-        self.stream: Optional[Union[HTTPStream, WSStream]] = None
+        self.stream: HTTPStream | WSStream | None = None
         self.task_group = task_group
         self.connection_state = connection_state
 

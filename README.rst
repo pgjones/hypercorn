@@ -37,8 +37,6 @@ Hypercorn can be installed via `pip
 
     $ pip install hypercorn
 
-and requires Python 3.8 or higher.
-
 With hypercorn installed ASGI frameworks (or apps) can be served via
 Hypercorn via the command line,
 

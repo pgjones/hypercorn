@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from functools import partial
 from io import BytesIO
-from typing import Callable, List, Optional, Tuple
 
 from .typing import (
     ASGIFramework,
@@ -76,7 +76,7 @@ class WSGIWrapper:
                 break
 
         try:
-            environ = _build_environ(scope, body)
+            environ = _build_environ(scope, bytes(body))
         except InvalidPathError:
             await send({"type": "http.response.start", "status": 404, "headers": []})
         else:
@@ -84,14 +84,14 @@ class WSGIWrapper:
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     def run_app(self, environ: dict, send: Callable) -> None:
-        headers: List[Tuple[bytes, bytes]]
+        headers: list[tuple[bytes, bytes]]
         response_started = False
-        status_code: Optional[int] = None
+        status_code: int | None = None
 
         def start_response(
             status: str,
-            response_headers: List[Tuple[str, str]],
-            exc_info: Optional[Exception] = None,
+            response_headers: list[tuple[str, str]],
+            exc_info: Exception | None = None,
         ) -> None:
             nonlocal headers, response_started, status_code
 

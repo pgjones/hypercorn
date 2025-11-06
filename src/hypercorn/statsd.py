@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from .logging import Logger
 
@@ -17,7 +17,7 @@ HISTOGRAM_TYPE = "histogram"
 
 
 class StatsdLogger(Logger):
-    def __init__(self, config: "Config") -> None:
+    def __init__(self, config: Config) -> None:
         super().__init__(config)
         self.dogstatsd_tags = config.dogstatsd_tags
         self.prefix = config.statsd_prefix
@@ -67,7 +67,7 @@ class StatsdLogger(Logger):
             await super().warning("Failed to log to statsd", exc_info=True)
 
     async def access(
-        self, request: "WWWScope", response: Optional["ResponseSummary"], request_time: float
+        self, request: WWWScope, response: ResponseSummary | None, request_time: float
     ) -> None:
         await super().access(request, response, request_time)
         await self.histogram("hypercorn.request.duration", request_time * 1_000)
