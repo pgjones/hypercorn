@@ -86,7 +86,6 @@ class H3Protocol:
             self.connection.send_headers(event.stream_id, event.headers)
             await self.send()
         elif isinstance(event, StreamClosed):
-            # Remove a stream when it's closed to avoid memory leaks
             self.streams.pop(event.stream_id, None)
         elif isinstance(event, Request):
             await self._create_server_push(event.stream_id, event.raw_path, event.headers)

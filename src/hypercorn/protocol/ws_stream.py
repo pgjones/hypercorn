@@ -219,7 +219,7 @@ class WSStream:
                 "headers": event.headers,
                 "client": self.client,
                 "server": self.server,
-                "state": event.state.copy(),
+                "state": event.state.copy(),  # type: ignore[typeddict-item]
                 "subprotocols": self.handshake.subprotocols or [],
                 "extensions": {"websocket.http.response": {}},
             }

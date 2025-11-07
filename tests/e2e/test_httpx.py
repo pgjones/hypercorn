@@ -6,6 +6,7 @@ import trio
 
 import hypercorn.trio
 from hypercorn.config import Config
+from hypercorn.typing import ASGIReceiveCallable, ASGISendCallable, Scope
 
 
 async def app(scope, receive, send) -> None:  # type: ignore
@@ -58,24 +59,28 @@ async def test_keep_alive_max_requests_regression() -> None:
 
 
 @pytest.mark.trio
-async def test_handle_isolate_state():
+async def test_handle_isolate_state() -> None:
     config = Config()
     config.bind = ["0.0.0.0:1234"]
     config.accesslog = "-"  # Log to stdout/err
     config.errorlog = "-"
 
-    async def app(scope, receive, send):
+    async def app(scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable) -> None:
         assert scope["type"] == "http"
 
         await send(
             {
                 "type": "http.response.start",
                 "status": 200,
-                "headers": [[b"content-type", b"text/plain"]],
+                "headers": [(b"content-type", b"text/plain")],
             }
         )
         await send(
-            {"type": "http.response.body", "body": scope["state"].get("key", b"")}
+            {
+                "type": "http.response.body",
+                "body": scope["state"].get("key", b""),
+                "more_body": False,
+            }
         )
         scope["state"]["key"] = b"one"
 
