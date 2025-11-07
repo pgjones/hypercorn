@@ -33,7 +33,7 @@ async def worker_serve(
     *,
     sockets: Sockets | None = None,
     shutdown_trigger: Callable[..., Awaitable[None]] | None = None,
-    task_status: trio.TaskStatus = trio.TASK_STATUS_IGNORED,
+    task_status: trio.TaskStatus[list[str]] = trio.TASK_STATUS_IGNORED,
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 
@@ -86,7 +86,7 @@ async def worker_serve(
                 bind = repr_socket_addr(sock.family, sock.getsockname())
                 await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
 
-            task_status.started(binds)  # type: ignore[call-overload]
+            task_status.started(binds)
             try:
                 async with trio.open_nursery(strict_exception_groups=True) as nursery:
                     if shutdown_trigger is not None:
