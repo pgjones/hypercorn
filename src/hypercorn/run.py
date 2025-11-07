@@ -121,7 +121,7 @@ def _populate(
             target=worker_func,
             kwargs={"config": config, "shutdown_event": shutdown_event, "sockets": sockets},
         )
-        process.daemon = True
+        process.daemon = config.daemon
         try:
             process.start()
         except PicklingError as error:

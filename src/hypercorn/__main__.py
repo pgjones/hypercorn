@@ -62,6 +62,13 @@ def main(sys_args: list[str] | None = None) -> int:
         default=None,
     )
     parser.add_argument(
+        "-D",
+        "--daemon",
+        help="Run the workers as daemons",
+        action="store_true",
+        default=sentinel,
+    )
+    parser.add_argument(
         "--debug",
         help="Enable debug mode, i.e. extra logging and checks",
         action="store_true",
@@ -240,6 +247,8 @@ def main(sys_args: list[str] | None = None) -> int:
         config.cert_reqs = args.cert_reqs
     if args.ciphers is not sentinel:
         config.ciphers = args.ciphers
+    if args.daemon is not sentinel:
+        config.daemon = args.daemon
     if args.debug is not sentinel:
         config.debug = args.debug
     if args.error_log is not sentinel:

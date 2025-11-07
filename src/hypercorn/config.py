@@ -71,6 +71,7 @@ class Config:
     ca_certs: str | None = None
     certfile: str | None = None
     ciphers: str = "ECDHE+AESGCM"
+    daemon = True
     debug = False
     dogstatsd_tags = ""
     errorlog: logging.Logger | str | None = "-"
