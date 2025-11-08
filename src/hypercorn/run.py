@@ -55,6 +55,12 @@ def run(config: Config) -> int:
         active = True
         shutdown_event = ctx.Event()
 
+        def reload(*args: Any) -> None:
+            shutdown_event.set()
+            for process in processes:
+                process.join()
+            shutdown_event.clear()
+
         def shutdown(*args: Any) -> None:
             nonlocal active
             shutdown_event.set()
@@ -73,16 +79,16 @@ def run(config: Config) -> int:
                 if hasattr(signal, signal_name):
                     signal.signal(getattr(signal, signal_name), shutdown)
 
+            if hasattr(signal, "SIGHUP"):
+                signal.signal(signal.SIGHUP, reload)
+
             if config.use_reloader:
                 files = files_to_watch()
                 while True:
                     finished = wait((process.sentinel for process in processes), timeout=1)
                     updated = check_for_updates(files)
                     if updated:
-                        shutdown_event.set()
-                        for process in processes:
-                            process.join()
-                        shutdown_event.clear()
+                        reload()
                         break
                     if len(finished) > 0:
                         break
