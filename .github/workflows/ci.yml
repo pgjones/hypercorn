@@ -6,10 +6,18 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   tox:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    container: python:${{ matrix.python }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -25,25 +33,18 @@ jobs:
           - {name: 'package', python: '3.14', tox: package}
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: pgjones/actions/tox@dbbee601c084d000c4fc711d4b27cb306e15ead1 # v1
         with:
-          python-version: ${{ matrix.python }}
-
-      - name: update pip
-        run: |
-          pip install -U wheel
-          pip install -U setuptools
-          python -m pip install -U pip
-      - run: pip install tox
-
-      - run: tox -e ${{ matrix.tox }}
+          environment: ${{ matrix.tox }}
 
 
   h2spec:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +54,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -80,6 +83,10 @@ jobs:
   autobahn:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +96,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -107,3 +116,13 @@ jobs:
       - name: Run Unit Tests
         working-directory: compliance/autobahn
         run: docker run --rm --network=host -v "${PWD}/:/config" -v "${PWD}/reports:/reports" --name fuzzingclient crossbario/autobahn-testsuite wstest -m fuzzingclient -s /config/fuzzingclient.json && python3 summarise.py
+
+  zizmor:
+    name: Zizmor
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: pgjones/actions/zizmor@dbbee601c084d000c4fc711d4b27cb306e15ead1 # v1
