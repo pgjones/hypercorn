@@ -1,6 +1,6 @@
 [project]
 name = "Hypercorn"
-version = "0.17.3"
+version = "0.18.0"
 description = "A ASGI Server based on Hyper libraries and inspired by Gunicorn"
 authors = [
     {name = "pgjones", email = "philip.graham.jones@googlemail.com"},

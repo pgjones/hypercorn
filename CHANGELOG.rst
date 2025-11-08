@@ -1,3 +1,15 @@
+0.18.0 2025-11-08
+-----------------
+
+* Add a config and command line argument to daemonise the workers
+* Reload workers on SIGHUP.
+* Bugfix correct the dispatcher middleware root path and path.
+* Bugfix set end_stream when sending trailers.
+* Bugfix connection asgi-state isolation.
+* Bugfix Remove streams on StreamClosed for h3.
+* Bugfix delay sending http headers when serving WSGI apps.
+* Drop Python 3.8, 3.9 and support 3.13, 3.14
+
 0.17.3 2024-05-28
 -----------------
 
