@@ -256,12 +256,15 @@ class H2Protocol:
                 if self.keep_alive_requests > self.config.keep_alive_max_requests:
                     self.connection.close_connection()
             elif isinstance(event, h2.events.DataReceived):
-                await self.streams[event.stream_id].handle(
-                    Body(stream_id=event.stream_id, data=event.data)
-                )
-                self.connection.acknowledge_received_data(
-                    event.flow_controlled_length, event.stream_id
-                )
+                try:
+                    await self.streams[event.stream_id].handle(
+                        Body(stream_id=event.stream_id, data=event.data)
+                    )
+                    self.connection.acknowledge_received_data(
+                        event.flow_controlled_length, event.stream_id
+                    )
+                except KeyError:
+                    pass
             elif isinstance(event, h2.events.StreamEnded):
                 try:
                     await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
