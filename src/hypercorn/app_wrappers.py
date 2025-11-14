@@ -86,6 +86,7 @@ class WSGIWrapper:
     def run_app(self, environ: dict, send: Callable) -> None:
         headers: list[tuple[bytes, bytes]] = []
         response_started = False
+        headers_sent = False
         status_code: int | None = None
 
         def start_response(
@@ -93,7 +94,21 @@ class WSGIWrapper:
             response_headers: list[tuple[str, str]],
             exc_info: Exception | None = None,
         ) -> None:
-            nonlocal headers, response_started, status_code
+            nonlocal headers, response_started, status_code, headers_sent
+
+            if response_started and exc_info is None:
+                raise RuntimeError(
+                    "start_response cannot be called again without the exc_info parameter"
+                )
+            elif exc_info is not None:
+                try:
+                    if headers_sent:
+                        # The headers have already been sent and we can no longer change
+                        # the status_code and headers. reraise this exception in accordance
+                        # with the WSGI specification.
+                        raise exc_info[1].with_traceback(exc_info[2])
+                finally:
+                    exc_info = None  # Delete reference to exc_info to avoid circular references
 
             raw, _ = status.split(" ", 1)
             status_code = int(raw)
@@ -106,7 +121,6 @@ class WSGIWrapper:
         response_body = self.app(environ, start_response)
 
         try:
-            headers_sent = False  # Flag to ensure headers aren't sent twice
             for output in response_body:
                 # Per the WSGI specification in PEP-3333, the start_response callable
                 # must not actually transmit the response headers. Instead, it must
