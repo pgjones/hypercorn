@@ -11,19 +11,21 @@ import trio
 from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
 from hypercorn.typing import ASGIReceiveEvent, ASGISendEvent, ConnectionState, HTTPScope
 from .wsgi_applications import (
-    echo_body,
-    no_start_response,
+    wsgi_app_echo_body,
     wsgi_app_generator,
     wsgi_app_generator_delayed_start_response,
+    wsgi_app_generator_multiple_start_response_after_body,
     wsgi_app_generator_no_body,
+    wsgi_app_multiple_start_response_no_exc_info,
     wsgi_app_no_body,
+    wsgi_app_no_start_response,
     wsgi_app_simple,
 )
 
 
 @pytest.mark.trio
 async def test_wsgi_trio() -> None:
-    app = WSGIWrapper(echo_body, 2**16)
+    app = WSGIWrapper(wsgi_app_echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -81,7 +83,7 @@ async def _run_app(app: WSGIWrapper, scope: HTTPScope, body: bytes = b"") -> lis
 
 @pytest.mark.asyncio
 async def test_wsgi_asyncio() -> None:
-    app = WSGIWrapper(echo_body, 2**16)
+    app = WSGIWrapper(wsgi_app_echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -115,7 +117,7 @@ async def test_wsgi_asyncio() -> None:
 
 @pytest.mark.asyncio
 async def test_max_body_size() -> None:
-    app = WSGIWrapper(echo_body, 4)
+    app = WSGIWrapper(wsgi_app_echo_body, 4)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -141,7 +143,7 @@ async def test_max_body_size() -> None:
 
 @pytest.mark.asyncio
 async def test_no_start_response() -> None:
-    app = WSGIWrapper(no_start_response, 2**16)
+    app = WSGIWrapper(wsgi_app_no_start_response, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -303,3 +305,51 @@ async def test_wsgi_protocol_overwrite_start_response() -> None:
         {"body": b"world!", "type": "http.response.body", "more_body": True},
         {"body": b"", "type": "http.response.body", "more_body": False},
     ]
+
+
+@pytest.mark.asyncio
+async def test_wsgi_protocol_multiple_start_response_no_exc_info() -> None:
+    app = WSGIWrapper(wsgi_app_multiple_start_response_no_exc_info, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    with pytest.raises(RuntimeError):
+        await _run_app(app, scope)
+
+
+@pytest.mark.asyncio
+async def test_wsgi_protocol_multiple_start_response_after_body() -> None:
+    app = WSGIWrapper(wsgi_app_generator_multiple_start_response_after_body, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    with pytest.raises(ValueError):
+        await _run_app(app, scope)

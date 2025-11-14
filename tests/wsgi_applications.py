@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Generator
 
 
-def echo_body(environ: dict, start_response: Callable) -> list[bytes]:
+def wsgi_app_echo_body(environ: dict, start_response: Callable) -> list[bytes]:
     """Simple WSGI application which returns the request body as the response body."""
     status = "200 OK"
     output = environ["wsgi.input"].read()
@@ -15,7 +15,7 @@ def echo_body(environ: dict, start_response: Callable) -> list[bytes]:
     return [output]
 
 
-def no_start_response(environ: dict, start_response: Callable) -> list[bytes]:
+def wsgi_app_no_start_response(environ: dict, start_response: Callable) -> list[bytes]:
     """Invalid WSGI application which fails to call start_response"""
     return [b"result"]
 
@@ -142,10 +142,52 @@ def wsgi_app_generator_delayed_start_response(
     except ValueError:
         # start_response may be called more than once before the first non-empty byte string
         # is yielded by this generator. However, it is a fatal error to call start_response()
-        # a second time without passing the exc_info argument.
+        # a second time without passing an exception tuple in via the exc_info argument.
         start_response(
             "500 Internal Server Error", [("X-Test-Header", "New-Value")], exc_info=sys.exc_info()
         )
 
     yield b"Hello, "
     yield b"world!"
+
+
+def wsgi_app_multiple_start_response_no_exc_info(
+    environ: dict, start_response: Callable
+) -> list[bytes]:
+    """
+    An invalid WSGI Application, which calls start_response a second time
+    without passing an exception tuple in via the exc_info argument.
+
+    This is considered a fatal error in the WSGI specification and should raise an exception.
+    """
+
+    # Calling start_response multiple times without exc_info should raise an error
+    start_response("200 OK", [])
+    start_response("202 Accepted", [])
+    return []
+
+
+def wsgi_app_generator_multiple_start_response_after_body(
+    environ: dict, start_response: Callable
+) -> Generator[bytes, None, None]:
+    """
+    An invalid WSGI Application, which calls start_response a second time
+    after the first non-empty byte string is returned. This should reraise the exception
+    as the headers and status code have already been sent.
+
+    This is considered a fatal error in the WSGI specification and should raise an exception.
+    """
+
+    # Calling start_response multiple times without exc_info should raise an error
+    start_response("200 OK", [])
+    yield b"Hello, world!"
+
+    try:
+        raise ValueError
+    except ValueError:
+        # start_response may not be called again after the first non-empty byte string is returned
+        #
+        # It is a fatal error to call start_response() a second time without passing an exception
+        # tuple in via the exc_info argument, so ensure we do that to avoid raising the wrong
+        # exception.
+        start_response("500 Internal Server Error", [], exc_info=sys.exc_info())
