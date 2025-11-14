@@ -84,8 +84,9 @@ class WSGIWrapper:
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     def run_app(self, environ: dict, send: Callable) -> None:
-        headers: list[tuple[bytes, bytes]]
+        headers: list[tuple[bytes, bytes]] = []
         response_started = False
+        headers_sent = False
         status_code: int | None = None
 
         def start_response(
@@ -93,7 +94,21 @@ class WSGIWrapper:
             response_headers: list[tuple[str, str]],
             exc_info: Exception | None = None,
         ) -> None:
-            nonlocal headers, response_started, status_code
+            nonlocal headers, response_started, status_code, headers_sent
+
+            if response_started and exc_info is None:
+                raise RuntimeError(
+                    "start_response cannot be called again without the exc_info parameter"
+                )
+            elif exc_info is not None:
+                try:
+                    if headers_sent:
+                        # The headers have already been sent and we can no longer change
+                        # the status_code and headers. reraise this exception in accordance
+                        # with the WSGI specification.
+                        raise exc_info[1].with_traceback(exc_info[2])
+                finally:
+                    exc_info = None  # Delete reference to exc_info to avoid circular references
 
             raw, _ = status.split(" ", 1)
             status_code = int(raw)
@@ -106,16 +121,35 @@ class WSGIWrapper:
         response_body = self.app(environ, start_response)
 
         try:
-            first_chunk = True
             for output in response_body:
-                if first_chunk:
+                # Per the WSGI specification in PEP-3333, the start_response callable
+                # must not actually transmit the response headers. Instead, it must
+                # store them for the server to transmit only after the first iteration
+                # of the application return value that yields a non-empty bytestring.
+                #
+                # We therefore delay sending the http.response.start event until after
+                # we receive a non-empty byte string from the application return value.
+                if output and not headers_sent:
                     if not response_started:
                         raise RuntimeError("WSGI app did not call start_response")
 
+                    # Send the http.response.start event with the status and headers, flagging
+                    # that this was completed so they aren't sent twice.
                     send({"type": "http.response.start", "status": status_code, "headers": headers})
-                    first_chunk = False
+                    headers_sent = True
 
                 send({"type": "http.response.body", "body": output, "more_body": True})
+
+            # If we still haven't sent the headers by this point, then we received no
+            # non-empty byte strings from the application return value. This can happen when
+            # handling certain HTTP methods that don't include a response body like HEAD.
+            # In those cases we still need to send the http.response.start event with the
+            # status code and headers, but we need to ensure they haven't been sent previously.
+            if not headers_sent:
+                if not response_started:
+                    raise RuntimeError("WSGI app did not call start_response")
+
+                send({"type": "http.response.start", "status": status_code, "headers": headers})
         finally:
             if hasattr(response_body, "close"):
                 response_body.close()

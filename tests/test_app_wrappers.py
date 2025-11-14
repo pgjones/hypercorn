@@ -10,22 +10,22 @@ import trio
 
 from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
 from hypercorn.typing import ASGIReceiveEvent, ASGISendEvent, ConnectionState, HTTPScope
-
-
-def echo_body(environ: dict, start_response: Callable) -> list[bytes]:
-    status = "200 OK"
-    output = environ["wsgi.input"].read()
-    headers = [
-        ("Content-Type", "text/plain; charset=utf-8"),
-        ("Content-Length", str(len(output))),
-    ]
-    start_response(status, headers)
-    return [output]
+from .wsgi_applications import (
+    wsgi_app_echo_body,
+    wsgi_app_generator,
+    wsgi_app_generator_delayed_start_response,
+    wsgi_app_generator_multiple_start_response_after_body,
+    wsgi_app_generator_no_body,
+    wsgi_app_multiple_start_response_no_exc_info,
+    wsgi_app_no_body,
+    wsgi_app_no_start_response,
+    wsgi_app_simple,
+)
 
 
 @pytest.mark.trio
 async def test_wsgi_trio() -> None:
-    app = WSGIWrapper(echo_body, 2**16)
+    app = WSGIWrapper(wsgi_app_echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -52,12 +52,12 @@ async def test_wsgi_trio() -> None:
 
     await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync, trio.from_thread.run)
     assert messages == [
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
         {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
@@ -83,7 +83,7 @@ async def _run_app(app: WSGIWrapper, scope: HTTPScope, body: bytes = b"") -> lis
 
 @pytest.mark.asyncio
 async def test_wsgi_asyncio() -> None:
-    app = WSGIWrapper(echo_body, 2**16)
+    app = WSGIWrapper(wsgi_app_echo_body, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -100,21 +100,24 @@ async def test_wsgi_asyncio() -> None:
         "extensions": {},
         "state": ConnectionState({}),
     }
-    messages = await _run_app(app, scope)
+    messages = await _run_app(app, scope, b"Hello, world!")
     assert messages == [
         {
-            "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
+            "headers": [
+                (b"content-type", b"text/plain; charset=utf-8"),
+                (b"content-length", b"13"),
+            ],
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
+        {"body": b"Hello, world!", "type": "http.response.body", "more_body": True},
+        {"body": b"", "type": "http.response.body", "more_body": False},
     ]
 
 
 @pytest.mark.asyncio
 async def test_max_body_size() -> None:
-    app = WSGIWrapper(echo_body, 4)
+    app = WSGIWrapper(wsgi_app_echo_body, 4)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -138,13 +141,9 @@ async def test_max_body_size() -> None:
     ]
 
 
-def no_start_response(environ: dict, start_response: Callable) -> list[bytes]:
-    return [b"result"]
-
-
 @pytest.mark.asyncio
 async def test_no_start_response() -> None:
-    app = WSGIWrapper(no_start_response, 2**16)
+    app = WSGIWrapper(wsgi_app_no_start_response, 2**16)
     scope: HTTPScope = {
         "http_version": "1.1",
         "asgi": {},
@@ -206,3 +205,151 @@ def test_build_environ_root_path() -> None:
     }
     with pytest.raises(InvalidPathError):
         _build_environ(scope, b"")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wsgi_app", [wsgi_app_simple, wsgi_app_generator])
+async def test_wsgi_protocol(wsgi_app: Callable) -> None:
+    app = WSGIWrapper(wsgi_app, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    messages = await _run_app(app, scope)
+    assert messages == [
+        {
+            "headers": [(b"x-test-header", b"Test-Value")],
+            "status": 200,
+            "type": "http.response.start",
+        },
+        {"body": b"Hello, ", "type": "http.response.body", "more_body": True},
+        {"body": b"world!", "type": "http.response.body", "more_body": True},
+        {"body": b"", "type": "http.response.body", "more_body": False},
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wsgi_app", [wsgi_app_no_body, wsgi_app_generator_no_body])
+async def test_wsgi_protocol_no_body(wsgi_app: Callable) -> None:
+    app = WSGIWrapper(wsgi_app, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    messages = await _run_app(app, scope)
+    assert messages == [
+        {
+            "headers": [(b"x-test-header", b"Test-Value")],
+            "status": 200,
+            "type": "http.response.start",
+        },
+        {"body": b"", "type": "http.response.body", "more_body": False},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_wsgi_protocol_overwrite_start_response() -> None:
+    app = WSGIWrapper(wsgi_app_generator_delayed_start_response, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    messages = await _run_app(app, scope)
+    assert messages == [
+        {"body": b"", "type": "http.response.body", "more_body": True},
+        {
+            "headers": [(b"x-test-header", b"New-Value")],
+            "status": 500,
+            "type": "http.response.start",
+        },
+        {"body": b"Hello, ", "type": "http.response.body", "more_body": True},
+        {"body": b"world!", "type": "http.response.body", "more_body": True},
+        {"body": b"", "type": "http.response.body", "more_body": False},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_wsgi_protocol_multiple_start_response_no_exc_info() -> None:
+    app = WSGIWrapper(wsgi_app_multiple_start_response_no_exc_info, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    with pytest.raises(RuntimeError):
+        await _run_app(app, scope)
+
+
+@pytest.mark.asyncio
+async def test_wsgi_protocol_multiple_start_response_after_body() -> None:
+    app = WSGIWrapper(wsgi_app_generator_multiple_start_response_after_body, 2**16)
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "/",
+        "query_string": b"a=b",
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": ("localhost", 80),
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+
+    with pytest.raises(ValueError):
+        await _run_app(app, scope)
