@@ -3,6 +3,23 @@ from collections.abc import Callable
 from typing import Generator
 
 
+def echo_body(environ: dict, start_response: Callable) -> list[bytes]:
+    """Simple WSGI application which returns the request body as the response body."""
+    status = "200 OK"
+    output = environ["wsgi.input"].read()
+    headers = [
+        ("Content-Type", "text/plain; charset=utf-8"),
+        ("Content-Length", str(len(output))),
+    ]
+    start_response(status, headers)
+    return [output]
+
+
+def no_start_response(environ: dict, start_response: Callable) -> list[bytes]:
+    """Invalid WSGI application which fails to call start_response"""
+    return [b"result"]
+
+
 def wsgi_app_simple(environ: dict, start_response: Callable) -> list[bytes]:
     """
     A basic WSGI Application.

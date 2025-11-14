@@ -11,23 +11,14 @@ import trio
 from hypercorn.app_wrappers import _build_environ, InvalidPathError, WSGIWrapper
 from hypercorn.typing import ASGIReceiveEvent, ASGISendEvent, ConnectionState, HTTPScope
 from .wsgi_applications import (
+    echo_body,
+    no_start_response,
     wsgi_app_generator,
     wsgi_app_generator_delayed_start_response,
     wsgi_app_generator_no_body,
     wsgi_app_no_body,
     wsgi_app_simple,
 )
-
-
-def echo_body(environ: dict, start_response: Callable) -> list[bytes]:
-    status = "200 OK"
-    output = environ["wsgi.input"].read()
-    headers = [
-        ("Content-Type", "text/plain; charset=utf-8"),
-        ("Content-Length", str(len(output))),
-    ]
-    start_response(status, headers)
-    return [output]
 
 
 @pytest.mark.trio
@@ -146,10 +137,6 @@ async def test_max_body_size() -> None:
         {"headers": [], "status": 400, "type": "http.response.start"},
         {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
-
-
-def no_start_response(environ: dict, start_response: Callable) -> list[bytes]:
-    return [b"result"]
 
 
 @pytest.mark.asyncio
