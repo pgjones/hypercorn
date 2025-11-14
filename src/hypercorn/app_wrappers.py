@@ -106,16 +106,36 @@ class WSGIWrapper:
         response_body = self.app(environ, start_response)
 
         try:
-            first_chunk = True
+            headers_sent = False  # Flag to ensure headers aren't sent twice
             for output in response_body:
-                if first_chunk:
+                # Per the WSGI specification in PEP-3333, the start_response callable
+                # must not actually transmit the response headers. Instead, it must
+                # store them for the server to transmit only after the first iteration
+                # of the application return value that yields a non-empty bytestring.
+                #
+                # We therefore delay sending the http.response.start event until after
+                # we receive a non-empty byte string from the application return value.
+                if output and not headers_sent:
                     if not response_started:
                         raise RuntimeError("WSGI app did not call start_response")
 
+                    # Send the http.response.start event with the status and headers, flagging
+                    # that this was completed so they aren't sent twice.
                     send({"type": "http.response.start", "status": status_code, "headers": headers})
-                    first_chunk = False
+                    headers_sent = True
 
                 send({"type": "http.response.body", "body": output, "more_body": True})
+
+            # If we still haven't sent the headers by this point, then we received no
+            # non-empty byte strings from the application return value. This can happen when
+            # handling certain HTTP methods that don't include a response body like HEAD.
+            # In those cases we still need to send the http.response.start event with the
+            # status code and headers, but we need to ensure they haven't been sent previously.
+            if not headers_sent:
+                if not response_started:
+                    raise RuntimeError("WSGI app did not call start_response")
+
+                send({"type": "http.response.start", "status": status_code, "headers": headers})
         finally:
             if hasattr(response_body, "close"):
                 response_body.close()
