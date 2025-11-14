@@ -59,12 +59,12 @@ async def test_wsgi_trio() -> None:
 
     await app(scope, receive_channel.receive, _send, trio.to_thread.run_sync, trio.from_thread.run)
     assert messages == [
+        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
         {
             "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
         {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
     ]
 
@@ -107,15 +107,18 @@ async def test_wsgi_asyncio() -> None:
         "extensions": {},
         "state": ConnectionState({}),
     }
-    messages = await _run_app(app, scope)
+    messages = await _run_app(app, scope, b"Hello, world!")
     assert messages == [
         {
-            "headers": [(b"content-type", b"text/plain; charset=utf-8"), (b"content-length", b"0")],
+            "headers": [
+                (b"content-type", b"text/plain; charset=utf-8"),
+                (b"content-length", b"13"),
+            ],
             "status": 200,
             "type": "http.response.start",
         },
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": True},
-        {"body": bytearray(b""), "type": "http.response.body", "more_body": False},
+        {"body": b"Hello, world!", "type": "http.response.body", "more_body": True},
+        {"body": b"", "type": "http.response.body", "more_body": False},
     ]
 
 
