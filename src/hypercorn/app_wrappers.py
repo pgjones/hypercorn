@@ -84,7 +84,7 @@ class WSGIWrapper:
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     def run_app(self, environ: dict, send: Callable) -> None:
-        headers: list[tuple[bytes, bytes]]
+        headers: list[tuple[bytes, bytes]] = []
         response_started = False
         status_code: int | None = None
 
