@@ -86,7 +86,11 @@ async def worker_serve(
     if lifespan_task.done():
         exception = lifespan_task.exception()
         if exception is not None:
-            raise exception
+            await config.log.exception(
+                "Error initializing ASGI app",
+                exc_info=(type(exception), exception, exception .__traceback__)
+            )
+            exit(1)
 
     if sockets is None:
         sockets = config.create_sockets()
