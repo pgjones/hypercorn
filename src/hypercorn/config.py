@@ -113,6 +113,7 @@ class Config:
     worker_class = "asyncio"
     workers = 1
     wsgi_max_body_size = 16 * 1024 * 1024 * BYTES
+    enable_webtransport = False  # Enable WebTransport support in HTTP/3
 
     def set_cert_reqs(self, value: int) -> None:
         warnings.warn("Please use verify_mode instead", Warning)
