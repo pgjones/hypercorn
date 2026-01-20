@@ -96,6 +96,8 @@ debug                      ``--debug``                   Enable debug mode, i.e.
                                                          and checks.
 dogstatsd_tags             N/A                           DogStatsd format tag, see
                                                          :ref:`using_statsd`.
+enable_webtransport        N/A                           Enable WebTransport support                     ``False``
+                                                         (requires HTTP/3).
 errorlog                   ``--error-logfile``           The target location for the error log,
                            ``--log-file``                use `-` for stderr.
 graceful_timeout           ``--graceful-timeout``        Time to wait after SIGTERM or Ctrl-C            3s
