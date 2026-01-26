@@ -124,7 +124,12 @@ class TCPServer:
             ConnectionResetError,
             RuntimeError,
             asyncio.CancelledError,
-        ):
+            TimeoutError,
+        ) as exc:
+            if isinstance(exc, TimeoutError):
+                transport = getattr(self.writer, "transport", None)
+                if transport is not None:
+                    transport.abort()
             pass  # Already closed
         finally:
             await self.idle_task.stop()
