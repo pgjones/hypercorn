@@ -7,9 +7,8 @@ import sys
 from collections.abc import Awaitable, Callable, Iterable
 from enum import Enum
 from importlib import import_module
-from multiprocessing.synchronize import Event as EventType
 from pathlib import Path
-from typing import Any, cast, Literal, TYPE_CHECKING
+from typing import Any, cast, Literal, Protocol, TYPE_CHECKING
 
 from .app_wrappers import ASGIWrapper, WSGIWrapper
 from .config import Config
@@ -154,8 +153,22 @@ async def raise_shutdown(shutdown_event: Callable[..., Awaitable]) -> None:
     raise ShutdownError()
 
 
+class IsSetEvent(Protocol):
+    """Anything that exposes a non-async ``is_set()`` checkpoint.
+
+    Widens the previous ``multiprocessing.synchronize.Event`` annotation so
+    that callers can pass the equally-valid alternatives that only require
+    ``is_set()`` here — notably ``multiprocessing.Manager().Event()`` (a
+    proxy wrapping ``threading.Event``) and plain ``threading.Event`` for
+    in-process testing. See https://github.com/pgjones/hypercorn/issues/247.
+    """
+
+    def is_set(self) -> bool:
+        pass
+
+
 async def check_multiprocess_shutdown_event(
-    shutdown_event: EventType, sleep: Callable[[float], Awaitable[Any]]
+    shutdown_event: IsSetEvent, sleep: Callable[[float], Awaitable[Any]]
 ) -> None:
     while True:
         if shutdown_event.is_set():
