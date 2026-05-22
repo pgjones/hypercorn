@@ -402,9 +402,18 @@ class Config:
                 module = importlib.import_module(path)
                 instance = getattr(module, config)
 
-        mapping = {
-            key: getattr(instance, key)
-            for key in dir(instance)
-            if not isinstance(getattr(instance, key), types.ModuleType) and not key.startswith("__")
-        }
+        mapping = {}
+        for key in dir(instance):
+            if key.startswith("__"):
+                continue
+            try:
+                value = getattr(instance, key)
+            except AttributeError:
+                # Skip write-only properties (e.g. the deprecated cert_reqs);
+                # they have no getter and cannot be round-tripped through
+                # from_mapping. See https://github.com/pgjones/hypercorn/issues/244.
+                continue
+            if isinstance(value, types.ModuleType):
+                continue
+            mapping[key] = value
         return cls.from_mapping(mapping)

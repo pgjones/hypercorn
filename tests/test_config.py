@@ -35,6 +35,25 @@ def test_config_from_object() -> None:
     _check_standard_config(config)
 
 
+def test_config_from_object_accepts_config_instance() -> None:
+    """A Config instance must round-trip through from_object.
+
+    Regression test for https://github.com/pgjones/hypercorn/issues/244.
+    The Config class exposes write-only properties (e.g. the deprecated
+    ``cert_reqs``); ``from_object`` iterates ``dir(instance)`` and must not
+    blow up on properties that have no getter.
+    """
+    source = Config()
+    source.bind = ["0.0.0.0:8080"]
+    source.access_log_format = access_log_format
+    source.h11_max_incomplete_size = h11_max_incomplete_size
+
+    config = Config.from_object(source)
+    assert config.bind == ["0.0.0.0:8080"]
+    assert config.access_log_format == access_log_format
+    assert config.h11_max_incomplete_size == h11_max_incomplete_size
+
+
 def test_ssl_config_from_pyfile() -> None:
     path = os.path.join(os.path.dirname(__file__), "assets/config_ssl.py")
     config = Config.from_pyfile(path)
