@@ -4,9 +4,10 @@ Logging
 =======
 
 Hypercorn has two loggers, an access logger and an error logger. By
-default neither will actively log. The special value of ``-`` can be
-used as the logging target in order to log to stdout and stderr
-respectively. Any other value is considered a filepath to target.
+default the access logger does not actively log and the error logger
+writes to stderr. The special value of ``-`` can be used as the
+logging target in order to log to stdout and stderr respectively. Any
+other value is considered a filepath to target.
 
 Configuring the Python logger
 -----------------------------

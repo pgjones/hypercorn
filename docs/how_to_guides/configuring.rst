@@ -71,7 +71,7 @@ Configuration options
 ========================== ============================= =============================================== ========================
 Attribute                  Command line                  Purpose                                         Default
 -------------------------- ----------------------------- ----------------------------------------------- ------------------------
-access_log_format          ``--access-logformat``        The log format for the access log, see
+access_log_format          ``--access-logformat``        The log format for the access log, see          see :ref:`how_to_log`
                                                          :ref:`how_to_log`.
 accesslog                  ``--access-logfile``          The target logger for access logs, use
                                                          ``-`` for stdout.
@@ -79,11 +79,11 @@ alpn_protocols             N/A                           The HTTP protocols to a
                                                          ALPN.
 alt_svc_headers            N/A                           List of header values to return as
                                                          Alt-Svc headers.
-application_path           N/A                           The path location of the ASGI                   cwd
+application_path           N/A                           The path location of the ASGI
                                                          application.
 backlog                    ``--backlog``                 The maximum number of pending                   100
                                                          connections.
-bind                       ``-b``, ``--bind``            The TCP host/address to bind to.
+bind                       ``-b``, ``--bind``            The TCP host/address to bind to.                ``127.0.0.1:8000``
                                                          Should be either host:port, host,
                                                          unix:path or fd://num, e.g.
                                                          127.0.0.1:5000, 127.0.0.1,
@@ -96,8 +96,8 @@ debug                      ``--debug``                   Enable debug mode, i.e.
                                                          and checks.
 dogstatsd_tags             N/A                           DogStatsd format tag, see
                                                          :ref:`using_statsd`.
-errorlog                   ``--error-logfile``           The target location for the error log,
-                           ``--log-file``                use `-` for stderr.
+errorlog                   ``--error-logfile``           The target location for the error log,          ``-``
+                           ``--log-file``                use ``-`` for stderr.
 graceful_timeout           ``--graceful-timeout``        Time to wait after SIGTERM or Ctrl-C            3s
                                                          for any remaining requests (tasks) to
                                                          complete.
@@ -129,12 +129,12 @@ keep_alive_timeout         ``--keep-alive``              Seconds to keep inactiv
 keyfile                    ``--keyfile``                 Path to the SSL key file.
 keyfile_password           ``--keyfile-password``        Password for the keyfile if the keyfile is
                                                          password-protected.
-logconfig                  ``--log-config``              A Python logging configuration file. This       The logging ini format.
+logconfig                  ``--log-config``              A Python logging configuration file. This
                                                          can be prefixed with 'json:' or 'toml:' to
                                                          load the configuration from a file in that
-                                                         format.
+                                                         format instead of ini format.
 logconfig_dict             N/A                           A Python logging configuration dictionary.
-logger_class               N/A                           Type of class to use for logging.
+logger_class               N/A                           Type of class to use for logging.               hypercorn.logging.Logger
 loglevel                   ``--log-level``               The (error) log level.                          ``INFO``
 max_app_queue_size         N/A                           The maximum number of events to queue up        10
                                                          sending to the ASGI application.
@@ -171,7 +171,7 @@ websocket_max_message_size N/A                           Maximum size of a WebSo
 websocket_ping_interval    ``--websocket-ping-interval`` If set this is the time in seconds between
                                                          pings sent to the client. This can be used
                                                          to keep the websocket connection alive.
-worker_class               ``-k``, ``--worker-class``    The type of worker to use. Options include
+worker_class               ``-k``, ``--worker-class``    The type of worker to use. Options are          ``asyncio``
                                                          asyncio, uvloop (pip install
                                                          hypercorn[uvloop]), and trio (pip install
                                                          hypercorn[trio]).
