@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 
 import pytest
 
@@ -10,6 +11,11 @@ from hypercorn.asyncio.worker_context import WorkerContext
 from hypercorn.config import Config
 from .helpers import MemoryReader, MemoryWriter
 from ..helpers import echo_framework
+
+
+class UnreachableHostWriter(MemoryWriter):
+    async def wait_closed(self) -> None:
+        raise OSError(errno.EHOSTUNREACH, "No route to host")
 
 
 @pytest.mark.asyncio
@@ -29,6 +35,25 @@ async def test_completes_on_closed() -> None:
     await server.run()
     # Key is that this line is reached, rather than the above line
     # hanging.
+
+
+@pytest.mark.asyncio
+async def test_completes_on_unreachable_host_close() -> None:
+    event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+
+    server = TCPServer(
+        ASGIWrapper(echo_framework),
+        event_loop,
+        Config(),
+        WorkerContext(None),
+        {},
+        MemoryReader(),  # type: ignore
+        UnreachableHostWriter(),  # type: ignore
+    )
+    server.reader.close()  # type: ignore
+    await server.run()
+    # Key is that this line is reached, rather than the above line
+    # raising the OSError from the writer close.
 
 
 @pytest.mark.asyncio
