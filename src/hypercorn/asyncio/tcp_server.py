@@ -119,9 +119,7 @@ class TCPServer:
             self.writer.close()
             await self.writer.wait_closed()
         except (
-            BrokenPipeError,
-            ConnectionAbortedError,
-            ConnectionResetError,
+            OSError,  # Includes Connection*Errors and e.g. EHOSTUNREACH for a vanished peer
             RuntimeError,
             asyncio.CancelledError,
         ):
