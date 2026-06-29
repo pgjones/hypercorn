@@ -57,6 +57,7 @@ async def worker_serve(
     *,
     sockets: Sockets | None = None,
     shutdown_trigger: Callable[..., Awaitable] | None = None,
+    ready_trigger: Callable[[Sockets], None] | None = None
 ) -> None:
     config.set_statsd_logger_class(StatsdLogger)
 
@@ -77,6 +78,11 @@ async def worker_serve(
                     signal.signal(getattr(signal, signal_name), _signal_handler)
 
         shutdown_trigger = signal_event.wait
+
+    if ready_trigger is None:
+        def _ready_trigger(sockets: Sockets) -> None:
+            pass
+        ready_trigger = _ready_trigger
 
     lifespan_state: LifespanState = {}
     lifespan = Lifespan(app, config, loop, lifespan_state)
@@ -147,6 +153,8 @@ async def worker_serve(
         task.add_done_callback(server_tasks.discard)
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on https://{bind} (QUIC) (CTRL + C to quit)")
+
+    ready_trigger(sockets)
 
     try:
         async with TaskGroup() as task_group:

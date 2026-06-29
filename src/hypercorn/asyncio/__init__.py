@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from typing import Literal
 
 from .run import worker_serve
-from ..config import Config
+from ..config import Config, Sockets
 from ..typing import Framework
 from ..utils import wrap_app
 
@@ -16,6 +16,7 @@ async def serve(
     *,
     shutdown_trigger: Callable[..., Awaitable] | None = None,
     mode: Literal["asgi", "wsgi"] | None = None,
+    ready_trigger: Callable[[Sockets], None] | None = None,
 ) -> None:
     """Serve an ASGI or WSGI framework app given the config.
 
@@ -35,6 +36,8 @@ async def serve(
         config: A Hypercorn configuration object.
         shutdown_trigger: This should return to trigger a graceful
             shutdown.
+        ready_trigger: This is called when it is ready to accept
+            connections.
         mode: Specify if the app is WSGI or ASGI.
     """
     if config.debug:
@@ -43,5 +46,5 @@ async def serve(
         warnings.warn("The config `workers` has no affect when using serve", Warning)
 
     await worker_serve(
-        wrap_app(app, config.wsgi_max_body_size, mode), config, shutdown_trigger=shutdown_trigger
+        wrap_app(app, config.wsgi_max_body_size, mode), config, shutdown_trigger=shutdown_trigger, ready_trigger=ready_trigger,
     )
