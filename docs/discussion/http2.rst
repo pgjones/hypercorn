@@ -6,6 +6,82 @@ HTTP/2
 Hypercorn is based on the excellent `hyper-h2
 <https://github.com/python-hyper/hyper-h2>`_ library.
 
+Example
+-------
+
+The following is a minimal ASGI app (file ``example.py``),
+
+.. code-block:: python
+
+    async def app(scope, receive, send):
+        assert scope["type"] == "http"
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-type", b"text/plain")],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": b"hello over HTTP/2",
+        })
+
+Any ASGI app works here, so ``example:app`` can equally be a FastAPI or
+Starlette application, e.g. ``hypercorn main:app``.
+
+With TLS (h2)
+~~~~~~~~~~~~~
+
+Browsers only speak HTTP/2 over TLS, so this is the usual setup. Generate a
+self-signed certificate for local testing,
+
+.. code-block:: shell
+
+    $ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365 -subj "/CN=localhost"
+
+then run Hypercorn with the certificate and key,
+
+.. code-block:: shell
+
+    $ hypercorn --certfile cert.pem --keyfile key.pem example:app
+
+Hypercorn advertises ``h2`` via ALPN by default, so a capable client will
+negotiate HTTP/2. Verify with curl (``-k`` accepts the self-signed
+certificate, ``-v`` shows the negotiated protocol),
+
+.. code-block:: shell
+
+    $ curl -kv --http2 https://localhost:8000
+    ...
+    * ALPN: server accepted h2
+    < HTTP/2 200
+    ...
+
+Without TLS (h2c)
+~~~~~~~~~~~~~~~~~
+
+Without a certificate Hypercorn serves HTTP/1.1 and, on request, HTTP/2
+cleartext (h2c) on the same bind. Run it as usual,
+
+.. code-block:: shell
+
+    $ hypercorn example:app
+
+A client can then either request the ``h2c`` upgrade from HTTP/1.1,
+
+.. code-block:: shell
+
+    $ curl --http2 http://localhost:8000
+
+or, if it already knows Hypercorn supports HTTP/2, speak it directly with
+prior knowledge,
+
+.. code-block:: shell
+
+    $ curl --http2-prior-knowledge http://localhost:8000
+
+This is typically used when Hypercorn sits behind a proxy that has already
+terminated TLS.
+
 TLS settings
 ------------
 
