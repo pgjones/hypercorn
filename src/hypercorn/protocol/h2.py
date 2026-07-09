@@ -184,6 +184,7 @@ class H2Protocol:
             try:
                 events = self.connection.receive_data(event.data)
             except h2.exceptions.ProtocolError:
+                await self._send_error_response()
                 await self._flush()
                 await self.send(Closed())
             else:
@@ -194,6 +195,33 @@ class H2Protocol:
             for stream_id in stream_ids:
                 await self._close_stream(stream_id)
             await self.has_data.set()
+
+    async def _send_error_response(self) -> None:
+        # h2 raises a (connection level) ProtocolError for a malformed
+        # request, e.g. a header value with leading/trailing whitespace,
+        # and closes the connection with a GOAWAY. RFC 9113 8.2.1 asks the
+        # server to respond with a 400 (Bad Request) in this case, so send
+        # one for the offending stream before the connection is closed. The
+        # h2 connection is now closed, so its send API cannot be used;
+        # instead a minimal HEADERS frame is written directly. The header
+        # block is a fully-indexed HPACK reference to the static table entry
+        # ``:status: 400`` (index 12, encoded as ``0x8c``), so no encoder
+        # state is required and this is safe to emit on a fresh connection.
+        stream_id = self.connection.highest_inbound_stream_id
+        # A stream_id of 0 means no request stream was opened (e.g. a framing
+        # error), so there is nothing to respond to - just close.
+        if stream_id > 0:
+            header_block = b"\x8c"  # :status: 400
+            frame = b"".join(
+                [
+                    len(header_block).to_bytes(3, "big"),
+                    b"\x01",  # HEADERS frame type
+                    b"\x05",  # END_STREAM | END_HEADERS flags
+                    stream_id.to_bytes(4, "big"),
+                    header_block,
+                ]
+            )
+            await self.send(RawData(data=frame))
 
     async def stream_send(self, event: StreamEvent) -> None:
         try:
