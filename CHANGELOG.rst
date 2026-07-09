@@ -1,3 +1,10 @@
+Unreleased
+----------
+
+* Bugfix respond with a 400 (Bad Request) for a malformed HTTP/2 request,
+  such as a header value with leading/trailing whitespace, rather than
+  closing the connection with no response.
+
 0.18.0 2025-11-08
 -----------------
 

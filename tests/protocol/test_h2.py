@@ -4,8 +4,10 @@ import asyncio
 from unittest.mock import AsyncMock, call, Mock
 
 import pytest
+from h2.config import H2Configuration
 from h2.connection import H2Connection
-from h2.events import ConnectionTerminated
+from h2.events import ConnectionTerminated, ResponseReceived
+from hpack import Encoder
 
 from hypercorn.asyncio.worker_context import EventWrapper, WorkerContext
 from hypercorn.config import Config
@@ -87,6 +89,75 @@ async def test_protocol_handle_protocol_error() -> None:
     await protocol.handle(RawData(data=b"broken nonsense\r\n\r\n"))
     protocol.send.assert_awaited()  # type: ignore
     assert protocol.send.call_args_list == [call(Closed())]  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_protocol_handle_malformed_request_sends_400() -> None:
+    # A request header value with leading/trailing whitespace is malformed
+    # per RFC 9113 8.2.1, and h2 raises a ProtocolError for it. Hypercorn
+    # should respond with a 400 (Bad Request) for the offending stream rather
+    # than closing the connection with no response. See issue #348.
+    protocol = H2Protocol(
+        Mock(),
+        Config(),
+        WorkerContext(None),
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
+    )
+    client = H2Connection(config=H2Configuration(client_side=True))
+    client.initiate_connection()
+    await protocol.handle(RawData(data=client.data_to_send()))
+    for send_call in protocol.send.call_args_list:  # type: ignore
+        if isinstance(send_call.args[0], RawData):
+            client.receive_data(send_call.args[0].data)
+    protocol.send.reset_mock()  # type: ignore
+
+    # Open the stream client-side with valid headers (discarded) so the client
+    # accepts the server's response for it; h2's client normalises outbound
+    # headers, so the malformed HEADERS frame (a header value surrounded by
+    # whitespace) that is actually sent to the server is crafted by hand.
+    stream_id = client.get_next_available_stream_id()
+    client.send_headers(
+        stream_id,
+        [
+            (":method", "GET"),
+            (":path", "/"),
+            (":scheme", "https"),
+            (":authority", "hypercorn"),
+        ],
+        end_stream=False,
+    )
+    client.data_to_send()  # discard the valid frame; the server never sees it
+    header_block = Encoder().encode(
+        [
+            (b":method", b"GET"),
+            (b":path", b"/"),
+            (b":scheme", b"https"),
+            (b":authority", b"hypercorn"),
+            (b"x-bad", b" whitespace "),
+        ]
+    )
+    frame = (
+        len(header_block).to_bytes(3, "big")
+        + b"\x01"  # HEADERS frame type
+        + b"\x05"  # END_STREAM | END_HEADERS flags
+        + stream_id.to_bytes(4, "big")
+        + header_block
+    )
+    await protocol.handle(RawData(data=frame))
+
+    statuses: list[bytes] = []
+    for send_call in protocol.send.call_args_list:  # type: ignore
+        if isinstance(send_call.args[0], RawData):
+            for event in client.receive_data(send_call.args[0].data):
+                if isinstance(event, ResponseReceived):
+                    statuses.extend(value for name, value in event.headers if name == b":status")
+    assert statuses == [b"400"]
+    assert call(Closed()) in protocol.send.call_args_list  # type: ignore
 
 
 @pytest.mark.asyncio
