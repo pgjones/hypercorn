@@ -116,3 +116,37 @@ async def test_protocol_keep_alive_max_requests() -> None:
     protocol.send.assert_awaited()  # type: ignore
     events = client.receive_data(protocol.send.call_args_list[1].args[0].data)  # type: ignore
     assert isinstance(events[-1], ConnectionTerminated)
+
+
+@pytest.mark.asyncio
+async def test_protocol_handle_data_after_stream_closed() -> None:
+    protocol = H2Protocol(
+        Mock(),
+        Config(),
+        WorkerContext(None),
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
+    )
+    client = H2Connection()
+    client.initiate_connection()
+    headers = [
+        (":method", "POST"),
+        (":path", "/"),
+        (":authority", "hypercorn"),
+        (":scheme", "https"),
+    ]
+    client.send_headers(1, headers)
+    await protocol.handle(RawData(data=client.data_to_send()))
+    assert 1 in protocol.streams
+    # The response is sent and the stream closed (removed from
+    # protocol.streams) before the client finishes sending the body.
+    await protocol._close_stream(1)
+    assert 1 not in protocol.streams
+    # Body data arriving on the now-closed stream must not raise a KeyError
+    # and crash the connection.
+    client.send_data(1, b"after close")
+    await protocol.handle(RawData(data=client.data_to_send()))
