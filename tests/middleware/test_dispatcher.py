@@ -49,6 +49,33 @@ async def test_dispatcher_middleware(http_scope: HTTPScope) -> None:
     ]
 
 
+@pytest.mark.asyncio
+async def test_dispatcher_middleware_matches_segments(http_scope: HTTPScope) -> None:
+    class EchoFramework:
+        async def __call__(self, scope: Scope, receive: Callable, send: Callable) -> None:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [(b"content-length", b"2")],
+                }
+            )
+            await send({"type": "http.response.body", "body": b"ok"})
+
+    app = AsyncioDispatcherMiddleware({"/api": EchoFramework()})
+
+    sent_events = []
+
+    async def send(message: dict) -> None:
+        sent_events.append(message)
+
+    await app({**http_scope, **{"path": "/apiary"}}, None, send)  # type: ignore
+    assert sent_events == [
+        {"type": "http.response.start", "status": 404, "headers": [(b"content-length", b"0")]},
+        {"type": "http.response.body"},
+    ]
+
+
 class ScopeFramework:
     def __init__(self, name: str) -> None:
         self.name = name

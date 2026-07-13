@@ -276,7 +276,7 @@ def main(sys_args: list[str] | None = None) -> int:
     if args.max_requests is not sentinel:
         config.max_requests = args.max_requests
     if args.max_requests_jitter is not sentinel:
-        config.max_requests_jitter = args.max_requests
+        config.max_requests_jitter = args.max_requests_jitter
     if args.pid is not sentinel:
         config.pid_path = args.pid
     if args.root_path is not sentinel:

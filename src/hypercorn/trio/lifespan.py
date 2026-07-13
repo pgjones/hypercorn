@@ -90,7 +90,7 @@ class Lifespan:
             with trio.fail_after(self.config.shutdown_timeout):
                 await self.shutdown.wait()
         except trio.TooSlowError as error:
-            raise LifespanTimeoutError("startup") from error
+            raise LifespanTimeoutError("shutdown") from error
 
     async def asgi_receive(self) -> ASGIReceiveEvent:
         return await self.app_receive_channel.receive()

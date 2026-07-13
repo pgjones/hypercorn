@@ -48,7 +48,6 @@ uvloop = ["uvloop"]
 dev = [
     "httpx",
     "hypothesis",
-    "mock",
     "pytest",
     "pytest-asyncio",
     "pytest-trio",

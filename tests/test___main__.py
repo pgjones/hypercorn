@@ -47,6 +47,7 @@ def test_load_config(monkeypatch: MonkeyPatch) -> None:
         ("--worker-class", "trio", "worker_class"),
         ("--keep-alive", 20, "keep_alive_timeout"),
         ("--keyfile", "/path", "keyfile"),
+        ("--max-requests-jitter", 7, "max_requests_jitter"),
         ("--pid", "/path", "pid_path"),
         ("--root-path", "/path", "root_path"),
         ("--workers", 2, "workers"),

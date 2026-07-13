@@ -110,6 +110,7 @@ async def test_http1_websocket() -> None:
     await server.reader.send(client.send(wsproto.events.CloseConnection(code=1000)))  # type: ignore
     client.receive_data(await server.writer.receive())  # type: ignore
     assert list(client.events()) == [wsproto.events.CloseConnection(code=1000, reason="")]
+    assert await server.writer.receive() == b""  # type: ignore
     assert server.writer.is_closed  # type: ignore
     server.reader.close()  # type: ignore
     await task
@@ -210,12 +211,18 @@ async def test_http2_websocket() -> None:
         ],
     )
     await server.reader.send(h2_client.data_to_send())  # type: ignore
-    events = h2_client.receive_data(await server.writer.receive())  # type: ignore
-    await server.reader.send(h2_client.data_to_send())  # type: ignore
-    events = h2_client.receive_data(await server.writer.receive())  # type: ignore
-    events = h2_client.receive_data(await server.writer.receive())  # type: ignore
-    assert isinstance(events[0], h2.events.ResponseReceived)
-    assert events[0].headers == [
+    response = None
+    while response is None:
+        events = h2_client.receive_data(await server.writer.receive())  # type: ignore
+        for event in events:
+            if isinstance(event, h2.events.ResponseReceived):
+                response = event
+                break
+        pending = h2_client.data_to_send()
+        if pending:
+            await server.reader.send(pending)  # type: ignore
+
+    assert response.headers == [
         (b":status", b"200"),
         (b"date", b"Thu, 01 Jan 1970 01:23:20 GMT"),
         (b"server", b"hypercorn-h2"),

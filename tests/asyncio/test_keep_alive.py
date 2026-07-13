@@ -42,7 +42,7 @@ async def slow_framework(
             break
 
 
-@pytest_asyncio.fixture(name="server", scope="function")  # type: ignore[misc]
+@pytest_asyncio.fixture(name="server", scope="function")
 async def _server() -> AsyncGenerator[TCPServer]:
     event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 

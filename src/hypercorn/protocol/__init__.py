@@ -34,17 +34,7 @@ class ProtocolWrapper:
         self.state = state
         self.protocol: H11Protocol | H2Protocol
         if alpn_protocol == "h2":
-            self.protocol = H2Protocol(
-                self.app,
-                self.config,
-                self.context,
-                self.task_group,
-                self.state,
-                self.ssl,
-                self.client,
-                self.server,
-                self.send,
-            )
+            self.protocol = self._create_h2()
         else:
             self.protocol = H11Protocol(
                 self.app,
@@ -65,32 +55,25 @@ class ProtocolWrapper:
         try:
             return await self.protocol.handle(event)
         except H2ProtocolAssumedError as error:
-            self.protocol = H2Protocol(
-                self.app,
-                self.config,
-                self.context,
-                self.task_group,
-                self.state,
-                self.ssl,
-                self.client,
-                self.server,
-                self.send,
-            )
+            self.protocol = self._create_h2()
             await self.protocol.initiate()
             if error.data != b"":
                 return await self.protocol.handle(RawData(data=error.data))
         except H2CProtocolRequiredError as error:
-            self.protocol = H2Protocol(
-                self.app,
-                self.config,
-                self.context,
-                self.task_group,
-                self.state,
-                self.ssl,
-                self.client,
-                self.server,
-                self.send,
-            )
+            self.protocol = self._create_h2()
             await self.protocol.initiate(error.headers, error.settings)
             if error.data != b"":
                 return await self.protocol.handle(RawData(data=error.data))
+
+    def _create_h2(self) -> H2Protocol:
+        return H2Protocol(
+            self.app,
+            self.config,
+            self.context,
+            self.task_group,
+            self.state,
+            self.ssl,
+            self.client,
+            self.server,
+            self.send,
+        )

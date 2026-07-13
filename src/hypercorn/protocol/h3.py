@@ -20,7 +20,9 @@ from .events import (
     StreamClosed,
     Trailers,
 )
+from .h3_send import H3SendScheduler
 from .http_stream import HTTPStream
+from .queued_stream import QueuedStream
 from .ws_stream import WSStream
 from ..config import Config
 from ..typing import AppWrapper, ConnectionState, TaskGroup, WorkerContext
@@ -45,11 +47,14 @@ class H3Protocol:
         self.config = config
         self.context = context
         self.connection = H3Connection(quic)
+        self.closed = False
         self.send = send
         self.server = server
-        self.streams: dict[int, HTTPStream | WSStream] = {}
+        self.streams: dict[int, QueuedStream] = {}
         self.task_group = task_group
         self.state = state
+        self.sender = H3SendScheduler(self.connection, self.context.event_class, self.send)
+        self.task_group.spawn(self.sender.run, lambda: self.closed)
 
     async def handle(self, quic_event: QuicEvent) -> None:
         for event in self.connection.handle_event(quic_event):
@@ -69,26 +74,26 @@ class H3Protocol:
 
     async def stream_send(self, event: StreamEvent) -> None:
         if isinstance(event, (InformationalResponse, Response)):
-            self.connection.send_headers(
+            await self.sender.headers(
                 event.stream_id,
                 [(b":status", b"%d" % event.status_code)]
                 + event.headers
                 + self.config.response_headers("h3"),
             )
-            await self.send()
         elif isinstance(event, (Body, Data)):
-            self.connection.send_data(event.stream_id, event.data, False)
-            await self.send()
+            await self.sender.data(event.stream_id, event.data)
         elif isinstance(event, (EndBody, EndData)):
-            self.connection.send_data(event.stream_id, b"", True)
-            await self.send()
+            await self.sender.data(event.stream_id, b"", end_stream=True)
         elif isinstance(event, Trailers):
-            self.connection.send_headers(event.stream_id, event.headers)
-            await self.send()
+            await self.sender.headers(event.stream_id, event.headers)
         elif isinstance(event, StreamClosed):
             self.streams.pop(event.stream_id, None)
         elif isinstance(event, Request):
             await self._create_server_push(event.stream_id, event.raw_path, event.headers)
+
+    async def close(self) -> None:
+        self.closed = True
+        await self.sender.close()
 
     async def _create_stream(self, request: HeadersReceived) -> None:
         for name, value in request.headers:
@@ -98,7 +103,7 @@ class H3Protocol:
                 raw_path = value
 
         if method == "CONNECT":
-            self.streams[request.stream_id] = WSStream(
+            stream = WSStream(
                 self.app,
                 self.config,
                 self.context,
@@ -110,7 +115,7 @@ class H3Protocol:
                 request.stream_id,
             )
         else:
-            self.streams[request.stream_id] = HTTPStream(
+            stream = HTTPStream(
                 self.app,
                 self.config,
                 self.context,
@@ -121,6 +126,13 @@ class H3Protocol:
                 self.stream_send,
                 request.stream_id,
             )
+        self.streams[request.stream_id] = QueuedStream(
+            stream,
+            self.task_group,
+            self.context,
+            self.config.max_app_queue_size,
+            self.config.max_app_queue_bytes,
+        )
 
         await self.streams[request.stream_id].handle(
             Request(

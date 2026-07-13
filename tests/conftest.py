@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-import hypercorn.config
-from hypercorn.typing import ConnectionState, HTTPScope
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SRC_PATH = PROJECT_ROOT / "src"
+
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
+
+import hypercorn.config  # noqa: E402
+from hypercorn.typing import ConnectionState, HTTPScope  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

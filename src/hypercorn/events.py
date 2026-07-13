@@ -8,17 +8,17 @@ class Event(ABC):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RawData(Event):
     data: bytes
     address: tuple[str, int] | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Closed(Event):
     pass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Updated(Event):
     idle: bool

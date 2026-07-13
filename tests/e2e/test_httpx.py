@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import httpx  # type: ignore
+import httpx
 import pytest
 import trio
 

@@ -282,8 +282,8 @@ class H11Protocol:
             else:
                 self.response = None
                 self.scope = None
-                await self.can_read.set()
                 await self.send(Updated(idle=True))
+                await self.can_read.set()
         else:
             await self.can_read.set()
             await self.send(Closed())

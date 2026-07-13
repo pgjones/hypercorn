@@ -29,7 +29,7 @@ class UDPServer(asyncio.DatagramProtocol):
         self.context = context
         self.loop = loop
         self.protocol: QuicProtocol
-        self.protocol_queue: asyncio.Queue = asyncio.Queue(10)
+        self.protocol_queue: asyncio.Queue = asyncio.Queue(config.quic_receive_queue_size)
         self.transport: asyncio.DatagramTransport | None = None
         self.state = state
 

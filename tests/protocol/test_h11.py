@@ -21,7 +21,7 @@ from hypercorn.typing import ConnectionState, Event as IOEvent
 BASIC_HEADERS = [("Host", "hypercorn"), ("Connection", "close")]
 
 
-@pytest_asyncio.fixture(name="protocol")  # type: ignore[misc]
+@pytest_asyncio.fixture(name="protocol")
 async def _protocol(monkeypatch: MonkeyPatch) -> H11Protocol:
     MockHTTPStream = Mock()  # noqa: N806
     MockHTTPStream.return_value = AsyncMock(spec=HTTPStream)

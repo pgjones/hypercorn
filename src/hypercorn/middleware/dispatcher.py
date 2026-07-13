@@ -10,6 +10,15 @@ from ..typing import ASGIFramework, ASGIReceiveEvent, Scope
 MAX_QUEUE_SIZE = 10
 
 
+def _path_matches(path: str, mount_path: str) -> bool:
+    if path == mount_path:
+        return True
+    if mount_path == "/":
+        return path.startswith("/")
+
+    return path.startswith(f"{mount_path.rstrip('/')}/")
+
+
 class _DispatcherMiddleware:
     def __init__(self, mounts: dict[str, ASGIFramework]) -> None:
         self.mounts = mounts
@@ -19,7 +28,7 @@ class _DispatcherMiddleware:
             await self._handle_lifespan(scope, receive, send)
         else:
             for path, app in self.mounts.items():
-                if scope["path"].startswith(path):
+                if _path_matches(scope["path"], path):
                     local_scope = scope.copy()
                     local_scope["root_path"] += path
                     return await app(local_scope, receive, send)

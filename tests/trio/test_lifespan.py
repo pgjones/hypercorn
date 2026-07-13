@@ -38,6 +38,17 @@ async def _lifespan_failure(
             break
 
 
+async def _slow_shutdown(
+    scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
+) -> None:
+    while True:
+        message = await receive()
+        if message["type"] == "lifespan.startup":
+            await send({"type": "lifespan.startup.complete"})
+        elif message["type"] == "lifespan.shutdown":
+            await trio.sleep(0.02)
+
+
 @pytest.mark.trio
 async def test_startup_failure() -> None:
     lifespan = Lifespan(ASGIWrapper(_lifespan_failure), Config(), {})
@@ -47,3 +58,15 @@ async def test_startup_failure() -> None:
             await lifespan.wait_for_startup()
     except ExceptionGroup as error:
         assert error.subgroup(LifespanFailureError) is not None
+
+
+@pytest.mark.trio
+async def test_shutdown_timeout_error(nursery: trio._core._run.Nursery) -> None:
+    config = Config()
+    config.shutdown_timeout = 0.01
+    lifespan = Lifespan(ASGIWrapper(_slow_shutdown), config, {})
+    nursery.start_soon(lifespan.handle_lifespan)
+    await lifespan.wait_for_startup()
+    with pytest.raises(LifespanTimeoutError) as exc_info:
+        await lifespan.wait_for_shutdown()
+    assert str(exc_info.value).startswith("Timeout whilst awaiting shutdown")

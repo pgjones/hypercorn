@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 
 import pytest
@@ -41,6 +42,10 @@ def test_access_logger_init(
             assert logger.access_logger.handlers == []
         else:
             assert isinstance(logger.access_logger.handlers[0], expected_handler_type)
+
+    assert logger.access_log_atoms == frozenset(
+        re.findall(r"%\(([^)]+)\)s", logger.access_log_format)
+    )
 
 
 @pytest.mark.parametrize(
@@ -108,6 +113,16 @@ def test_access_log_environ_atoms(http_scope: HTTPScope, response: ResponseSumma
     os.environ["Random"] = "Environ"
     atoms = AccessLogAtoms(http_scope, response, 0)
     assert atoms["{random}e"] == "Environ"
+
+
+def test_access_log_required_atoms_precompute(
+    http_scope: HTTPScope, response: ResponseSummary
+) -> None:
+    os.environ["Random"] = "Environ"
+    atoms = AccessLogAtoms(http_scope, response, 0, frozenset({"h", "{random}e"}))
+    assert atoms["h"] == "127.0.0.1:80"
+    assert atoms["{random}e"] == "Environ"
+    assert atoms["{x-hypercorn}i"] == "Hypercorn"
 
 
 def test_nonstandard_status_code(http_scope: HTTPScope) -> None:

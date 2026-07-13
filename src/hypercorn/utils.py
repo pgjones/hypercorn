@@ -78,6 +78,18 @@ def filter_pseudo_headers(headers: list[tuple[bytes, bytes]]) -> list[tuple[byte
     return filtered_headers
 
 
+def _resolve_application(module: Any, app_name: str, path: str) -> Any:
+    app = module
+    for attribute in app_name.split("."):
+        try:
+            app = getattr(app, attribute)
+        except AttributeError as error:
+            raise NoAppError(
+                f"Cannot load application from '{path}', application not found."
+            ) from error
+    return app
+
+
 def load_application(path: str, wsgi_max_body_size: int) -> AppWrapper:
     mode: Literal["asgi", "wsgi"] | None = None
     if ":" not in path:
@@ -102,12 +114,8 @@ def load_application(path: str, wsgi_max_body_size: int) -> AppWrapper:
             raise NoAppError(f"Cannot load application from '{path}', module not found.")
         else:
             raise
-    try:
-        app = eval(app_name, vars(module))
-    except NameError:
-        raise NoAppError(f"Cannot load application from '{path}', application not found.")
-    else:
-        return wrap_app(app, wsgi_max_body_size, mode)
+    app = _resolve_application(module, app_name, path)
+    return wrap_app(app, wsgi_max_body_size, mode)
 
 
 def wrap_app(

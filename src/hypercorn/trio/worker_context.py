@@ -41,19 +41,25 @@ class TrioSingleTask:
 
 class EventWrapper:
     def __init__(self) -> None:
-        self._event = trio.Event()
+        self._condition = trio.Condition()
+        self._is_set = False
 
     async def clear(self) -> None:
-        self._event = trio.Event()
+        async with self._condition:
+            self._is_set = False
 
     async def wait(self) -> None:
-        await self._event.wait()
+        async with self._condition:
+            while not self._is_set:
+                await self._condition.wait()
 
     async def set(self) -> None:
-        self._event.set()
+        async with self._condition:
+            self._is_set = True
+            self._condition.notify_all()
 
     def is_set(self) -> bool:
-        return self._event.is_set()
+        return self._is_set
 
 
 class WorkerContext:

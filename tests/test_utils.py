@@ -5,11 +5,14 @@ from typing import Any
 
 import pytest
 
+from hypercorn.app_wrappers import ASGIWrapper
 from hypercorn.typing import Scope
 from hypercorn.utils import (
     build_and_validate_headers,
     filter_pseudo_headers,
     is_asgi,
+    load_application,
+    NoAppError,
     suppress_body,
 )
 
@@ -80,3 +83,13 @@ def test_filter_pseudo_headers_no_authority() -> None:
         [(b"host", b"quart"), (b":path", b"/"), (b"user-agent", b"something")]
     )
     assert result == [(b"host", b"quart"), (b"user-agent", b"something")]
+
+
+def test_load_application_resolves_nested_attributes() -> None:
+    wrapper = load_application("tests.assets.load_apps:nested.app", 1024)
+    assert isinstance(wrapper, ASGIWrapper)
+
+
+def test_load_application_missing_nested_attribute() -> None:
+    with pytest.raises(NoAppError):
+        load_application("tests.assets.load_apps:nested.missing", 1024)

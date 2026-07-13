@@ -7,6 +7,7 @@ from typing import Any
 import trio
 
 from .task_group import TaskGroup
+from .tcp_writer import BufferedWriter, BufferedWriterClosedError
 from .worker_context import TrioSingleTask, WorkerContext
 from ..config import Config
 from ..events import Closed, Event, RawData, Updated
@@ -30,7 +31,8 @@ class TCPServer:
         self.config = config
         self.context = context
         self.protocol: ProtocolWrapper
-        self.send_lock = trio.Lock()
+        self.output = BufferedWriter(stream)
+        self.output_failed = False
         self.idle_task = TrioSingleTask()
         self.stream = stream
         self.state = state
@@ -57,23 +59,31 @@ class TCPServer:
             client = parse_socket_addr(socket.family, socket.getpeername())
             server = parse_socket_addr(socket.family, socket.getsockname())
 
-            async with TaskGroup() as task_group:
-                self._task_group = task_group
-                self.protocol = ProtocolWrapper(
-                    self.app,
-                    self.config,
-                    self.context,
-                    task_group,
-                    ConnectionState(self.state),
-                    ssl,
-                    client,
-                    server,
-                    self.protocol_send,
-                    alpn_protocol,
-                )
-                await self.protocol.initiate()
-                await self.idle_task.restart(self._task_group, self._idle_timeout)
-                await self._read_data()
+            async with trio.open_nursery() as output_nursery:
+                self.output.start(output_nursery)
+                try:
+                    async with TaskGroup() as task_group:
+                        self._task_group = task_group
+                        self.protocol = ProtocolWrapper(
+                            self.app,
+                            self.config,
+                            self.context,
+                            task_group,
+                            ConnectionState(self.state),
+                            ssl,
+                            client,
+                            server,
+                            self.protocol_send,
+                            alpn_protocol,
+                        )
+                        await self.protocol.initiate()
+                        await self.idle_task.restart(self._task_group, self._idle_timeout)
+                        await self._read_data()
+                finally:
+                    try:
+                        await self.output.stop()
+                    except (trio.BrokenResourceError, trio.ClosedResourceError, RuntimeError):
+                        pass
         except OSError:
             pass
         finally:
@@ -81,18 +91,29 @@ class TCPServer:
 
     async def protocol_send(self, event: Event) -> None:
         if isinstance(event, RawData):
-            async with self.send_lock:
-                try:
-                    with trio.CancelScope() as cancel_scope:
-                        cancel_scope.shield = True
-                        await self.stream.send_all(event.data)
-                except (trio.BrokenResourceError, trio.ClosedResourceError):
-                    await self.protocol.handle(Closed())
+            try:
+                await self.output.send(event.data)
+            except (
+                BufferedWriterClosedError,
+                trio.BrokenResourceError,
+                trio.ClosedResourceError,
+                RuntimeError,
+            ):
+                await self._handle_output_failure()
         elif isinstance(event, Closed):
+            try:
+                await self.output.stop()
+            except (trio.BrokenResourceError, trio.ClosedResourceError, RuntimeError):
+                pass
             await self._close()
             await self.protocol.handle(Closed())
         elif isinstance(event, Updated):
             if event.idle:
+                try:
+                    await self.output.drain()
+                except (trio.BrokenResourceError, trio.ClosedResourceError, RuntimeError):
+                    await self._handle_output_failure()
+                    return
                 await self.idle_task.restart(self._task_group, self._idle_timeout)
             else:
                 await self.idle_task.stop()
@@ -109,9 +130,16 @@ class TCPServer:
             ):
                 break
             else:
-                await self.protocol.handle(RawData(bytes(data)))
+                payload = data if isinstance(data, bytes) else bytes(data)
+                await self.protocol.handle(RawData(payload))
                 if data == b"":
                     break
+        await self.protocol.handle(Closed())
+
+    async def _handle_output_failure(self) -> None:
+        if self.output_failed:
+            return
+        self.output_failed = True
         await self.protocol.handle(Closed())
 
     async def _close(self) -> None:

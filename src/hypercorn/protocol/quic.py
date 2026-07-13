@@ -120,6 +120,8 @@ class QuicProtocol:
         event = connection.quic.next_event()
         while event is not None:
             if isinstance(event, ConnectionTerminated):
+                if connection.h3 is not None:
+                    await connection.h3.close()
                 await connection.task.stop()
                 for cid in connection.cids:
                     del self.connections[cid]

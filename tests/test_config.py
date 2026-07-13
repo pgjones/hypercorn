@@ -4,7 +4,7 @@ import os
 import socket
 import ssl
 import sys
-from unittest.mock import Mock, NonCallableMock
+from unittest.mock import call, Mock, NonCallableMock
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -150,5 +150,23 @@ def test_response_headers(monkeypatch: MonkeyPatch) -> None:
         (b"date", b"Sat, 02 Dec 2017 15:43:15 GMT"),
         (b"server", b"hypercorn-test"),
     ]
+    assert config.response_headers("other") == [
+        (b"date", b"Sat, 02 Dec 2017 15:43:15 GMT"),
+        (b"server", b"hypercorn-other"),
+    ]
     config.include_server_header = False
     assert config.response_headers("test") == [(b"date", b"Sat, 02 Dec 2017 15:43:15 GMT")]
+
+
+def test_response_headers_cache_date_per_second(monkeypatch: MonkeyPatch) -> None:
+    timestamps = iter([1_512_229_395.1, 1_512_229_395.9, 1_512_229_396.0])
+    formatter = Mock(side_effect=["Sat, 02 Dec 2017 15:43:15 GMT", "Sat, 02 Dec 2017 15:43:16 GMT"])
+    monkeypatch.setattr(hypercorn.config, "time", lambda: next(timestamps))
+    monkeypatch.setattr(hypercorn.config, "format_date_time", formatter)
+
+    config = Config()
+
+    assert config.response_headers("test")[0] == (b"date", b"Sat, 02 Dec 2017 15:43:15 GMT")
+    assert config.response_headers("test")[0] == (b"date", b"Sat, 02 Dec 2017 15:43:15 GMT")
+    assert config.response_headers("test")[0] == (b"date", b"Sat, 02 Dec 2017 15:43:16 GMT")
+    assert formatter.call_args_list == [call(1_512_229_395), call(1_512_229_396)]

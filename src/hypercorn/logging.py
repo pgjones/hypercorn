@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 from collections.abc import Mapping
@@ -53,6 +54,7 @@ def _create_logger(
 class Logger:
     def __init__(self, config: Config) -> None:
         self.access_log_format = config.access_log_format
+        self.access_log_atoms = frozenset(re.findall(r"%\(([^)]+)\)s", self.access_log_format))
 
         self.access_logger = _create_logger(
             "hypercorn.access",
@@ -126,78 +128,162 @@ class Logger:
         This can be overidden and customised if desired. It should
         return a mapping between an access log format key and a value.
         """
-        return AccessLogAtoms(request, response, request_time)
+        return AccessLogAtoms(request, response, request_time, self.access_log_atoms)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.error_logger, name)
 
 
 class AccessLogAtoms(dict):
-    def __init__(
-        self, request: WWWScope, response: ResponseSummary | None, request_time: float
-    ) -> None:
-        for name, value in request["headers"]:
-            self[f"{{{name.decode('latin1').lower()}}}i"] = value.decode("latin1")
-        for name, value in os.environ.items():
-            self[f"{{{name.lower()}}}e"] = value
-        protocol = request.get("http_version", "ws")
-        client = request.get("client")
-        if client is None:
-            remote_addr = None
-        elif len(client) == 2:
-            remote_addr = f"{client[0]}:{client[1]}"
-        elif len(client) == 1:
-            remote_addr = client[0]
-        else:  # make sure not to throw UnboundLocalError
-            remote_addr = f"<???{client}???>"
-        if request["type"] == "http":
-            method = request["method"]
-        else:
-            method = "GET"
-        query_string = request["query_string"].decode()
-        path_with_qs = request["path"] + ("?" + query_string if query_string else "")
+    _HEADER_ATOM_RE = re.compile(r"^\{(.+)\}([ioe])$")
 
-        status_code = "-"
-        status_phrase = "-"
-        if response is not None:
-            for name, value in response.get("headers", []):  # type: ignore
-                self[f"{{{name.decode('latin1').lower()}}}o"] = value.decode("latin1")  # type: ignore # noqa: E501
-            status_code = str(response["status"])
-            try:
-                status_phrase = HTTPStatus(response["status"]).phrase
-            except ValueError:
-                status_phrase = f"<???{status_code}???>"
-        self.update(
-            {
-                "h": remote_addr,
-                "l": "-",
-                "t": time.strftime("[%d/%b/%Y:%H:%M:%S %z]"),
-                "r": f"{method} {request['path']} {protocol}",
-                "R": f"{method} {path_with_qs} {protocol}",
-                "s": status_code,
-                "st": status_phrase,
-                "S": request["scheme"],
-                "m": method,
-                "U": request["path"],
-                "Uq": path_with_qs,
-                "q": query_string,
-                "H": protocol,
-                "b": self["{Content-Length}o"],
-                "B": self["{Content-Length}o"],
-                "f": self["{Referer}i"],
-                "a": self["{User-Agent}i"],
-                "T": int(request_time),
-                "D": int(request_time * 1_000_000),
-                "L": f"{request_time:.6f}",
-                "p": f"<{os.getpid()}>",
-            }
-        )
+    def __init__(
+        self,
+        request: WWWScope,
+        response: ResponseSummary | None,
+        request_time: float,
+        required_atoms: frozenset[str] | None = None,
+    ) -> None:
+        self._request = request
+        self._response = response
+        self._request_time = request_time
+        self._request_header_cache: dict[str, str] | None = None
+        self._response_header_cache: dict[str, str] | None = None
+        self._environ_cache: dict[str, str] | None = None
+        self._query_string: str | None = None
+        self._path_with_qs: str | None = None
+        self._status_code: str | None = None
+        self._status_phrase: str | None = None
+        if required_atoms is not None:
+            for atom in required_atoms:
+                value = self._compute(atom)
+                if value != "-":
+                    self[atom.lower() if atom.startswith("{") else atom] = value
 
     def __getitem__(self, key: str) -> str:
+        normalized_key = key.lower() if key.startswith("{") else key
         try:
-            if key.startswith("{"):
-                return super().__getitem__(key.lower())
-            else:
-                return super().__getitem__(key)
+            return super().__getitem__(normalized_key)
         except KeyError:
+            value = self._compute(normalized_key)
+            if value == "-":
+                return "-"
+            self[normalized_key] = value
+            return value
+
+    def _compute(self, key: str) -> str:
+        if key == "h":
+            client = self._request.get("client")
+            if client is None:
+                return "-"
+            if len(client) == 2:
+                return f"{client[0]}:{client[1]}"
+            if len(client) == 1:
+                return client[0]
+            return f"<???{client}???>"
+        if key == "l":
             return "-"
+        if key == "t":
+            return time.strftime("[%d/%b/%Y:%H:%M:%S %z]")
+        if key == "s":
+            return self._get_status_code()
+        if key == "st":
+            return self._get_status_phrase()
+        if key == "S":
+            return self._request["scheme"]
+        if key == "m":
+            return self._request["method"] if self._request["type"] == "http" else "GET"
+        if key == "U":
+            return self._request["path"]
+        if key == "q":
+            return self._get_query_string()
+        if key == "H":
+            return self._request.get("http_version", "ws")
+        if key == "r":
+            return f"{self['m']} {self._request['path']} {self['H']}"
+        if key == "R":
+            return f"{self['m']} {self._get_path_with_qs()} {self['H']}"
+        if key == "Uq":
+            return self._get_path_with_qs()
+        if key == "b" or key == "B":
+            return self["{Content-Length}o"]
+        if key == "f":
+            return self["{Referer}i"]
+        if key == "a":
+            return self["{User-Agent}i"]
+        if key == "T":
+            return str(int(self._request_time))
+        if key == "D":
+            return str(int(self._request_time * 1_000_000))
+        if key == "L":
+            return f"{self._request_time:.6f}"
+        if key == "p":
+            return f"<{os.getpid()}>"
+
+        match = self._HEADER_ATOM_RE.match(key)
+        if match is None:
+            return "-"
+
+        header_name, atom_type = match.groups()
+        if atom_type == "i":
+            return self._get_request_header(header_name)
+        if atom_type == "o":
+            return self._get_response_header(header_name)
+        if atom_type == "e":
+            return self._get_environ(header_name)
+        return "-"
+
+    def _get_query_string(self) -> str:
+        if self._query_string is None:
+            self._query_string = self._request["query_string"].decode()
+        return self._query_string
+
+    def _get_path_with_qs(self) -> str:
+        if self._path_with_qs is None:
+            query_string = self._get_query_string()
+            self._path_with_qs = self._request["path"] + (
+                "?" + query_string if query_string else ""
+            )
+        return self._path_with_qs
+
+    def _get_status_code(self) -> str:
+        if self._status_code is None:
+            self._status_code = "-" if self._response is None else str(self._response["status"])
+        return self._status_code
+
+    def _get_status_phrase(self) -> str:
+        if self._status_phrase is None:
+            status_code = self._get_status_code()
+            if status_code == "-":
+                self._status_phrase = "-"
+            else:
+                try:
+                    self._status_phrase = HTTPStatus(int(status_code)).phrase
+                except ValueError:
+                    self._status_phrase = f"<???{status_code}???>"
+        return self._status_phrase
+
+    def _get_request_header(self, name: str) -> str:
+        if self._request_header_cache is None:
+            self._request_header_cache = {
+                header_name.decode("latin1").lower(): value.decode("latin1")
+                for header_name, value in self._request["headers"]
+            }
+        return self._request_header_cache.get(name, "-")
+
+    def _get_response_header(self, name: str) -> str:
+        if self._response is None:
+            return "-"
+        if self._response_header_cache is None:
+            self._response_header_cache = {
+                header_name.decode("latin1").lower(): value.decode("latin1")
+                for header_name, value in self._response.get("headers", [])
+            }
+        return self._response_header_cache.get(name, "-")
+
+    def _get_environ(self, name: str) -> str:
+        if self._environ_cache is None:
+            self._environ_cache = {
+                env_name.lower(): value for env_name, value in os.environ.items()
+            }
+        return self._environ_cache.get(name, "-")

@@ -94,9 +94,11 @@ class Config:
     logger_class = Logger
     loglevel: str = "INFO"
     max_app_queue_size: int = 10
+    max_app_queue_bytes: int = 1024 * 1024 * BYTES
     max_requests: int | None = None
     max_requests_jitter: int = 0
     pid_path: str | None = None
+    quic_receive_queue_size: int = 128
     server_names: list[str] = []
     shutdown_timeout = 60 * SECONDS
     ssl_handshake_timeout = 60 * SECONDS
@@ -113,6 +115,11 @@ class Config:
     worker_class = "asyncio"
     workers = 1
     wsgi_max_body_size = 16 * 1024 * 1024 * BYTES
+    _date_header_cache: tuple[int, tuple[bytes, bytes]] | None = None
+    _response_headers_cache: (
+        dict[tuple[str, bool, tuple[str, ...], tuple[tuple, ...]], tuple[tuple[bytes, bytes], ...]]
+        | None
+    ) = None
 
     def set_cert_reqs(self, value: int) -> None:
         warnings.warn("Please use verify_mode instead", Warning)
@@ -285,20 +292,49 @@ class Config:
     def response_headers(self, protocol: str) -> list[tuple[bytes, bytes]]:
         headers = []
         if self.include_date_header:
-            headers.append((b"date", format_date_time(time()).encode("ascii")))
-        if self.include_server_header:
-            headers.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
+            headers.append(self._cached_date_header_value())
+        headers.extend(self._cached_static_response_headers(protocol))
+        return headers
 
-        for alt_svc_header in self.alt_svc_headers:
-            headers.append((b"alt-svc", alt_svc_header.encode()))
-        if len(self.alt_svc_headers) == 0 and self._quic_addresses:
-            from aioquic.h3.connection import H3_ALPN
+    def _cached_date_header_value(self) -> tuple[bytes, bytes]:
+        current_second = int(time())
+        if self._date_header_cache is None or self._date_header_cache[0] != current_second:
+            self._date_header_cache = (
+                current_second,
+                (b"date", format_date_time(current_second).encode("ascii")),
+            )
+        return self._date_header_cache[1]
 
-            for version in H3_ALPN:
-                for addr in self._quic_addresses:
-                    port = addr[1]
-                    headers.append((b"alt-svc", b'%s=":%d"; ma=3600' % (version.encode(), port)))
+    def _cached_static_response_headers(self, protocol: str) -> tuple[tuple[bytes, bytes], ...]:
+        cache_key = (
+            protocol,
+            self.include_server_header,
+            tuple(self.alt_svc_headers),
+            tuple(self._quic_addresses),
+        )
+        if self._response_headers_cache is None:
+            self._response_headers_cache = {}
 
+        headers = self._response_headers_cache.get(cache_key)
+        if headers is None:
+            headers_list = []
+            if self.include_server_header:
+                headers_list.append((b"server", f"hypercorn-{protocol}".encode("ascii")))
+
+            for alt_svc_header in self.alt_svc_headers:
+                headers_list.append((b"alt-svc", alt_svc_header.encode()))
+            if len(self.alt_svc_headers) == 0 and self._quic_addresses:
+                from aioquic.h3.connection import H3_ALPN
+
+                for version in H3_ALPN:
+                    for addr in self._quic_addresses:
+                        port = addr[1]
+                        headers_list.append(
+                            (b"alt-svc", b'%s=":%d"; ma=3600' % (version.encode(), port))
+                        )
+
+            headers = tuple(headers_list)
+            self._response_headers_cache[cache_key] = headers
         return headers
 
     def set_statsd_logger_class(self, statsd_logger: type[Logger]) -> None:
