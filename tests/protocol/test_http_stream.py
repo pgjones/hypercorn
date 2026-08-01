@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 from unittest.mock import AsyncMock, call
 
@@ -175,6 +176,44 @@ async def test_send_response(stream: HTTPStream) -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_response_close_race_logs_once(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[],
+            raw_path=b"/",
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    await stream.app_send(
+        cast(HTTPResponseStartEvent, {"type": "http.response.start", "status": 200, "headers": []})
+    )
+    end_body_started = asyncio.Event()
+    continue_send = asyncio.Event()
+
+    async def send(event: Any) -> None:
+        if isinstance(event, EndBody):
+            end_body_started.set()
+            await continue_send.wait()
+
+    stream.send = AsyncMock(side_effect=send)
+    send_task = asyncio.create_task(
+        stream.app_send(cast(HTTPResponseBodyEvent, {"type": "http.response.body", "body": b""}))
+    )
+    await end_body_started.wait()
+    await stream.handle(StreamClosed(stream_id=1))
+    continue_send.set()
+    await send_task
+
+    access = cast(AsyncMock, stream.config._log.access)
+    assert access.await_count == 1
+    assert access.await_args is not None
+    assert access.await_args.args[1] == stream.response
+
+
+@pytest.mark.asyncio
 async def test_invalid_server_name(stream: HTTPStream) -> None:
     stream.config.server_names = ["hypercorn"]
     await stream.handle(
@@ -199,6 +238,41 @@ async def test_invalid_server_name(stream: HTTPStream) -> None:
     ]
     # This shouldn't error
     await stream.handle(Body(stream_id=1, data=b"Body"))
+
+
+@pytest.mark.asyncio
+async def test_error_response_close_race_logs_once(stream: HTTPStream) -> None:
+    stream.config.server_names = ["hypercorn"]
+    response_started = asyncio.Event()
+    continue_send = asyncio.Event()
+
+    async def send(event: Any) -> None:
+        if isinstance(event, Response):
+            response_started.set()
+            await continue_send.wait()
+
+    stream.send = AsyncMock(side_effect=send)
+    send_task = asyncio.create_task(
+        stream.handle(
+            Request(
+                stream_id=1,
+                http_version="2",
+                headers=[(b"host", b"example.com")],
+                raw_path=b"/",
+                method="GET",
+                state=ConnectionState({}),
+            )
+        )
+    )
+    await response_started.wait()
+    await stream.handle(StreamClosed(stream_id=1))
+    continue_send.set()
+    await send_task
+
+    access = cast(AsyncMock, stream.config._log.access)
+    assert access.await_count == 1
+    assert access.await_args is not None
+    assert access.await_args.args[1] == {"status": 404, "headers": []}
 
 
 @pytest.mark.asyncio
