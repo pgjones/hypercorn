@@ -241,12 +241,13 @@ class HTTPStream:
                 raise UnexpectedMessageError(self.state, message["type"])
 
     async def _send_closed(self) -> None:
-        await self.send(EndBody(stream_id=self.stream_id))
         self.state = ASGIHTTPState.CLOSED
+        await self.send(EndBody(stream_id=self.stream_id))
         await self.config.log.access(self.scope, self.response, time() - self.start_time)
         await self.send(StreamClosed(stream_id=self.stream_id))
 
     async def _send_error_response(self, status_code: int) -> None:
+        self.state = ASGIHTTPState.CLOSED
         await self.send(
             Response(
                 stream_id=self.stream_id,
@@ -255,7 +256,6 @@ class HTTPStream:
             )
         )
         await self.send(EndBody(stream_id=self.stream_id))
-        self.state = ASGIHTTPState.CLOSED
         await self.config.log.access(
             self.scope, {"status": status_code, "headers": []}, time() - self.start_time
         )
