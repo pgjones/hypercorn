@@ -16,14 +16,19 @@ rare in practice with legacy proxies using a combination of
 ``X-Forwarded-Host``. It is important that you chose the correct mode
 (legacy, or modern) based on the proxy you use.
 
-To use the proxy fix middleware behind a single legacy proxy simply
-wrap your app and serve the wrapped app,
+To use the proxy fix middleware behind a single legacy proxy, wrap the
+complete ASGI application and serve the wrapped application,
 
 .. code-block:: python
 
     from hypercorn.middleware import ProxyFixMiddleware
 
     fixed_app = ProxyFixMiddleware(app, mode="legacy", trusted_hops=1)
+
+The proxy fix middleware must run before the wrapped framework. Do not
+register it through a framework's middleware API, such as
+``FastAPI.add_middleware`` or Starlette's ``middleware`` argument, because
+the framework may modify the ASGI scope before the proxy fix runs.
 
 .. warning::
 
@@ -32,7 +37,7 @@ wrap your app and serve the wrapped app,
     alternative for, proto, and host values. This can, depending on
     your usage in the app, lead to security vulnerabilities.
 
-The ``trusted_hops`` argument should be set to the number of proxies
-that are chained in front of Hypercorn. You should set this to how
-many proxies are setting the headers so the middleware knows what to
-trust.
+The ``trusted_hops`` argument must exactly match the number of proxies
+chained in front of Hypercorn that set the forwarding headers. If fewer
+values are present than ``trusted_hops``, the middleware ignores that
+header and leaves the corresponding ASGI scope value unchanged.
