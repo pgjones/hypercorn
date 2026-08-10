@@ -12,7 +12,7 @@ TLS settings
 The recommendations in this documentation for the SSL/TLS ciphers and
 version are from `RFC 7540 <https://tools.ietf.org/html/rfc7540>`_. As
 required in the RFC ``ECDHE+AESGCM`` is the minimal cipher set HTTP/2
-and TLSv2 the minimal TLS version servers should support. By default
+and TLS 1.2 the minimal TLS version servers should support. By default
 Hypercorn will use this as the cipher set.
 
 ALPN Protocol
