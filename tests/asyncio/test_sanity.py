@@ -203,6 +203,7 @@ async def test_http2_websocket() -> None:
         stream_id,
         [
             (":method", "CONNECT"),
+            (":protocol", "websocket"),
             (":path", "/"),
             (":authority", "hypercorn"),
             (":scheme", "https"),
