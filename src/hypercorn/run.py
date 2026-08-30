@@ -103,7 +103,8 @@ def run(config: Config) -> int:
         for process in processes:
             process.terminate()
 
-        exitcode = _join_exited(processes) if exitcode != 0 else exitcode
+        if exitcode != 0:
+            _join_exited(processes)
 
         for sock in sockets.secure_sockets:
             sock.close()
