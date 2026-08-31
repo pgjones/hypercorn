@@ -135,13 +135,15 @@ async def worker_serve(
         bind = repr_socket_addr(sock.family, sock.getsockname())
         await config.log.info(f"Running on http://{bind} (CTRL + C to quit)")
 
+    datagram_transports: list[asyncio.DatagramTransport] = []
     for sock in sockets.quic_sockets:
         if config.workers > 1 and platform.system() == "Windows":
             sock = _share_socket(sock)
 
-        _, protocol = await loop.create_datagram_endpoint(
+        transport, protocol = await loop.create_datagram_endpoint(
             lambda: UDPServer(app, loop, config, context, lifespan_state), sock=sock
         )
+        datagram_transports.append(transport)
         task = loop.create_task(protocol.run())
         server_tasks.add(task)
         task.add_done_callback(server_tasks.discard)
@@ -174,6 +176,12 @@ async def worker_serve(
             # Retrieve the Gathered Tasks Cancelled Exception, to
             # prevent a warning that this hasn't been done.
             gathered_server_tasks.exception()
+
+            # Datagram transports are not Servers and hence aren't closed
+            # by the server close above; without this they outlive the
+            # worker and are reported unclosed.
+            for transport in datagram_transports:
+                transport.close()
 
             await lifespan.wait_for_shutdown()
             lifespan_task.cancel()
