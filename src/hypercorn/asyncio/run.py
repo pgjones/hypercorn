@@ -228,9 +228,17 @@ def _run(
     shutdown_trigger: Callable[..., Awaitable[None]] | None = None,
     loop_factory: Callable[[], asyncio.AbstractEventLoop] | None = None,
 ) -> None:
+    async def wrapped(
+        shutdown_trigger: Callable[..., Awaitable[None]] | None = None,
+    ) -> None:
+        # Python 3.14 may eager-start the Runner task. Yield so
+        # wait_for, timeout, and TaskGroup see a current_task().
+        await asyncio.sleep(0)
+        await main(shutdown_trigger=shutdown_trigger)
+
     with Runner(debug=debug, loop_factory=loop_factory) as runner:
         runner.get_loop().set_exception_handler(_exception_handler)
-        runner.run(main(shutdown_trigger=shutdown_trigger))
+        runner.run(wrapped(shutdown_trigger=shutdown_trigger))
 
 
 def _exception_handler(loop: asyncio.AbstractEventLoop, context: dict) -> None:
