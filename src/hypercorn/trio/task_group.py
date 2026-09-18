@@ -27,6 +27,10 @@ async def _handle(
     try:
         await app(scope, receive, send, sync_spawn, call_soon)
     except trio.Cancelled:
+        try:
+            await send(None)
+        except Exception:
+            pass
         raise
     except BaseExceptionGroup as error:
         _, other_errors = error.split(trio.Cancelled)
@@ -37,7 +41,8 @@ async def _handle(
             raise
     except Exception:
         await config.log.exception("Error in ASGI Framework")
-    finally:
+        await send(None)
+    else:
         await send(None)
 
 

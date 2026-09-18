@@ -27,10 +27,15 @@ async def _handle(
     try:
         await app(scope, receive, send, sync_spawn, call_soon)
     except asyncio.CancelledError:
+        try:
+            await send(None)
+        except Exception:
+            pass
         raise
     except Exception:
         await config.log.exception("Error in ASGI Framework")
-    finally:
+        await send(None)
+    else:
         await send(None)
 
 

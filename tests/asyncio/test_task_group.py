@@ -43,3 +43,30 @@ async def test_spawn_app_error(http_scope: HTTPScope) -> None:
     async with TaskGroup(event_loop) as task_group:
         await task_group.spawn_app(ASGIWrapper(_error_app), Config(), http_scope, app_queue.put)
     assert (await app_queue.get()) is None
+
+
+@pytest.mark.asyncio
+async def test_handle_cancel_ignores_send_failure(http_scope: HTTPScope) -> None:
+    from hypercorn.asyncio.task_group import _handle
+
+    async def _hang_app(scope: Scope, receive: Callable, send: Callable) -> None:
+        await asyncio.Event().wait()
+
+    async def _failing_send(message: object) -> None:
+        raise AssertionError("cannot call write() after reset()")
+
+    task = asyncio.create_task(
+        _handle(
+            ASGIWrapper(_hang_app),
+            Config(),
+            http_scope,
+            None,  # type: ignore[arg-type]
+            _failing_send,
+            None,  # type: ignore[arg-type]
+            None,  # type: ignore[arg-type]
+        )
+    )
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
