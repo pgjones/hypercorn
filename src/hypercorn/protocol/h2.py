@@ -126,6 +126,10 @@ class H2Protocol:
     def idle(self) -> bool:
         return len(self.streams) == 0 or all(stream.idle for stream in self.streams.values())
 
+    @property
+    def _max_requests_reached(self) -> bool:
+        return self.keep_alive_requests >= self.config.keep_alive_max_requests
+
     async def initiate(
         self, headers: list[tuple[bytes, bytes]] | None = None, settings: bytes | None = None
     ) -> None:
@@ -225,10 +229,12 @@ class H2Protocol:
                 idle = len(self.streams) == 0 or all(
                     stream.idle for stream in self.streams.values()
                 )
-                if idle and self.context.terminated.is_set():
+                if idle and (self.context.terminated.is_set() or self._max_requests_reached):
                     self.connection.close_connection()
                     await self._flush()
-                await self.send(Updated(idle=idle))
+                    await self.send(Closed())
+                else:
+                    await self.send(Updated(idle=idle))
             elif isinstance(event, Request):
                 await self._create_server_push(event.stream_id, event.raw_path, event.headers)
         except (
@@ -252,9 +258,12 @@ class H2Protocol:
                 else:
                     await self._create_stream(event)
                     await self.send(Updated(idle=False))
-
-                if self.keep_alive_requests > self.config.keep_alive_max_requests:
-                    self.connection.close_connection()
+                    if self._max_requests_reached:
+                        # Stop the client opening further streams; the GOAWAY follows
+                        # once the streams in flight have completed, see stream_send.
+                        self.connection.update_settings(
+                            {h2.settings.SettingCodes.MAX_CONCURRENT_STREAMS: 0}
+                        )
             elif isinstance(event, h2.events.DataReceived):
                 await self.streams[event.stream_id].handle(
                     Body(stream_id=event.stream_id, data=event.data)
