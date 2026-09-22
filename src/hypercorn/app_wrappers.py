@@ -135,7 +135,7 @@ def _build_environ(scope: HTTPScope, body: bytes) -> dict:
         "REQUEST_METHOD": scope["method"],
         "SCRIPT_NAME": script_name.encode("utf8").decode("latin1"),
         "PATH_INFO": path.encode("utf8").decode("latin1"),
-        "QUERY_STRING": scope["query_string"].decode("ascii"),
+        "QUERY_STRING": scope["query_string"].decode("latin-1"),
         "SERVER_NAME": server[0],
         "SERVER_PORT": server[1],
         "SERVER_PROTOCOL": "HTTP/%s" % scope["http_version"],

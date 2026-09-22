@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from enum import auto, Enum
 from time import time
-from urllib.parse import unquote
 
 from .events import (
     Body,
+    decode_path,
     EndBody,
     Event,
     InformationalResponse,
@@ -90,7 +90,7 @@ class HTTPStream:
                 "asgi": {"spec_version": "2.1", "version": "3.0"},
                 "method": event.method,
                 "scheme": self.scheme,
-                "path": unquote(path.decode("ascii")),
+                "path": decode_path(path),
                 "raw_path": path,
                 "query_string": query_string,
                 "root_path": self.config.root_path,

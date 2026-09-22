@@ -187,6 +187,27 @@ def test_build_environ_encoding() -> None:
     assert environ["PATH_INFO"] == "/文".encode().decode("latin-1")
 
 
+def test_build_environ_non_ascii_query_string() -> None:
+    scope: HTTPScope = {
+        "http_version": "1.1",
+        "asgi": {},
+        "method": "GET",
+        "headers": [],
+        "path": "/",
+        "root_path": "",
+        "query_string": "q=é".encode(),
+        "raw_path": b"/",
+        "scheme": "http",
+        "type": "http",
+        "client": None,
+        "server": None,
+        "extensions": {},
+        "state": ConnectionState({}),
+    }
+    environ = _build_environ(scope, b"")
+    assert environ["QUERY_STRING"].encode("latin-1") == scope["query_string"]
+
+
 def test_build_environ_root_path() -> None:
     scope: HTTPScope = {
         "http_version": "1.0",

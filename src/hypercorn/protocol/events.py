@@ -1,8 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import unquote
 
 from hypercorn.typing import ConnectionState
+
+
+def decode_path(raw: bytes) -> str:
+    """Decode a request path for an ASGI scope.
+
+    Percent-encoded UTF-8 is ASCII until ``unquote``. Raw UTF-8 decodes as
+    UTF-8. Anything else falls back to latin-1 so one high byte does not
+    raise out of the protocol parser.
+    """
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+    return unquote(text)
 
 
 @dataclass(frozen=True)

@@ -73,6 +73,41 @@ async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> N
 
 
 @pytest.mark.asyncio
+async def test_handle_request_non_ascii_path(stream: HTTPStream) -> None:
+    raw_path = "/café".encode()
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="1.1",
+            headers=[],
+            raw_path=raw_path,
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
+    assert scope["path"] == "/café"
+    assert scope["raw_path"] == raw_path
+
+
+@pytest.mark.asyncio
+async def test_handle_request_percent_encoded_path(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="1.1",
+            headers=[],
+            raw_path=b"/%E4%B8%AD",
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
+    assert scope["path"] == "/中"
+    assert scope["raw_path"] == b"/%E4%B8%AD"
+
+
+@pytest.mark.asyncio
 async def test_handle_request_http_2(stream: HTTPStream) -> None:
     await stream.handle(
         Request(

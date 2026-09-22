@@ -4,7 +4,6 @@ from collections.abc import Awaitable, Callable, Iterable
 from enum import auto, Enum
 from io import BytesIO, StringIO
 from time import time
-from urllib.parse import unquote
 
 from wsproto.connection import Connection, ConnectionState, ConnectionType
 from wsproto.events import (
@@ -20,7 +19,7 @@ from wsproto.frame_protocol import CloseReason
 from wsproto.handshake import server_extensions_handshake, WEBSOCKET_VERSION
 from wsproto.utilities import generate_accept_token, LocalProtocolError, split_comma_header
 
-from .events import Body, Data, EndBody, EndData, Event, Request, Response, StreamClosed
+from .events import Body, Data, decode_path, EndBody, EndData, Event, Request, Response, StreamClosed
 from ..config import Config
 from ..typing import (
     AppWrapper,
@@ -212,7 +211,7 @@ class WSStream:
                 "asgi": {"spec_version": "2.3", "version": "3.0"},
                 "scheme": self.scheme,
                 "http_version": event.http_version,
-                "path": unquote(path.decode("ascii")),
+                "path": decode_path(path),
                 "raw_path": path,
                 "query_string": query_string,
                 "root_path": self.config.root_path,
