@@ -66,7 +66,13 @@ p            process ID
 {Header}i    request header
 {Header}o    response header
 {Variable}e  environment variable
+{Variable}s  string or byte value from the ASGI scope
 ===========  ===========
+
+For example, ``%({myapp.trace_id}s)s`` logs a trace ID added to the
+request's ASGI scope by the application. Byte values are decoded as
+Latin-1; other value types and missing keys appear as ``-``. The
+``{Variable}e`` atom continues to read process environment variables.
 
 Customising the logger
 ----------------------
