@@ -140,6 +140,11 @@ class AccessLogAtoms(dict):
             self[f"{{{name.decode('latin1').lower()}}}i"] = value.decode("latin1")
         for name, value in os.environ.items():
             self[f"{{{name.lower()}}}e"] = value
+        for name, value in request.items():
+            if isinstance(value, str):
+                self[f"{{{name.lower()}}}s"] = value
+            elif isinstance(value, bytes):
+                self[f"{{{name.lower()}}}s"] = value.decode("latin1")
         protocol = request.get("http_version", "ws")
         client = request.get("client")
         if client is None:

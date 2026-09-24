@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from typing import cast
 
 import pytest
 
@@ -108,6 +109,29 @@ def test_access_log_environ_atoms(http_scope: HTTPScope, response: ResponseSumma
     os.environ["Random"] = "Environ"
     atoms = AccessLogAtoms(http_scope, response, 0)
     assert atoms["{random}e"] == "Environ"
+
+
+def test_access_log_scope_atoms(
+    http_scope: HTTPScope, response: ResponseSummary, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MYAPP_TRACE_ID", "process-value")
+    scope = cast(
+        HTTPScope,
+        {
+            **http_scope,
+            "myapp_trace_id": "request-value",
+            "myapp_bytes": b"binary-\xff",
+            "myapp_object": object(),
+        },
+    )
+
+    atoms = AccessLogAtoms(scope, response, 0)
+
+    assert atoms["{MYAPP_TRACE_ID}s"] == "request-value"
+    assert "%({myapp_trace_id}s)s" % atoms == "request-value"
+    assert atoms["{myapp_bytes}s"] == "binary-\xff"
+    assert atoms["{myapp_object}s"] == "-"
+    assert atoms["{myapp_trace_id}e"] == "process-value"
 
 
 def test_nonstandard_status_code(http_scope: HTTPScope) -> None:
