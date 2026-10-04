@@ -83,3 +83,28 @@ def test_verify_mode_conversion(monkeypatch: MonkeyPatch) -> None:
 
     hypercorn.__main__.main(["--verify-mode", "CERT_REQUIRED", "asgi:App"])
     run_multiple.assert_called()
+
+
+def test_statsd_prefix_preserves_config_file(tmp_path, monkeypatch: MonkeyPatch) -> None:
+    """CLI default must not wipe statsd_prefix loaded from a config file (#382)."""
+    run_multiple = Mock()
+    monkeypatch.setattr(hypercorn.__main__, "run", run_multiple)
+    cfg = tmp_path / "statsd_config.py"
+    cfg.write_text('statsd_prefix = "myapp."\n')
+    hypercorn.__main__.main(["--config", f"file:{cfg}", "asgi:App"])
+    run_multiple.assert_called()
+    config = run_multiple.call_args_list[0][0][0]
+    assert config.statsd_prefix == "myapp."
+
+
+def test_statsd_prefix_cli_overrides_config(tmp_path, monkeypatch: MonkeyPatch) -> None:
+    run_multiple = Mock()
+    monkeypatch.setattr(hypercorn.__main__, "run", run_multiple)
+    cfg = tmp_path / "statsd_config.py"
+    cfg.write_text('statsd_prefix = "myapp."\n')
+    hypercorn.__main__.main(
+        ["--config", f"file:{cfg}", "--statsd-prefix", "cli.", "asgi:App"]
+    )
+    run_multiple.assert_called()
+    config = run_multiple.call_args_list[0][0][0]
+    assert config.statsd_prefix == "cli."

@@ -182,7 +182,7 @@ def main(sys_args: list[str] | None = None) -> int:
     parser.add_argument(
         "--statsd-host", help="The host:port of the statsd server", default=sentinel
     )
-    parser.add_argument("--statsd-prefix", help="Prefix for all statsd messages", default="")
+    parser.add_argument("--statsd-prefix", help="Prefix for all statsd messages", default=sentinel)
     parser.add_argument(
         "-m",
         "--umask",
