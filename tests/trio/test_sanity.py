@@ -175,9 +175,10 @@ async def test_http2_websocket(nursery: trio._core._run.Nursery) -> None:
         stream_id,
         [
             (":method", "CONNECT"),
-            (":path", "/"),
-            (":authority", "hypercorn"),
+            (":protocol", "websocket"),
             (":scheme", "https"),
+            (":authority", "hypercorn"),
+            (":path", "/"),
             ("sec-websocket-version", "13"),
         ],
     )

@@ -23,6 +23,11 @@ raise an exception. This exception is caught and a Closed event is
 sent to the protocol. The protocol should then send each stream a
 StreamClosed event and delete the stream.
 
+For HTTP/3, a QUIC stream reset closes the affected request stream. A
+QUIC connection termination closes each active request stream. Both
+events are passed to the stream so the ASGI application receives its
+``http.disconnect`` message.
+
 Server disconnection
 --------------------
 

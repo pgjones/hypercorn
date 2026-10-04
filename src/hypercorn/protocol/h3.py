@@ -6,7 +6,7 @@ from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.h3.exceptions import NoAvailablePushIDError
 from aioquic.quic.connection import QuicConnection
-from aioquic.quic.events import QuicEvent
+from aioquic.quic.events import ConnectionTerminated, QuicEvent, StopSendingReceived, StreamReset
 
 from .events import (
     Body,
@@ -52,6 +52,14 @@ class H3Protocol:
         self.state = state
 
     async def handle(self, quic_event: QuicEvent) -> None:
+        if isinstance(quic_event, ConnectionTerminated):
+            for stream_id in list(self.streams):
+                await self._close_stream(stream_id)
+            return
+        elif isinstance(quic_event, (StreamReset, StopSendingReceived)):
+            await self._close_stream(quic_event.stream_id)
+            return
+
         for event in self.connection.handle_event(quic_event):
             if isinstance(event, HeadersReceived):
                 if not self.context.terminated.is_set():
@@ -66,6 +74,11 @@ class H3Protocol:
                 )
                 if event.stream_ended:
                     await self.streams[event.stream_id].handle(EndBody(stream_id=event.stream_id))
+
+    async def _close_stream(self, stream_id: int) -> None:
+        stream = self.streams.pop(stream_id, None)
+        if stream is not None:
+            await stream.handle(StreamClosed(stream_id=stream_id))
 
     async def stream_send(self, event: StreamEvent) -> None:
         if isinstance(event, (InformationalResponse, Response)):
@@ -86,7 +99,7 @@ class H3Protocol:
             self.connection.send_headers(event.stream_id, event.headers)
             await self.send()
         elif isinstance(event, StreamClosed):
-            self.streams.pop(event.stream_id, None)
+            await self._close_stream(event.stream_id)
         elif isinstance(event, Request):
             await self._create_server_push(event.stream_id, event.raw_path, event.headers)
 
