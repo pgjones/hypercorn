@@ -100,8 +100,7 @@ def run(config: Config) -> int:
                 shutdown_event.set()
                 active = False
 
-        for process in processes:
-            process.terminate()
+        _drain(processes)
 
         exitcode = _join_exited(processes) if exitcode != 0 else exitcode
 
@@ -137,6 +136,19 @@ def _populate(
         processes.append(process)
         if platform.system() == "Windows":
             time.sleep(0.1)
+
+
+def _drain(processes: list[BaseProcess]) -> None:
+    """Wait for the workers to exit gracefully.
+
+    On SIGTERM/SIGINT the master used to ``terminate()`` the workers still
+    processing requests as soon as an idle worker exited, cutting off
+    in-flight requests. Workers instead need to finish their own shutdown
+    (bounded on their side by ``config.graceful_timeout``), so the master
+    waits for them to exit on their own (see #386).
+    """
+    for process in processes:
+        process.join()
 
 
 def _join_exited(processes: list[BaseProcess]) -> int:

@@ -1,3 +1,9 @@
+0.18.1 (unreleased)
+-----------------
+
+* Bugfix the master process does not terminate workers still serving in-flight
+  requests when another worker exits on SIGTERM/SIGINT.
+
 0.18.0 2025-11-08
 -----------------
 
