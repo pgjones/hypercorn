@@ -163,8 +163,11 @@ async def worker_serve(
 
         for server in servers:
             server.close()
-            await server.wait_closed()
 
+        # The connections are given graceful_timeout to finish, then
+        # cancelled. Server.wait_closed waits for every connection on
+        # Python 3.12+, so it must not be awaited before this, or a client
+        # that holds its connection open delays shutdown without bound.
         try:
             gathered_server_tasks = asyncio.gather(*server_tasks)
             await asyncio.wait_for(gathered_server_tasks, config.graceful_timeout)
@@ -174,6 +177,16 @@ async def worker_serve(
             # Retrieve the Gathered Tasks Cancelled Exception, to
             # prevent a warning that this hasn't been done.
             gathered_server_tasks.exception()
+
+            # A connection still attached never reached the server callback,
+            # for example one that has not completed its TLS handshake.
+            for server in servers:
+                if hasattr(server, "abort_clients"):  # Python 3.13+
+                    server.abort_clients()
+                try:
+                    await asyncio.wait_for(server.wait_closed(), config.graceful_timeout)
+                except asyncio.TimeoutError:
+                    pass
 
             await lifespan.wait_for_shutdown()
             lifespan_task.cancel()
