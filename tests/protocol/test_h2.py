@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, call, Mock
 
 import pytest
 from h2.connection import H2Connection
-from h2.events import ConnectionTerminated
+from h2.events import ConnectionTerminated, WindowUpdated
 
 from hypercorn.asyncio.worker_context import EventWrapper, WorkerContext
 from hypercorn.config import Config
@@ -116,3 +116,44 @@ async def test_protocol_keep_alive_max_requests() -> None:
     protocol.send.assert_awaited()  # type: ignore
     events = client.receive_data(protocol.send.call_args_list[1].args[0].data)  # type: ignore
     assert isinstance(events[-1], ConnectionTerminated)
+
+
+@pytest.mark.asyncio
+async def test_protocol_data_received_after_stream_closed() -> None:
+    protocol = H2Protocol(
+        Mock(),
+        Config(),
+        WorkerContext(None),
+        AsyncMock(),
+        ConnectionState({}),
+        False,
+        None,
+        None,
+        AsyncMock(),
+    )
+    client = H2Connection()
+    client.initiate_connection()
+    headers = [
+        (":method", "POST"),
+        (":path", "/"),
+        (":authority", "hypercorn"),
+        (":scheme", "https"),
+    ]
+    client.send_headers(1, headers)
+    await protocol.handle(RawData(data=client.data_to_send()))
+    # The app responded before reading the request body, so the stream is gone
+    await protocol._close_stream(1)
+    protocol.send.reset_mock()  # type: ignore
+
+    for _ in range(3):
+        client.send_data(1, b"a" * client.max_outbound_frame_size)
+    await protocol.handle(RawData(data=client.data_to_send()))
+
+    # The dropped data is still acknowledged, so the connection window is restored
+    data = b"".join(
+        call.args[0].data
+        for call in protocol.send.call_args_list  # type: ignore
+        if isinstance(call.args[0], RawData)
+    )
+    events = client.receive_data(data)
+    assert any(isinstance(event, WindowUpdated) and event.stream_id == 0 for event in events)
