@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import gc
 import os
 import socket
 import ssl
 import sys
+import warnings
 from unittest.mock import Mock, NonCallableMock
 
 import pytest
@@ -141,6 +143,39 @@ def test_create_sockets_multiple(monkeypatch: MonkeyPatch) -> None:
     config.bind = ["127.0.0.1", "unix:/tmp/hypercorn.sock"]
     sockets = config.create_sockets()
     assert len(sockets.insecure_sockets) == 2
+
+
+def test_create_sockets_closes_on_bind_failure() -> None:
+    occupied = socket.create_server(("127.0.0.1", 0))
+    config = Config()
+    config.bind = [f"127.0.0.1:{occupied.getsockname()[1]}"]
+    try:
+        with pytest.raises(OSError):
+            config.create_sockets()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ResourceWarning)
+            gc.collect()
+        assert not any(issubclass(w.category, ResourceWarning) for w in caught)
+    finally:
+        occupied.close()
+
+
+def test_create_sockets_closes_earlier_binds_on_later_failure() -> None:
+    occupied = socket.create_server(("127.0.0.1", 0))
+    free = socket.create_server(("127.0.0.1", 0))
+    free_port = free.getsockname()[1]
+    free.close()
+    config = Config()
+    config.bind = [f"127.0.0.1:{free_port}", f"127.0.0.1:{occupied.getsockname()[1]}"]
+    try:
+        with pytest.raises(OSError):
+            config.create_sockets()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ResourceWarning)
+            gc.collect()
+        assert not any(issubclass(w.category, ResourceWarning) for w in caught)
+    finally:
+        occupied.close()
 
 
 def test_response_headers(monkeypatch: MonkeyPatch) -> None:
