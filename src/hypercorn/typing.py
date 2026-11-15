@@ -312,6 +312,17 @@ class WorkerContext(Protocol):
         pass
 
 
+class AppQueue(Protocol):
+    async def __call__(self, message: ASGIReceiveEvent) -> None:
+        pass
+
+    async def disconnect(self) -> None:
+        pass
+
+    async def finish(self) -> None:
+        pass
+
+
 class TaskGroup(Protocol):
     async def spawn_app(
         self,
@@ -319,7 +330,7 @@ class TaskGroup(Protocol):
         config: Config,
         scope: Scope,
         send: Callable[[ASGISendEvent | None], Awaitable[None]],
-    ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
+    ) -> AppQueue:
         pass
 
     def spawn(self, func: Callable, *args: Any) -> None:

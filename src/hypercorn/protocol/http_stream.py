@@ -118,18 +118,18 @@ class HTTPStream:
                 await self._send_error_response(404)
                 self.closed = True
 
-        elif isinstance(event, Body):
+        elif isinstance(event, Body) and self.state != ASGIHTTPState.CLOSED:
             await self.app_put(
                 {"type": "http.request", "body": bytes(event.data), "more_body": True}
             )
-        elif isinstance(event, EndBody):
+        elif isinstance(event, EndBody) and self.state != ASGIHTTPState.CLOSED:
             await self.app_put({"type": "http.request", "body": b"", "more_body": False})
         elif isinstance(event, StreamClosed):
             self.closed = True
             if self.state != ASGIHTTPState.CLOSED:
                 await self.config.log.access(self.scope, None, time() - self.start_time)
             if self.app_put is not None:
-                await self.app_put({"type": "http.disconnect"})
+                await self.app_put.disconnect()
 
     async def app_send(self, message: ASGISendEvent | None) -> None:
         if message is None:  # ASGI App has finished sending messages
@@ -137,6 +137,7 @@ class HTTPStream:
                 # Cleanup if required
                 if self.state == ASGIHTTPState.REQUEST:
                     await self._send_error_response(500)
+                await self.app_put.finish()
                 await self.send(StreamClosed(stream_id=self.stream_id))
         else:
             if message["type"] == "http.response.start" and self.state == ASGIHTTPState.REQUEST:
@@ -241,6 +242,7 @@ class HTTPStream:
                 raise UnexpectedMessageError(self.state, message["type"])
 
     async def _send_closed(self) -> None:
+        await self.app_put.finish()
         await self.send(EndBody(stream_id=self.stream_id))
         self.state = ASGIHTTPState.CLOSED
         await self.config.log.access(self.scope, self.response, time() - self.start_time)

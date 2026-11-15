@@ -6,8 +6,9 @@ from functools import partial
 from types import TracebackType
 from typing import Any
 
+from ..app_queue import AppQueue
 from ..config import Config
-from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+from ..typing import AppWrapper, ASGIReceiveCallable, ASGISendEvent, Scope
 
 try:
     from asyncio import TaskGroup as AsyncioTaskGroup
@@ -45,8 +46,8 @@ class TaskGroup:
         config: Config,
         scope: Scope,
         send: Callable[[ASGISendEvent | None], Awaitable[None]],
-    ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
-        app_queue: asyncio.Queue[ASGIReceiveEvent] = asyncio.Queue(config.max_app_queue_size)
+    ) -> AppQueue:
+        app_queue = AppQueue(config.max_app_queue_size, asyncio.Condition())
 
         def _call_soon(func: Callable, *args: Any) -> Any:
             future = asyncio.run_coroutine_threadsafe(func(*args), self._loop)
@@ -57,12 +58,12 @@ class TaskGroup:
             app,
             config,
             scope,
-            app_queue.get,
+            app_queue.receive,
             send,
             partial(self._loop.run_in_executor, None),
             _call_soon,
         )
-        return app_queue.put
+        return app_queue
 
     def spawn(self, func: Callable, *args: Any) -> None:
         self._task_group.create_task(func(*args))
