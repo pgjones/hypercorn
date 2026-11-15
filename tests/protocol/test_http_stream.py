@@ -140,8 +140,7 @@ async def test_handle_closed(stream: HTTPStream) -> None:
         )
     )
     await stream.handle(StreamClosed(stream_id=1))
-    stream.app_put.assert_called()  # type: ignore
-    assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]  # type: ignore
+    stream.app_put.disconnect.assert_awaited_once()  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -399,9 +398,8 @@ async def test_closure(stream: HTTPStream) -> None:
     assert stream.closed
     await stream.handle(StreamClosed(stream_id=1))
     assert stream.closed
-    # It is important that the disconnect message has only been sent
-    # once.
-    assert stream.app_put.call_args_list == [call({"type": "http.disconnect"})]
+    # Disconnect state must be delivered exactly once.
+    stream.app_put.disconnect.assert_awaited_once()
 
 
 @pytest.mark.asyncio

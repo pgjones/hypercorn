@@ -8,8 +8,9 @@ from typing import Any
 
 import trio
 
+from ..app_queue import AppQueue
 from ..config import Config
-from ..typing import AppWrapper, ASGIReceiveCallable, ASGIReceiveEvent, ASGISendEvent, Scope
+from ..typing import AppWrapper, ASGIReceiveCallable, ASGISendEvent, Scope
 
 if sys.version_info < (3, 11):
     from exceptiongroup import BaseExceptionGroup
@@ -52,21 +53,23 @@ class TaskGroup:
         config: Config,
         scope: Scope,
         send: Callable[[ASGISendEvent | None], Awaitable[None]],
-    ) -> Callable[[ASGIReceiveEvent], Awaitable[None]]:
-        app_send_channel, app_receive_channel = trio.open_memory_channel[ASGIReceiveEvent](
-            config.max_app_queue_size
+    ) -> AppQueue:
+        app_queue = AppQueue(
+            config.max_app_queue_size,
+            trio.Condition(),
+            rendezvous=config.max_app_queue_size == 0,
         )
         self._nursery.start_soon(
             _handle,
             app,
             config,
             scope,
-            app_receive_channel.receive,
+            app_queue.receive,
             send,
             trio.to_thread.run_sync,
             trio.from_thread.run,
         )
-        return app_send_channel.send
+        return app_queue
 
     def spawn(self, func: Callable, *args: Any) -> None:
         self._nursery.start_soon(func, *args)
