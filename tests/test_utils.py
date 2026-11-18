@@ -10,6 +10,7 @@ from hypercorn.utils import (
     build_and_validate_headers,
     filter_pseudo_headers,
     is_asgi,
+    reduce_target_to_origin_form,
     suppress_body,
 )
 
@@ -80,3 +81,21 @@ def test_filter_pseudo_headers_no_authority() -> None:
         [(b"host", b"quart"), (b":path", b"/"), (b"user-agent", b"something")]
     )
     assert result == [(b"host", b"quart"), (b"user-agent", b"something")]
+
+
+@pytest.mark.parametrize(
+    "target, expected",
+    [
+        (b"/?a=b", b"/?a=b"),  # origin-form is unchanged
+        (b"/a://b", b"/a://b"),  # origin-form may contain "://"
+        (b"*", b"*"),  # asterisk-form is unchanged
+        (b"example.org:443", b"example.org:443"),  # authority-form is unchanged
+        (b"http://example.org/?a=b", b"/?a=b"),
+        (b"http://example.org", b"/"),  # an empty path is equivalent to "/"
+        (b"http://example.org?a=b", b"/?a=b"),
+        (b"https://user@example.org:8080/path%20x?q=1", b"/path%20x?q=1"),
+        (b"HTTP://EXAMPLE.ORG/Path", b"/Path"),  # the scheme is case-insensitive
+    ],
+)
+def test_reduce_target_to_origin_form(target: bytes, expected: bytes) -> None:
+    assert reduce_target_to_origin_form(target) == expected
