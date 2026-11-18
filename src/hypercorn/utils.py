@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 import os
 import socket
 import sys
@@ -51,6 +52,24 @@ class FrameTooLargeError(Exception):
 
 def suppress_body(method: str, status_code: int) -> bool:
     return method == "HEAD" or 100 <= status_code < 200 or status_code in {204, 304}
+
+
+ABSOLUTE_FORM_REGEX = re.compile(rb"^[a-zA-Z][a-zA-Z0-9+.-]*://[^/?#]*")
+
+
+def reduce_target_to_origin_form(target: bytes) -> bytes:
+    # RFC 9112 Section 3.2.2 requires a server to accept the
+    # absolute-form of a request target, with the origin-form being the
+    # equivalent target for the ASGI scope. An empty path is equivalent
+    # to "/" (RFC 9112 Section 3.2.1). Origin-form, asterisk-form and
+    # authority-form targets are returned unchanged.
+    match = ABSOLUTE_FORM_REGEX.match(target)
+    if match is None:
+        return target
+    remainder = target[match.end() :]
+    if remainder.startswith(b"/"):
+        return remainder
+    return b"/" + remainder
 
 
 def build_and_validate_headers(headers: Iterable[tuple[bytes, bytes]]) -> list[tuple[bytes, bytes]]:

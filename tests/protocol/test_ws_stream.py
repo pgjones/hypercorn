@@ -168,6 +168,38 @@ async def _stream() -> WSStream:
     return stream
 
 
+@pytest.mark.parametrize(
+    "raw_path, path, reduced_raw_path, query_string",
+    [
+        (b"http://example.org/ws?a=b", "/ws", b"/ws", b"a=b"),
+        (b"http://example.org", "/", b"/", b""),
+        (b"/?a=b", "/", b"/", b"a=b"),  # origin-form is unchanged
+    ],
+)
+@pytest.mark.asyncio
+async def test_handle_request_absolute_form_target(
+    stream: WSStream, raw_path: bytes, path: str, reduced_raw_path: bytes, query_string: bytes
+) -> None:
+    # RFC 9112 Section 3.2.2 requires a server to accept the
+    # absolute-form of a request target, including on the WebSocket
+    # handshake.
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="2",
+            headers=[(b"sec-websocket-version", b"13")],
+            raw_path=raw_path,
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    stream.task_group.spawn_app.assert_called()  # type: ignore
+    scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
+    assert scope["path"] == path
+    assert scope["raw_path"] == reduced_raw_path
+    assert scope["query_string"] == query_string
+
+
 @pytest.mark.asyncio
 async def test_handle_request(stream: WSStream) -> None:
     await stream.handle(

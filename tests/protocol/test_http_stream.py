@@ -72,6 +72,40 @@ async def test_handle_request_http_1(stream: HTTPStream, http_version: str) -> N
     }
 
 
+@pytest.mark.parametrize(
+    "raw_path, path, reduced_raw_path, query_string",
+    [
+        (b"http://example.org/?a=b", "/", b"/", b"a=b"),
+        (b"http://example.org", "/", b"/", b""),
+        (b"http://example.org?a=b", "/", b"/", b"a=b"),
+        (b"https://user@example.org:8080/path?a=b", "/path", b"/path", b"a=b"),
+        (b"/?a=b", "/", b"/", b"a=b"),  # origin-form is unchanged
+        (b"*", "*", b"*", b""),  # asterisk-form is unchanged
+    ],
+)
+@pytest.mark.asyncio
+async def test_handle_request_absolute_form_target(
+    stream: HTTPStream, raw_path: bytes, path: str, reduced_raw_path: bytes, query_string: bytes
+) -> None:
+    # RFC 9112 Section 3.2.2 requires a server to accept the
+    # absolute-form of a request target.
+    await stream.handle(
+        Request(
+            stream_id=1,
+            http_version="1.1",
+            headers=[],
+            raw_path=raw_path,
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    stream.task_group.spawn_app.assert_called()  # type: ignore
+    scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
+    assert scope["path"] == path
+    assert scope["raw_path"] == reduced_raw_path
+    assert scope["query_string"] == query_string
+
+
 @pytest.mark.asyncio
 async def test_handle_request_http_2(stream: HTTPStream) -> None:
     await stream.handle(

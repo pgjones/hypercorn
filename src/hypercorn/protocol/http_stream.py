@@ -26,6 +26,7 @@ from ..typing import (
 )
 from ..utils import (
     build_and_validate_headers,
+    reduce_target_to_origin_form,
     suppress_body,
     UnexpectedMessageError,
     valid_server_name,
@@ -83,7 +84,7 @@ class HTTPStream:
             return
         elif isinstance(event, Request):
             self.start_time = time()
-            path, _, query_string = event.raw_path.partition(b"?")
+            path, _, query_string = reduce_target_to_origin_form(event.raw_path).partition(b"?")
             self.scope = {
                 "type": "http",
                 "http_version": event.http_version,
