@@ -28,7 +28,7 @@ from ..typing import AppWrapper, ConnectionState, Event as IOEvent, TaskGroup, W
 from ..utils import filter_pseudo_headers
 
 BUFFER_HIGH_WATER = 2 * 2**14  # Twice the default max frame size (two frames worth)
-BUFFER_LOW_WATER = BUFFER_HIGH_WATER / 2
+BUFFER_LOW_WATER = BUFFER_HIGH_WATER // 2
 
 
 class BufferCompleteError(Exception):
@@ -71,7 +71,7 @@ class StreamBuffer:
         length = min(len(self.buffer), max_length)
         data = bytes(self.buffer[:length])
         del self.buffer[:length]
-        if len(data) < BUFFER_LOW_WATER:
+        if len(self.buffer) < BUFFER_LOW_WATER:
             await self._paused.set()
         if len(self.buffer) == 0:
             await self._is_empty.set()

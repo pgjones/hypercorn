@@ -10,7 +10,13 @@ from h2.events import ConnectionTerminated
 from hypercorn.asyncio.worker_context import EventWrapper, WorkerContext
 from hypercorn.config import Config
 from hypercorn.events import Closed, RawData
-from hypercorn.protocol.h2 import BUFFER_HIGH_WATER, BufferCompleteError, H2Protocol, StreamBuffer
+from hypercorn.protocol.h2 import (
+    BUFFER_HIGH_WATER,
+    BUFFER_LOW_WATER,
+    BufferCompleteError,
+    H2Protocol,
+    StreamBuffer,
+)
 from hypercorn.typing import ConnectionState
 
 
@@ -25,11 +31,30 @@ async def test_stream_buffer_push_and_pop() -> None:
         return True
 
     task = event_loop.create_task(_push_over_limit())
+    await asyncio.sleep(0)  # Allow the push to run
     assert not task.done()  # Blocked as over high water
     await stream_buffer.pop(BUFFER_HIGH_WATER // 4)
+    await asyncio.sleep(0)
     assert not task.done()  # Blocked as over low water
-    await stream_buffer.pop(BUFFER_HIGH_WATER // 4)
+    await stream_buffer.pop(BUFFER_HIGH_WATER // 2)
     assert (await task) is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("first_pop", [0, BUFFER_HIGH_WATER // 4, BUFFER_LOW_WATER - 1])
+async def test_stream_buffer_push_blocks_until_below_low_water(first_pop: int) -> None:
+    stream_buffer = StreamBuffer(EventWrapper)
+    task = asyncio.create_task(stream_buffer.push(b"a" * (BUFFER_HIGH_WATER + 1)))
+    await asyncio.sleep(0)
+    assert not task.done()  # Over high water
+
+    await stream_buffer.pop(first_pop)
+    await stream_buffer.pop(len(stream_buffer.buffer) - BUFFER_LOW_WATER)
+    await asyncio.sleep(0)
+    assert not task.done()  # Exactly at low water
+
+    await stream_buffer.pop(1)
+    await task  # Below low water
 
 
 @pytest.mark.asyncio
