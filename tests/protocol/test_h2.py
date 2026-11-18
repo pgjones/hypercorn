@@ -58,6 +58,19 @@ async def test_stream_buffer_push_blocks_until_below_low_water(first_pop: int) -
 
 
 @pytest.mark.asyncio
+async def test_stream_buffer_push_blocked_after_previous_drain() -> None:
+    stream_buffer = StreamBuffer(EventWrapper)
+    await stream_buffer.push(b"a" * 10)
+    await stream_buffer.pop(10)  # Drained below low water with no producer waiting
+
+    task = asyncio.create_task(stream_buffer.push(b"a" * (4 * BUFFER_HIGH_WATER)))
+    await asyncio.sleep(0)
+    assert not task.done()  # A stale resume signal must not bypass the high water mark
+    await stream_buffer.pop(4 * BUFFER_HIGH_WATER)
+    await task
+
+
+@pytest.mark.asyncio
 async def test_stream_buffer_drain() -> None:
     event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
