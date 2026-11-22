@@ -109,6 +109,26 @@ async def test_handle_request_http_2(stream: HTTPStream) -> None:
 
 
 @pytest.mark.asyncio
+async def test_handle_request_http_3(stream: HTTPStream) -> None:
+    await stream.handle(
+        Request(
+            stream_id=0,
+            http_version="3",
+            headers=[],
+            raw_path=b"/?a=b",
+            method="GET",
+            state=ConnectionState({}),
+        )
+    )
+    stream.task_group.spawn_app.assert_called()  # type: ignore
+    scope = stream.task_group.spawn_app.call_args[0][2]  # type: ignore
+    assert scope["extensions"] == {
+        "http.response.trailers": {},
+        "http.response.early_hint": {},
+    }
+
+
+@pytest.mark.asyncio
 async def test_handle_body(stream: HTTPStream) -> None:
     await stream.handle(Body(stream_id=1, data=b"data"))
     stream.app_put.assert_called()  # type: ignore
