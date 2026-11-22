@@ -14,11 +14,7 @@ from aioquic.quic.events import (
     ConnectionTerminated,
     ProtocolNegotiated,
 )
-from aioquic.quic.packet import (
-    encode_quic_version_negotiation,
-    PACKET_TYPE_INITIAL,
-    pull_quic_header,
-)
+from aioquic.quic.packet import encode_quic_version_negotiation, pull_quic_header, QuicPacketType
 
 from .h3 import H3Protocol
 from ..config import Config
@@ -64,7 +60,10 @@ class QuicProtocol:
     async def handle(self, event: Event) -> None:
         if isinstance(event, RawData):
             try:
-                header = pull_quic_header(Buffer(data=event.data), host_cid_length=8)
+                header = pull_quic_header(
+                    Buffer(data=event.data),
+                    host_cid_length=self.quic_config.connection_id_length,
+                )
             except ValueError:
                 return
             if (
@@ -83,7 +82,7 @@ class QuicProtocol:
             if (
                 connection is None
                 and len(event.data) >= 1200
-                and header.packet_type == PACKET_TYPE_INITIAL
+                and header.packet_type == QuicPacketType.INITIAL
                 and not self.context.terminated.is_set()
             ):
                 quic_connection = QuicConnection(
