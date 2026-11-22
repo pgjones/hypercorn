@@ -66,8 +66,11 @@ class QuicProtocol:
                 )
             except ValueError:
                 return
+            # A Version Negotiation packet has version 0, which is never
+            # supported, so it must not be answered with another one.
             if (
-                header.version is not None
+                header.packet_type != QuicPacketType.VERSION_NEGOTIATION
+                and header.version is not None
                 and header.version not in self.quic_config.supported_versions
             ):
                 data = encode_quic_version_negotiation(
