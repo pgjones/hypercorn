@@ -32,7 +32,7 @@ from ..utils import (
 )
 
 TRAILERS_VERSIONS = {"2", "3"}
-PUSH_VERSIONS = {"2", "3"}
+PUSH_VERSIONS = {"2"}
 EARLY_HINTS_VERSIONS = {"2", "3"}
 
 
