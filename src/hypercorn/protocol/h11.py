@@ -100,6 +100,7 @@ class H11Protocol:
         )
         self.context = context
         self.keep_alive_requests = 0
+        self._draining = False
         self.send = send
         self.server = server
         self.ssl = ssl
@@ -176,6 +177,9 @@ class H11Protocol:
                     await self.can_read.wait()
                 elif isinstance(event, h11.ConnectionClosed) or event is h11.NEED_DATA:
                     break
+                elif self._draining:
+                    if isinstance(event, h11.EndOfMessage):
+                        await self._maybe_recycle()
                 elif self.stream is None:
                     break
                 elif isinstance(event, h11.Data):
@@ -275,6 +279,7 @@ class H11Protocol:
             and self.connection.our_state is h11.DONE
             and self.connection.their_state is h11.DONE
         ):
+            self._draining = False
             try:
                 self.connection.start_next_cycle()
             except h11.LocalProtocolError:
@@ -284,6 +289,16 @@ class H11Protocol:
                 self.scope = None
                 await self.can_read.set()
                 await self.send(Updated(idle=True))
+        elif (
+            not self.context.terminated.is_set()
+            and self.connection.our_state is h11.DONE
+            and self.connection.their_state is h11.SEND_BODY
+        ):
+            # Finish parsing unread input without delivering it to the completed
+            # application. The keep-alive timeout bounds a client that stops sending.
+            self._draining = True
+            await self.can_read.set()
+            await self.send(Updated(idle=True))
         else:
             await self.can_read.set()
             await self.send(Closed())
