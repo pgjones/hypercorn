@@ -107,3 +107,44 @@ async def test_http1_keep_alive_pipelining(server: TCPServer) -> None:
     await server.writer.receive()  # type: ignore
     await asyncio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     assert not server.writer.is_closed  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_http1_early_response_drain_timeout() -> None:
+    async def early_response(
+        scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable
+    ) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-length", b"0")],
+            }
+        )
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+    config = Config()
+    config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
+    loop = asyncio.get_running_loop()
+    server = TCPServer(
+        ASGIWrapper(early_response),
+        loop,
+        config,
+        WorkerContext(None),
+        {},
+        MemoryReader(),  # type: ignore
+        MemoryWriter(),  # type: ignore
+    )
+    task = loop.create_task(server.run())
+    try:
+        await server.reader.send(  # type: ignore
+            b"POST / HTTP/1.1\r\nHost: hypercorn\r\nContent-Length: 4\r\n\r\n"
+        )
+        await server.writer.receive()  # type: ignore
+        await asyncio.sleep(0)
+        assert not server.writer.is_closed  # type: ignore
+        await asyncio.sleep(2 * KEEP_ALIVE_TIMEOUT)
+        assert server.writer.is_closed  # type: ignore
+    finally:
+        server.reader.close()  # type: ignore
+        await task
