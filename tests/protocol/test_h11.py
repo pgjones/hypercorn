@@ -413,3 +413,104 @@ async def test_protocol_handle_data_post_close(protocol: H11Protocol) -> None:
     assert protocol.stream is None
     # Key is that this doesn't error
     await protocol.handle(RawData(data=b"abcdefghij"))
+
+
+@pytest.mark.asyncio
+async def test_protocol_early_response_drains_request(protocol: H11Protocol) -> None:
+    await protocol.handle(
+        RawData(data=b"POST / HTTP/1.1\r\nHost: hypercorn\r\nContent-Length: 4\r\n\r\n")
+    )
+    stream = protocol.stream
+    await protocol.stream_send(
+        Response(stream_id=1, status_code=401, headers=[(b"content-length", b"0")])
+    )
+    await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.stream_send(StreamClosed(stream_id=1))
+    assert call(Closed()) not in protocol.send.call_args_list  # type: ignore
+    await protocol.handle(RawData(data=b"body"))
+    assert protocol.connection.our_state is h11.IDLE
+    assert protocol.connection.their_state is h11.IDLE
+    assert call(Body(stream_id=1, data=b"body")) not in stream.handle.call_args_list  # type: ignore
+    await protocol.handle(RawData(data=b"GET /next HTTP/1.1\r\nHost: hypercorn\r\n\r\n"))
+    assert protocol.stream is not None
+    assert hypercorn.protocol.h11.HTTPStream.call_count == 2  # type: ignore
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("chunked", [False, True])
+async def test_protocol_early_response_drains_pipelined_input(
+    protocol: H11Protocol, chunked: bool
+) -> None:
+    header = b"Transfer-Encoding: chunked" if chunked else b"Content-Length: 4"
+    await protocol.handle(
+        RawData(data=b"POST / HTTP/1.1\r\nHost: hypercorn\r\n" + header + b"\r\n\r\n")
+    )
+    await protocol.stream_send(
+        Response(stream_id=1, status_code=401, headers=[(b"content-length", b"0")])
+    )
+    await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.stream_send(StreamClosed(stream_id=1))
+    body = b"4\r\nbody\r\n0\r\n\r\n" if chunked else b"body"
+    await protocol.handle(RawData(data=body + b"GET /next HTTP/1.1\r\nHost: hypercorn\r\n\r\n"))
+    assert call(Closed()) not in protocol.send.call_args_list  # type: ignore
+    assert hypercorn.protocol.h11.HTTPStream.call_count == 2  # type: ignore
+    assert protocol.stream.handle.call_args_list[-2] == call(  # type: ignore
+        Request(
+            stream_id=1,
+            headers=[(b"host", b"hypercorn")],
+            http_version="1.1",
+            method="GET",
+            raw_path=b"/next",
+            state=ConnectionState({}),
+        )
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("terminated", [False, True])
+async def test_protocol_early_response_close_requested(
+    protocol: H11Protocol, terminated: bool
+) -> None:
+    protocol.context.terminated.is_set.return_value = terminated  # type: ignore
+    await protocol.handle(
+        RawData(
+            data=(
+                b"POST / HTTP/1.1\r\nHost: hypercorn\r\nConnection: close\r\n"
+                b"Content-Length: 4\r\n\r\n"
+            )
+        )
+    )
+    await protocol.stream_send(
+        Response(stream_id=1, status_code=401, headers=[(b"content-length", b"0")])
+    )
+    await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.stream_send(StreamClosed(stream_id=1))
+    assert protocol.send.call_args_list[-1] == call(Closed())  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_protocol_early_response_during_shutdown(protocol: H11Protocol) -> None:
+    await protocol.handle(
+        RawData(data=b"POST / HTTP/1.1\r\nHost: hypercorn\r\nContent-Length: 4\r\n\r\n")
+    )
+    protocol.context.terminated.is_set.return_value = True  # type: ignore
+    await protocol.stream_send(
+        Response(stream_id=1, status_code=401, headers=[(b"content-length", b"0")])
+    )
+    await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.stream_send(StreamClosed(stream_id=1))
+    assert protocol.send.call_args_list[-1] == call(Closed())  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_protocol_early_response_invalid_chunk(protocol: H11Protocol) -> None:
+    await protocol.handle(
+        RawData(data=b"POST / HTTP/1.1\r\nHost: hypercorn\r\nTransfer-Encoding: chunked\r\n\r\n")
+    )
+    await protocol.stream_send(
+        Response(stream_id=1, status_code=401, headers=[(b"content-length", b"0")])
+    )
+    await protocol.stream_send(EndBody(stream_id=1))
+    await protocol.stream_send(StreamClosed(stream_id=1))
+    await protocol.handle(RawData(data=b"invalid\r\n"))
+    assert protocol.send.call_args_list[-1] == call(Closed())  # type: ignore
