@@ -120,3 +120,35 @@ async def test_http1_keep_alive_pipelining(
     await client_stream.receive_some(2**16)
     await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
     await client_stream.send_all(b"")
+
+
+@pytest.mark.trio
+async def test_http1_early_response_drain_timeout(nursery: trio.Nursery) -> None:
+    async def early_response(
+        scope: Scope,
+        receive: Callable[[], Awaitable[ASGIReceiveEvent]],
+        send: Callable[[ASGISendEvent], Awaitable[None]],
+    ) -> None:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-length", b"0")],
+            }
+        )
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+    config = Config()
+    config.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
+    client_stream, server_stream = trio.testing.memory_stream_pair()
+    server_stream = cast("trio.SSLStream[trio.SocketStream]", server_stream)
+    server_stream.socket = MockSocket()
+    server = TCPServer(ASGIWrapper(early_response), config, WorkerContext(None), {}, server_stream)
+    nursery.start_soon(server.run)
+    await client_stream.send_all(b"POST / HTTP/1.1\r\nHost: hypercorn\r\nContent-Length: 4\r\n\r\n")
+    assert b"200" in await client_stream.receive_some(2**16)
+    await trio.sleep(0)
+    await client_stream.send_all(b"a")
+    await trio.sleep(2 * KEEP_ALIVE_TIMEOUT)
+    with pytest.raises(trio.BrokenResourceError):
+        await client_stream.send_all(b"b")
